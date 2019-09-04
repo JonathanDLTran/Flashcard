@@ -74,8 +74,44 @@ class Deck:
         else:
             newCard.setLast(newCard)
             newCard.setNext(newCard)
+            
+            
+    def create_card_chain(self, questionsList, answer):
+        firstQuestion = questionsList[0]
+        firstCard = self.createCardHelper(firstQuestion, answer)
+        remainingQuestions = questionsList[1:]
+        previousCard = firstCard
+        for question in remainingQuestions:
+            newCard = self.createCardHelper(question, answer)
+            previousCard.addForward(newCard)
+            newCard.addRear(previousCard)
+            previousCard = newCard
+            
+        
+        
+            
+    def text_to_cards(self, processed_text_list):
+        assert type(processed_text_list) == str
+        for qaTuple in processed_text_list:
+            questionsList = qaTuple[0]
+            answer = qaTuple[1]
+            if len(questionsList) == 1:
+                question = questionsList[0]
+                self.createCardHelper(question, answer)
+            else: 
+                self.create_card_chain(questionsList, answer)
+        
+            
+    def createCardHelper(self, question, answer):
+        newCard = Card()
+        newCard.addFront(question)
+        newCard.addBack(answer)
+        self.addCard(newCard)
+        return newCard
+        
         
     def editCard(self, positionNum):
+        # TODO
         pass
     
     def __init__(self, name = None, isRandom = False):
