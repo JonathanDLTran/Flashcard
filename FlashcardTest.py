@@ -94,8 +94,87 @@ def initializeDeck():
     d.removeCard(0)
     assert d.cardList[0] == c4
     d.removeCard(0)
+    assert d.numCards == 0
     assert d.cardList == []
     print("Pass deck")
+    
+def initializeQuestions():
+    print("Initialize questions")
+    d = Deck()
+    assert d.numCards == 0
+    assert d.getCurrentCard() == None
+    assert d.cardList == []
+    qList = [(["this man was imre thokoly.", "Hello this man was imre thokoly."], "IMRE THOKOLY"), (["This hungarian rebel."], "Ferenc Rakoszi")]
+    d.text_to_cards(qList)
+    assert d.numCards == 3
+    c1 = d.getCurrentCard()
+    print(c1)
+    assert c1.getMain() == True
+    c2 = c1.getLast()
+    print(c2)
+    assert c2 is not c1
+    assert c2.getNext() == c1
+    assert c2.getMain() == True
+    c3 = c2.getForward()
+    print(c3)
+    assert c3 is not c2
+    assert c3.getMain() == False
+    assert c3.getRear() == c2
+    
+    assert c3.getFront() == "Hello this man was imre thokoly."
+    assert c3.getBack() == "IMRE THOKOLY"
+    assert c2.getFront() == "this man was imre thokoly."
+    assert c2.getBack() == "IMRE THOKOLY"
+    assert c1.getFront() == "This hungarian rebel."
+    assert c1.getBack() == "Ferenc Rakoszi"
+    
+    assert d.find_main_card(c2) == c2
+    assert d.find_main_card(c1) == c1
+    assert d.find_main_card(c3) == c2
+    
+    d.setCurrentCard(c2)
+    assert d.getCurrentCard() == c2
+    assert d.nextCard() == True
+    assert d.getCurrentCard() == c1
+    
+    d.setCurrentCard(c1)
+    assert d.getCurrentCard() == c1
+    assert d.lastCard() == True
+    assert d.getCurrentCard() == c2
+    
+    # implemented circular linked list
+    
+    d.setCurrentCard(c2)
+    assert d.lastCard() == True
+    assert d.getCurrentCard() == c1
+    assert d.lastCard() == True
+    assert d.getCurrentCard() == c2
+    
+    d.setCurrentCard(c2)
+    assert d.nextCard() == True
+    assert d.getCurrentCard() == c1
+    assert d.nextCard() == True
+    assert d.getCurrentCard() == c2
+    
+    d.setCurrentCard(c2)
+    assert d.forwardCard() == True
+    assert d.getCurrentCard() == c3
+    assert d.forwardCard() == False
+    
+    assert d.rearCard() == True
+    assert d.getCurrentCard() == c2
+    assert d.rearCard() == False
+    
+    d.removeCard(1) # remove c1
+    assert d.numCards == 2
+    assert d.nextCard() == True
+    assert d.getCurrentCard() == c2
+    assert d.lastCard() == True
+    assert d.getCurrentCard() == c2
+    
+    
+    print("Pass questions")
 
 initializeCard()
-initializeDeck()
+initializeDeck
+initializeQuestions()

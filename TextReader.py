@@ -4,6 +4,15 @@
 
 from Constants import *
 
+def textReaderDriver():
+    try:
+        filename = enterFileName()
+        return textReaderController(filename, True)
+    except IOError as e:
+        print("IO ERROR - no such txt file in your current directory - quitting program")
+        
+    
+
 def textReaderController(filename, convertToSentences ):
     """
     Header function, to be used with other modules
@@ -16,7 +25,6 @@ def enterFileName(): # NOT TESTED YET
     result = input("Please enter your file name with '.txt' at the end: ")
     if '.txt' not in result:
         print("No txt extension on file name. ")
-        return False
     return result
 
 def readDocument(filename):
