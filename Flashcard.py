@@ -62,6 +62,30 @@ class Deck:
             return False
         self.setCurrentCard(rearCard)
         return True
+    
+    def frontCard(self):
+        if self.numCards == 0:
+            print("The deck is currently empty.")
+            return False
+        currentCard = self.getCurrentCard()
+        text = currentCard.getFront()
+        print(SEPARATOR)
+        print("This is the front of the card: \n")
+        print(text)
+        print(SEPARATOR)
+        return True
+    
+    def backCard(self):
+        if self.numCards == 0:
+            print("The deck is currently empty.")
+            return False
+        currentCard = self.getCurrentCard()
+        text = currentCard.getBack()
+        print(SEPARATOR)
+        print("This is the back of the card: \n")
+        print(text)
+        print(SEPARATOR)
+        return True
     ####################
     
     def setAsRandom(self):

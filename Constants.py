@@ -9,3 +9,15 @@ SKIP = 'skip'
 QUESTION = 'QUESTION:'
 ANSWER = 'ANSWER:'
 END = 'END'
+
+RATE_SCALE_LIST = [0, 1, 2, 3, 4, 5]
+QUIT = 'quit'
+HELP = 'help'
+CORRECT = 'correct'
+INCORRECT = 'incorrect'
+SKIP = 'skip'
+SPACE = " "
+
+INVALID_COMMAND = "You did not enter a valid command. Trying again. "
+
+SEPARATOR = "###########################"

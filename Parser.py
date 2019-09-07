@@ -1,16 +1,10 @@
-RATE_SCALE_LIST = [0, 1, 2, 3, 4, 5]
-QUIT = 'quit'
-HELP = 'help'
-CORRECT = 'correct'
-INCORRECT = 'incorrect'
-SKIP = 'skip'
-SPACE = " "
-
-INVALID_COMMAND = "You did not enter a valid command. Trying again. "
+from Constants import *
+# TODO: TARGETS: COMMANDS to implement
+#next, last, front, back, forward, rear
+# 
 
 
-def infinite_parser():
-    pass
+
 
 
 def main_parser():
@@ -30,19 +24,19 @@ def determine_singular(command):
 def singular_commands(command):
     singular_command_dict = {"correctness": correct,
                              "rate": rate,
-                             HELP: help,
-                             QUIT: quit}
+                             HELP: help_override,
+                             QUIT: quit_override}
     if command in singular_command_dict:
         return singular_command_dict[command]()
     print(INVALID_COMMAND)
 
 
-def help():
+def help_override():
     print("This is the help module. This project is currently under construction.")
     return HELP
 
 
-def quit():
+def quit_override():
     print("You are quitting this command. You may enter a new command")
     return QUIT
 
