@@ -4,25 +4,6 @@ from Parser import *
 from Flashcard import *
 from Constants import *
 import pickle
-
-def parser_driver(deck):
-    while(True):
-        command = input("Please enter your command: \n")
-        if command == "next":
-            deck.nextCard()
-        elif command == "last":
-            deck.lastCard()
-        elif command == "forward":
-            deck.forwardCard()
-        elif command == "rear":
-            deck.rear()
-        elif command == "front":
-            deck.frontCard()
-        elif command == "back":
-            deck.backCard()
-        elif command == "quit":
-            return
-        
     
 
 if __name__ == '__main__':

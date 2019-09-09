@@ -86,6 +86,57 @@ class Deck:
         print(text)
         print(SEPARATOR)
         return True
+    
+    def mainCard(self):
+        if self.numCards == 0:
+            print("The deck is currently empty.")
+            return False
+        currentCard = self.getCurrentCard()
+        mainCard = self.find_main_card(currentCard)
+        self.setCurrentCard(mainCard)
+        
+    def rateCard(self, rating):
+        if self.numCards == 0:
+            print("The deck is currently empty.")
+            return False
+        currentCard = self.getCurrentCard()
+        currentCard.setRate(rating)
+        return True
+    
+    def getRate(self):
+        if self.numCards == 0:
+            print("The deck is currently empty.")
+            return False
+        currentCard = self.getCurrentCard()
+        ratings = currentCard.getRate()
+        print("These are the ratings for this card: \n")
+        print(ratings)
+        return True
+    
+    def correctCard(self, answer):
+        if self.numCards == 0:
+            print("The deck is currently empty.")
+            return False
+        currentCard = self.getCurrentCard()
+        currentCard.addStatistic(answer)
+        return True
+    
+    def getCorrect(self):
+        if self.numCards == 0:
+            print("The deck is currently empty.")
+            return False
+        currentCard = self.getCurrentCard()
+        currentCard.calculateStatistic()
+        return True
+    
+    def resetCard(self):
+        if self.numCards == 0:
+            print("The deck is currently empty.")
+            return False
+        currentCard = self.getCurrentCard()
+        currentCard.resetStatistic()
+        currentCard.resetRate()
+        return True
     ####################
     
     def setAsRandom(self):
@@ -160,7 +211,7 @@ class Deck:
         newCard = card
         numCards1 = len(self.cardList)
         self.cardList.append(newCard)
-        self.numCards += 1
+        
         if numCards1 == 1:
             firstCard = self.cardList[0]
             newCard.setLast(firstCard)
@@ -168,15 +219,16 @@ class Deck:
             firstCard.setNext(newCard)
             firstCard.setLast(newCard)
         elif numCards1 > 1: #ALREADY MORE THAN ONE CARD IN DECK
-            lastCard = self.cardList[numCards1- 1 - 1] #subtract once more for the new card added
+            lastCard = self.cardList[numCards1 - 1 ] 
             firstCard = self.cardList[0]
             lastCard.setNext(newCard)
             newCard.setLast(lastCard)
             newCard.setNext(firstCard)
             firstCard.setLast(newCard)
-        else:
+        elif numCards1 == 0:
             newCard.setLast(newCard)
             newCard.setNext(newCard)
+        self.numCards += 1
             
             
     def create_card_chain(self, questionsList, answer):
@@ -313,6 +365,9 @@ class Card:
     def getMain(self):
         return self.mainChain
     
+    def getRate(self):
+        return self.rateCard
+    
     def setName(self, name):
         assert type(name) == str
         self.cardName = name
@@ -344,6 +399,14 @@ class Card:
     def setMain(self, main):
         assert type(main) == bool
         self.mainChain = main
+        
+    def setRate(self, rate):
+        assert type(rate) == int
+        self.rateCard.append(rate)
+        
+    def resetRate(self):
+        print("All ratings for this current card are reset. ")
+        self.ratecard = []
 
     """
     Creates a new instance of a flash card 
@@ -385,6 +448,7 @@ class Card:
         
         self.mainChain = main
         
+        self.rateCard = []
         self.statistics = []
         
     def editCard(self, card_face, edits):
