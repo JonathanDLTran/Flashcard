@@ -72,6 +72,7 @@ class Deck:
         print(SEPARATOR)
         print("This is the front of the card: \n")
         print(text)
+        print("\n")
         print(SEPARATOR)
         return True
     
@@ -84,6 +85,7 @@ class Deck:
         print(SEPARATOR)
         print("This is the back of the card: \n")
         print(text)
+        print("\n")
         print(SEPARATOR)
         return True
     
@@ -136,6 +138,16 @@ class Deck:
         currentCard = self.getCurrentCard()
         currentCard.resetStatistic()
         currentCard.resetRate()
+        return True
+    
+    def entireCard(self):
+        if self.numCards == 0:
+            print("The deck is currently empty.")
+            return False
+        currentCard = self.getCurrentCard()
+        mainCard = self.find_main_card(currentCard)
+        rearCard = mainCard.getRear()
+        self.setCurrentCard(rearCard)
         return True
     ####################
     
@@ -237,6 +249,15 @@ class Deck:
         firstCard.setMain(True) # part of main chain of cards
         self.setCurrentCard(firstCard)
         
+        entireQuestion = self.createEntireQuestion(questionsList)
+        newCard = Card()
+        newCard.setFront(entireQuestion)
+        newCard.setBack(answer)
+        firstCard.setRear(newCard)
+        newCard.setForward(firstCard)
+        newCard.setMain(False)
+        self.numCards += 1
+        
         remainingQuestions = questionsList[1:]
         previousCard = firstCard
         for question in remainingQuestions:
@@ -261,10 +282,26 @@ class Deck:
                 newCard = self.createCardHelper(question, answer)
                 newCard.setMain(True) # main chain card
                 self.setCurrentCard(newCard)
+                
+                entireQuestion = self.createEntireQuestion(questionsList)
+                entireCard = Card()
+                entireCard.setFront(entireQuestion)
+                entireCard.setBack(answer)
+                newCard.setRear(entireCard)
+                entireCard.setForward(newCard)
+                entireCard.setMain(False)
+                self.numCards += 1
+                
             else: 
                 self.create_card_chain(questionsList, answer)
                 
-        
+    
+    def createEntireQuestion(self, questionsList):
+        entireQuestion = ""
+        for element in questionsList:
+            entireQuestion += element
+        return entireQuestion
+            
             
     def createCardHelper(self, question, answer):
         newCard = Card()

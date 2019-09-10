@@ -15,12 +15,14 @@ def parser_driver(deck):
             deck.forwardCard()
         elif command == "rear":
             deck.rearCard()
-        elif command == "front":
+        elif command == "front" or command == "question":
             deck.frontCard()
-        elif command == "back":
+        elif command == "back" or command == "answer":
             deck.backCard()
         elif command == "main":
             deck.mainCard()
+        elif command == "entire":
+            deck.entireCard()
         elif command == "rate":
             result = rate_Card()
             if result == QUIT:
