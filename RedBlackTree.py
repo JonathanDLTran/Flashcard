@@ -1,10 +1,15 @@
+
 class RedBlackTree:
     """
-    Invariant: Color: Black is True, Red is False
+    Color Invariant: Color: Black is True, Red is False
+    Class Invariant: The top node of every red back tree is always black,
+    moreover, there are never two white nodes in a row. Finally, the number
+    of black nodes from the root to ANY leaf is always the same
     """
     
-    def __init__(self, value, color = True, left = None, right = None):
+    def __init__(self, value, color = True, parent = None, left = None, right = None):
         self.nodeValue = value
+        self.parentNode = parent
         self.leftTree = left
         self.rightTree = right
         self.nodeColor = color
@@ -30,10 +35,48 @@ class RedBlackTree:
                 newRB = RedBlackTree(value)
                 self.rightTree = newRB
             else:
-                rightNode.binaryInsert(value)
+                rightNode.binaryInsert(value)         
     
+
     def redBlackInsert(self, value):
+        #TODO : implement algorithm
         self.binaryInsert(value)
+        
+        
+    
+    def determineChild(self, node, child):
+        """
+        True if right node is the child, False if left node is the child
+        Requires: Child is one of either the left or right subtrees of node
+        Requires: Node and Child are not None, and node is a parent node of child
+        """
+        return node.rightTree.nodeValue == child
+        
+        
+    def left_rotate(self, centerNode):
+        """
+        Performs a left rotation around the central node 
+        """
+        parent = centerNode.parentNode
+        direction = self.determineChild(parent, centerNode)
+        right = centerNode.rightTree
+        left = centerNode.leftTree
+        rightL = right.leftTree
+        
+        
+        if direction:
+            parent.rightTree = right
+            right.leftTree = left
+            
+            
+            
+        
+        
+        
+
+    def right_rotate(self):
+        pass
+
         
 
 
