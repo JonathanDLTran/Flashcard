@@ -21,3 +21,7 @@ SPACE = " "
 INVALID_COMMAND = "You did not enter a valid command. Trying again. "
 
 SEPARATOR = "###########################"
+
+
+RIGHT = "right"
+LEFT = "left"
