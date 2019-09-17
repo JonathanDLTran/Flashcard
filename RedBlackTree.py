@@ -159,7 +159,7 @@ class RedBlackTree:
                 rightTree.binaryInsert(value)
 
     def redBlackInsert(self, value):
-        # TODO : implement algorithm
+        # TODO : implement algorithm completely and tesr
         node = self.binaryInsert(value)
         direction = node[0]
         tree = node[1]
@@ -197,7 +197,6 @@ class RedBlackTree:
         return self.getRightTree() == child
 
     def left_rotate(self):
-        # TODO: the singular cases
         """
         Performs a left rotation around the root of self
         Requires: self is not None and is redblacktree
