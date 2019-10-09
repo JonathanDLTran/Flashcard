@@ -2,6 +2,10 @@ from Constants import *
 import Flashcard
 
 
+# TODO: Parse tools to clean out the document and insert it into
+# the tree
+
+
 class RedBlackTree:
     """
     Color Invariant: Color: Black is True, Red is False
@@ -157,32 +161,80 @@ class RedBlackTree:
                 return (RIGHT, newRB)
             else:
                 rightTree.binaryInsert(value)
-
+                
+        
+        
     def redBlackInsert(self, value):
-        # TODO : implement algorithm completely and tesr
+        """
+        Inserts an tree into the given redblack tree [self] with node value [value]
+        Invariants: keeps all the invariants of the RedBlackTree [self] true
+        Requires: self must be  non None RedbLackTree
+        """
         node = self.binaryInsert(value)
         direction = node[0]
         tree = node[1]
-        if tree.parentTree.getColor() == False:  # case 1
-            tree.setColor(True)
+        # check if the node follows a black node
+            # change color to white
+            # finished
+        parent = tree.getParent()
+        if parent.getColor():
+            tree.setColor(False)
             return
-
+        # check if the node follows on the left
+            # left rotate
         if direction == LEFT:  # add on left, then need to rotate
             tree.setColor(False)
-            tree.parentTree.setColor(True)
-            self.right_rotate(tree.parentTree)
-        # now step 2 of algorithm
-
-        # make sure that you add the right color to the bottom of the tree
-        # 0 : if add to right, good, else, rotate the offending node upwards, and switch colors
-
-        # 1 : if black note then add on a white node
-        # 2 : if end in a white node, then add on a black node, then rotate the white node up to the black node, and the black node down
-            # check if there are double white lines, and fix
-            # the fix is: change the first offending white to a black node
-            # on the second white node, rotate that white node upwards
-            # if no double whites any more, stop
-            # if no more rotations able to be done, change the uppermost white node to black. The tree is balanced
+            parent.setColor(True)
+            parent.left_rotate()
+        
+        #if the node is top
+            #if top is white, then change it to black
+        # move current node pointer up one node
+        new_parent = tree.getParent()
+        # if no parent
+        if new_parent == None:
+            #if so, then change its color to black and return
+            tree.setColor(True)
+            return
+    
+        balance(tree, new_parent)
+    
+        
+    def balance(tree, child):
+        # is this the top node, e.g. no parent:
+        parent = tree.getParent()
+        
+        # if the current parent up is black, then stop
+        if parent.getColor():
+            return
+        parent_direction = parent.getDirection()
+        child_direction = LEFT if tree.getLeftTree() == child else RIGHT
+        # perform the appropriate rotation upwards
+            # by pattern match against four pattenrs
+        if parent_direction == RIGHT and child_direction == RIGHT:
+            child.setColor(False)
+            parent.right_rotate()
+        if parent_direction == RIGHT and child_direction == LEFT:
+            tree.right_rotate()
+            tree.getLeftTree().setColor(False)
+            parent.left_rotate()
+        if parent_direction == LEFT and child_direction == RIGHT:
+            tree.left_rotate()
+            tree.getRightTree().setColor(False)
+            parent.right_rotate()
+        if parent_direction == LEFT and child_direction == LEFT:
+            child.setColor(False)
+            parent.left_rotate()
+        
+        # move current node pointer up one node
+        new_parent = tree.getParent()
+        # if no parent
+        if new_parent == None:
+            #if so, then change its color to black and return
+            tree.setColor(True)
+            return
+        # recurse again upwards with balance
+        balance(new_parent, tree)
 
     def redBlackDelete(self, value):
         pass
@@ -247,3 +299,24 @@ class RedBlackTree:
         right.addLeftTree(self)
         self.addRightTree(right_left)
         self.addLeftTree(left)
+
+
+    def __eq__(self, tree):
+        rightTree1 = self.getRightTree()
+        leftTree1 = self.getLeftTree()
+        rightTree2 = tree.getRightTree()
+        leftTree2 = tree.getLeftTree()
+        # leaf and not leaf - false
+        if (rightTree1 == None and rightTree2 == None and leftTree1 == None and leftTree2 == None):
+            return True
+        if (rightTree1 == None and rightTree2 != None):
+            return False
+        if (rightTree1 != None and rightTree2 == None):
+            return False
+        if (leftTree1 == None and leftTree2 != None):
+            return False
+        if (leftTree1 != None and leftTree2 == None):
+            return False
+        # not leaf and leaf - false
+        return rightTree1.__eq__(rightTree2) and leftTree1.__eq__(leftTree2)
+        
