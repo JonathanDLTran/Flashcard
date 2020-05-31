@@ -47,10 +47,34 @@ def prLightGray(skk): print("\033[97m {}\033[00m" .format(skk), end="")
 def prBlack(skk): print("\033[98m {}\033[00m" .format(skk), end="")
 
 
-def print_red_on_cyan(x): return cprint(x, 'red', 'on_yellow', end="")
+def print_red_on_yellow(x): return cprint(x, 'red', 'on_yellow', end="")
 
 
-def view():
+def print_black_on_cyan(x): return cprint(
+    x, 'grey', 'on_cyan', attrs=['bold'], end="")
+
+
+def print_black_on_white(x): return cprint(
+    x, 'grey', 'on_white', attrs=['blink', 'reverse'], end="")
+
+
+def help_view():
+    print(CLEAR_SCREEN)
+    print("".center(NCOLS, "-"))
+
+    title = "Help Screen"
+    centered_title = title.center(NCOLS, "*")
+    print(centered_title)
+    print()
+
+    print("".center(NCOLS, "-"))
+
+
+def rear_view():
+    pass
+
+
+def front_view():
     print(CLEAR_SCREEN)
 
     print("".center(NCOLS, "-"))
@@ -58,7 +82,6 @@ def view():
           UP_POINT + int(NCOLS/2 - 1) * " ", end="")
 
     print(LEFT_POINT + int(NCOLS - 2) * " " + RIGHT_POINT, end="")
-    print()
 
     title = "Lambda Calculus"
     centered_title = title.center(NCOLS, "*")
@@ -82,7 +105,7 @@ def view():
     highlighted_text = text.split(SPLIT_SEQUENCE)
     for i in range(len(highlighted_text)):
         if (i == 1):
-            print_red_on_cyan(highlighted_text[i])
+            print_red_on_yellow(highlighted_text[i])
         else:
             prCyan(highlighted_text[i])
     print()
@@ -91,6 +114,13 @@ def view():
           DOWN_POINT + int(NCOLS/2 - 1) * " ", end="")
     print("".center(NCOLS, "-"))
 
+    mode = "[Review Mode]"
+    print_black_on_cyan(mode)
+
+    print(" Your Command >$ ", end="")
+
 
 if __name__ == "__main__":
-    view()
+    front_view()
+    input()
+    # help_view()
