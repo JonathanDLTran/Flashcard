@@ -25,3 +25,15 @@ SEPARATOR = "###########################"
 
 RIGHT = "right"
 LEFT = "left"
+
+################# VIEW RELATED CONSTANTS #############
+
+RIGHT_POINT = "\u261E"
+LEFT_POINT = "\u261C"
+UP_POINT = "\u261D"
+DOWN_POINT = "\u261F"
+
+CLEAR_SCREEN = "\033c"
+
+NROWS = 24
+NCOLS = 80
