@@ -37,3 +37,5 @@ CLEAR_SCREEN = "\033c"
 
 NROWS = 24
 NCOLS = 80
+
+SPLIT_SEQUENCE = "$$$!!!$$$"
