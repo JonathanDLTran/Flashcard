@@ -92,6 +92,10 @@ def front_view():
     ctd_stars = stars.center(NCOLS)
     print(ctd_stars)
 
+    category = HISTORY + " " + HISTORY + " " + HISTORY
+    ctd_category = category.center(NCOLS)
+    print(ctd_category)
+
     diff = "Card: Main"
     ctd_diff = diff.center(NCOLS)
     print(ctd_diff)
