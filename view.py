@@ -85,8 +85,6 @@ def view():
             print_red_on_cyan(highlighted_text[i])
         else:
             prCyan(highlighted_text[i])
-            # centered_text = text.center(NCOLS)
-            # prCyan(centered_text)
     print()
 
     print(int(NCOLS/2 - 1) * " " + " " +
