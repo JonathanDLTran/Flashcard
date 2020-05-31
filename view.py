@@ -7,6 +7,7 @@ import os
 import sys
 from colorama import init
 from termcolor import colored, cprint
+import readline
 from Constants import *
 
 # https://stackoverflow.com/questions/2084508/clear-terminal-in-python
@@ -86,7 +87,10 @@ def front_view():
     title = "Lambda Calculus"
     centered_title = title.center(NCOLS, "*")
     print(centered_title)
-    print()
+
+    stars = "Star Value : " + STAR + STAR + STAR
+    ctd_stars = stars.center(NCOLS)
+    print(ctd_stars)
 
     diff = "Card: Main"
     ctd_diff = diff.center(NCOLS)
@@ -98,7 +102,7 @@ def front_view():
         "asdfasdfasdfasdfsadfasdfasdfsdfsfsdosfafafasfgsdgasdfasdfasdfasdfasdfsadf" \
         "asdfasdfsdfsfsdosfafafasfgsdgasdfasdfasdfasdfasdfsadfasdfasdfsdfsfsdosfaf" \
         "afasfgsdgasdfasdfasdfasdfasdfsadfasdfasdfsdfsfsdosfafafasfgsdgasdfasdfasdfas" \
-        "dfasdfsadfasdfasdfsdfsfsdosfafafasfgsdgasdfasdfasdfasdfasdfsadfasdfasdfsdfs "\
+        "dfasdfsadfasdfasdfsdfsfsdosfafafasfgsdgasdfasdfasdfasdfasdfsadfasdfasdfsdfs " \
         "fsdosfafafasfgsdgasdfasdfasdfasdfasdfsadfasdfasdfsdfsfsdosfafafasfgsdgasdfa" \
         "sdfasdfasdfasdfsadfasdfasdfsdfsfsd"
 
