@@ -132,7 +132,7 @@ def help_view():
     print(" Your Command >$ ", end="")
 
 
-def test_textpad(stdscr, insert_mode=False):
+def test_textpad(stdscr, insert_mode=True):
     ncols, nlines = NCOLS - 4, NROWS - 6
     uly, ulx = 3, 2
     if insert_mode:
@@ -144,11 +144,13 @@ def test_textpad(stdscr, insert_mode=False):
     stdscr.addstr(
         uly-2, ulx, "Be sure to try typing in the lower-right corner.")
     win = curses.newwin(nlines, ncols, uly, ulx)
+    win.addstr(uly + 2, ulx, "TO BE REPLACED HERE: LOLOLOL: ")
     textpad.rectangle(stdscr, uly-1, ulx-1, uly + nlines, ulx + ncols)
     stdscr.refresh()
 
-    print("lol")
     box = textpad.Textbox(win, insert_mode)
+
+    # textpad.str(uly + 2, ulx, "TO BE REPLACED HERE: LOLOLOL: ")
     contents = box.edit()
     stdscr.addstr(uly+ncols+2, 0, "Text entered in the box\n")
     stdscr.addstr(repr(contents))
@@ -156,7 +158,6 @@ def test_textpad(stdscr, insert_mode=False):
     stdscr.addstr('Press any key')
     stdscr.getch()
 
-    print("lol")
     for i in range(3):
         stdscr.move(uly+ncols+2 + i, 0)
         stdscr.clrtoeol()
@@ -166,8 +167,7 @@ def edit_view():
     try:
         # -- Initialize --
         stdscr = curses.initscr()   # initialize curses screen
-        # curses.start_color()
-        # curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_RED)
+
         curses.noecho()             # turn off auto echoing of keypress on to screen
         curses.cbreak()             # enter break mode where pressing Enter key
         #  after keystroke is not required for it to register
@@ -175,28 +175,8 @@ def edit_view():
         stdscr.keypad(1)
 
         # -- Perform an action with Screen --
-        stdscr.border(0)
-        # stdscr.addstr(5, 5, 'Hello from Curses!', curses.A_BOLD)
-        # stdscr.addstr(6, 5, 'Press q to close this screen', curses.A_NORMAL)
-
-        # textbox = curses.textpad.Textbox(stdscr)
-        # textbox.edit()
-
-        # text = (SPLIT_SEQUENCE + "LOL!!!" + SPLIT_SEQUENCE +
-        #         ";osfafafasfgsdgasdfasdfasdfasdfasdfsadfasdfasdfsdfsfsdosfafafasfgsdgasdf" +
-        #         "asdfasdfasdfasdfsadfasdfasdfsdfsfsdosfafafasfgsdgasdfasdfasdfasdfasdfsadf" +
-        #         "asdfasdfsdfsfsdosfafafasfgsdgasdfasdfasdfasdfasdfsadfasdfasdfsdfsfsdosfaf" +
-        #         "afasfgsdgasdfasdfasdfasdfasdfsadfasdfasdfsdfsfsdosfafafasfgsdgasdfasdfasdfas" +
-        #         "dfasdfsadfasdfasdfsdfsfsdosfafafasfgsdgasdfasdfasdfasdfasdfsadfasdfasdfsdfs" +
-        #         "fsdosfafafasfgsdgasdfasdfasdfasdfasdfsadfasdfasdfsdfsfsdosfafafasfgsdgasdfa" +
-        #         "sdfasdfasdfasdfsadfasdfasdfsdfsfsd").center((NCOLS - 8))
-        # stdscr.addstr(7, 5, text, curses.A_NORMAL)
 
         test_textpad(stdscr, insert_mode=False)
-        print("hello")
-
-        # stdscr.addstr(NROWS - 2, 5, "[Edit Mode]",
-        #               curses.A_BOLD, curses.color_pair(1))
 
         while True:
             # stay in this loop till the user presses 'q'
@@ -217,12 +197,11 @@ def edit_view():
         curses.endwin()
 
 
-def edit_view():
+def edit_view2():
     try:
         # -- Initialize --
         stdscr = curses.initscr()   # initialize curses screen
-        # curses.start_color()
-        # curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_RED)
+
         curses.noecho()             # turn off auto echoing of keypress on to screen
         curses.cbreak()             # enter break mode where pressing Enter key
         #  after keystroke is not required for it to register
@@ -231,27 +210,20 @@ def edit_view():
 
         # -- Perform an action with Screen --
         stdscr.border(0)
-        # stdscr.addstr(5, 5, 'Hello from Curses!', curses.A_BOLD)
-        # stdscr.addstr(6, 5, 'Press q to close this screen', curses.A_NORMAL)
+        stdscr.addstr(5, 5, 'Hello from Curses!', curses.A_BOLD)
+        stdscr.addstr(6, 5, 'Press q to close this screen', curses.A_NORMAL)
 
-        # textbox = curses.textpad.Textbox(stdscr)
-        # textbox.edit()
-
-        # text = (SPLIT_SEQUENCE + "LOL!!!" + SPLIT_SEQUENCE +
-        #         ";osfafafasfgsdgasdfasdfasdfasdfasdfsadfasdfasdfsdfsfsdosfafafasfgsdgasdf" +
-        #         "asdfasdfasdfasdfsadfasdfasdfsdfsfsdosfafafasfgsdgasdfasdfasdfasdfasdfsadf" +
-        #         "asdfasdfsdfsfsdosfafafasfgsdgasdfasdfasdfasdfasdfsadfasdfasdfsdfsfsdosfaf" +
-        #         "afasfgsdgasdfasdfasdfasdfasdfsadfasdfasdfsdfsfsdosfafafasfgsdgasdfasdfasdfas" +
-        #         "dfasdfsadfasdfasdfsdfsfsdosfafafasfgsdgasdfasdfasdfasdfasdfsadfasdfasdfsdfs" +
-        #         "fsdosfafafasfgsdgasdfasdfasdfasdfasdfsadfasdfasdfsdfsfsdosfafafasfgsdgasdfa" +
-        #         "sdfasdfasdfasdfsadfasdfasdfsdfsfsd").center((NCOLS - 8))
-        # stdscr.addstr(7, 5, text, curses.A_NORMAL)
+        text = (SPLIT_SEQUENCE + "LOL!!!" + SPLIT_SEQUENCE +
+                ";osfafafasfgsdgasdfasdfasdfasdfasdfsadfasdfasdfsdfsfsdosfafafasfgsdgasdf" +
+                "asdfasdfasdfasdfsadfasdfasdfsdfsfsdosfafafasfgsdgasdfasdfasdfasdfasdfsadf" +
+                "asdfasdfsdfsfsdosfafafasfgsdgasdfasdfasdfasdfasdfsadfasdfasdfsdfsfsdosfaf" +
+                "afasfgsdgasdfasdfasdfasdfasdfsadfasdfasdfsdfsfsdosfafafasfgsdgasdfasdfasdfas" +
+                "dfasdfsadfasdfasdfsdfsfsdosfafafasfgsdgasdfasdfasdfasdfasdfsadfasdfasdfsdfs" +
+                "fsdosfafafasfgsdgasdfasdfasdfasdfasdfsadfasdfasdfsdfsfsdosfafafasfgsdgasdfa" +
+                "sdfasdfasdfasdfsadfasdfasdfsdfsfsd").center((NCOLS - 8))
+        stdscr.addstr(7, 5, text, curses.A_NORMAL)
 
         test_textpad(stdscr, insert_mode=False)
-        print("hello")
-
-        # stdscr.addstr(NROWS - 2, 5, "[Edit Mode]",
-        #               curses.A_BOLD, curses.color_pair(1))
 
         while True:
             # stay in this loop till the user presses 'q'
