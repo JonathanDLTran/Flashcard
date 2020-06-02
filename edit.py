@@ -189,16 +189,16 @@ class Screen:
         self.buffer = str_list
         self.h = h
         self.w = w
-        self.ulx = ulx
-        self.uly = uly
-        self.cursor = (ulx, uly)  # cursor = (0, 0)??
-        self.screen_cursor = (ulx, uly)
-        self.camera_level = uly
+        self.ulx = ulx - ulx
+        self.uly = uly - uly
+        self.cursor = (0, 0)  # (ulx, uly)  # cursor = (0, 0)??
+        self.screen_cursor = (0, 0)  # (ulx, uly)
+        self.camera_level = 0  # uly
 
     def update_screen(self, op, c):
         """
         update_screen(self, op) updates the screen based on op,
-        wjich is the ascii code for the key pressed
+        which is the ascii code for the key pressed
         c is the corresponding character
 
         e.g. Backspace or BS is ascii 08
@@ -255,7 +255,7 @@ class Screen:
         REQUIRES: MUST BE CALLED ONLY AFTER change_camera is called
         so that the y coordinate is in camera frame
         """
-        _, y = self.cursor
+        x, y = self.cursor
         top = self.camera_level
         bottom = top + self.h - 1
         assert y >= top
@@ -486,26 +486,31 @@ def view_textbox(stdscr, insert_mode=True):
     while True:
         op = stdscr.getch()
         c = chr(op)
-        # for s in str_list:
-        #     stdscr.addstr(s)
-        #     stdscr.move(uly, ulx)
 
-        if op == Constants.RIGHT:
-            if ulx < ncols:
-                ulx += 1
-            stdscr.move(uly, ulx)
-        elif op == Constants.LEFT:
-            if ulx > 0:
-                ulx -= 1
-            stdscr.move(uly, ulx)
-        elif op == Constants.UP:
-            if uly > 0:
-                uly -= 1
-            stdscr.move(uly, ulx)
-        elif op == Constants.DOWN:
-            if uly < nlines:
-                uly += 1
-            stdscr.move(uly, ulx)
+        try:
+            screen.update_screen(op, c)
+            x, y = screen.screen_cursor
+            stdscr.move(uly + y, ulx + x)
+
+        except:
+            traceback.print_exc()
+
+        # if op == Constants.RIGHT:
+        #     if ulx < ncols:
+        #         ulx += 1
+        #     stdscr.move(uly, ulx)
+        # elif op == Constants.LEFT:
+        #     if ulx > 0:
+        #         ulx -= 1
+        #     stdscr.move(uly, ulx)
+        # elif op == Constants.UP:
+        #     if uly > 0:
+        #         uly -= 1
+        #     stdscr.move(uly, ulx)
+        # elif op == Constants.DOWN:
+        #     if uly < nlines:
+        #         uly += 1
+        #     stdscr.move(uly, ulx)
         stdscr.refresh()
 
     # box = textpad.Textbox(win, insert_mode)
