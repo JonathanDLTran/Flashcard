@@ -2,11 +2,11 @@ import Constants
 
 """
 edit.py provides the data structures and associated
-functions to edit 
+functions to edit
 
 Essentially functions as a mini text editor
 Meant to be used as a plug in addition to the flash card system as an
-an editor to fix up cards and cards, as well as to add user notes 
+an editor to fix up cards and cards, as well as to add user notes
 
 Opertions:
 Planned:
@@ -40,16 +40,14 @@ in length, the data is sent is sent to the next line instead
 """
 
 
-"""
-split_text(text) splits text into a list of strings satisfying the Representation
-Invariant
-
-PROPERTY: INverse of Join text
-REQUIRES: Split text to initialize string buffer list data structure
-"""
-
-
 def split_text(text):
+    """
+    split_text(text) splits text into a list of strings satisfying the Representation
+    Invariant
+
+    PROPERTY: INverse of Join text
+    REQUIRES: Split text to initialize string buffer list data structure
+    """
     def split_text_helper(text, str_list):
         l = len(text)
         if l <= Constants.LINE_LENGTH:
@@ -69,17 +67,15 @@ def split_text(text):
     return split_text_helper(text, [])
 
 
-"""
-split_at_newline(text, str_list) splits text into constituent strings in
-a list separated by \n or \r
-
-If text is empty, returns empty list
-
-REQUIRES: text has less than or equal to 80 characters including all \n and \r
-"""
-
-
 def split_at_newline(text, str_list):
+    """
+    split_at_newline(text, str_list) splits text into constituent strings in
+    a list separated by \n or \r
+
+    If text is empty, returns empty list
+
+    REQUIRES: text has less than or equal to 80 characters including all \n and \r
+    """
     if text == "":
         return str_list
 
@@ -132,14 +128,12 @@ l = split_text(
 print(l)
 
 
-"""
-join_text(text) joins list of strings into a string of text
-
-PROPERTY: INverse of split_text
-"""
-
-
 def join_text(str_list):
+    """
+    join_text(text) joins list of strings into a string of text
+
+    PROPERTY: INverse of split_text
+    """
     return "".join(str_list)
 
 
@@ -147,15 +141,40 @@ l = join_text(l)
 print(l)
 
 
-def shift_lines(str_list):
-    pass
-
-
 def insert(c, x, y, str_list):
+    """
+    insert(c, x, y, str_list) inserts a character c at the yth row from the top and the xth
+    character from the left in that row, given the rows in str_list
+    and returns the new formatted string buffer list
+
+    REQUIRES: X and Y are valid coordinates in the str_list
+    """
     s = str_list[y]
     l_s = len(s)
 
     s_new = s[0: x] + str(c) + s[x: l_s]
+    str_list[y] = s_new
+
+    new_text = join_text(str_list)
+    new_str_list = split_text(new_text)
+    return new_str_list
+
+
+def delete(x, y, str_list):
+    """
+    delete(x, y, str_list) deletes the character at the yth row from the top and the xth
+    character from the left in that row, given the rows in str_list
+    and returns the new formatted string buffer list.
+
+    If str_list is empty, will act as NOP, no action
+
+    REQUIRES: X and Y are valid coordinates in the str_list
+    """
+    if str_list == []:
+        return str_list
+
+    s = str_list[y]
+    s_new = s[0: x] + s[(x + 1):]
     str_list[y] = s_new
 
     new_text = join_text(str_list)
@@ -196,4 +215,18 @@ print(l)
 l = split_text(
     "LOLOL")
 l = insert("\r", 2, 0, l)
+print(l)
+
+s = "HelloHelloHelloHelloHelloHelloHelloHelloHello"
+l = split_text(s)
+print(l)
+for i in range(len(s) - 1, -1, -1):
+    l = delete(i, 0, l)
+print(l)
+
+s = "HelloHello\nHell\roHelloHelloHelloHelloHelloHello"
+l = split_text(s)
+l = delete(10, 0, l)
+print(l)
+l = delete(14, 0, l)
 print(l)
