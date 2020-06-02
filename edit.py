@@ -236,6 +236,8 @@ class Screen:
     """
     Screen is an object representing the editing screen.
     str_list is the list of string buffers
+    camera_level is the row in the str_list that marks the top of the editing
+        box
     h is the height of the screen [h >= 0]
     w is the width of the screen [w >= 0]
     ulx is upper left x coordinate
@@ -245,6 +247,11 @@ class Screen:
     w > Cursor.x >= 0
     and
     h > Cursor.y >= 0
+    Can only animate portion of camera from camera_level to 
+    camera_level + h - 1, inclusive of both first and last lines
+
+    IMPORTANT: the screen y coordinate is always between camera_level
+        and camera_level  + h  - 1 inclusive
 
     TO BE USED IN A STRUCT MANNER
 
@@ -266,7 +273,74 @@ class Screen:
         self.w = w
         self.ulx = ulx
         self.uly = uly
-        self.cursor = cursor
+        self.cursor = (ulx, uly)  # cursor = (0, 0)??
+        self.screen_cursor = (ulx, uly)
+        self.camera_level = uly
+
+    def update_screen(self, op):
+        # update cursor
+        if op == Constants.UP:
+            self.scroll_up()
+        elif op == Constants.DOWN:
+            self.scroll_down()
+        elif op == Constants.RIGHT:
+            self.scroll_right()
+        elif op == Constants.LEFT:
+            self.scroll_left()
+
+        # update camera
+        self.change_camera
+
+        # update screen cursor
+        self.change_screen_cursor()
+
+    def change_screen_cursor(self):
+        """
+        change_screen_cursor(self) converts the cursor x y coordinate
+        to a screen display x y coordinate
+
+        E.g. the y coordinate is always between camera_level
+        and camera_level  + h  - 1 inclusive
+
+        REQUIRES: MUST BE CALLED ONLY AFTER change_camera is called
+        so that the y coordinate is in camera frame
+        """
+        _, y = self.cursor
+        top = self.camera_level
+        bottom = top + self.h - 1
+        assert y >= top
+        assert y <= bottom
+
+        screen_y = y - top
+
+        self.screen_cursor = (x, screen_y)
+
+    def change_camera(self):
+        """
+        change_camera(self) makes the top of the editing screen
+        the y coordinate of the cursor whenever the y_coordinate
+        of the str_list cursor drops below the actual screen camera
+
+        REQUIRES: Call change_camera after cursor was moved
+        """
+        _, y = self.cursor
+        screen_top = self.camera_level
+        screen_bottom = self.camera_level + self.h - 1
+
+        # leave camera screen by scrolling up
+        if y < screen_top:
+            # never go up beyond actual top
+            self.camera_level = max(self.camera_level - self.h, self.uly)
+            return
+
+        # leave camera sceeen by scrolling down
+        if y > screen_bottom:
+            # shift camera down
+            self.camera_level = self.camera_level + self.h
+            return
+
+        # NOP
+        return
 
     def scroll_up(self):
         """

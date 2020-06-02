@@ -58,4 +58,10 @@ LITERATURE = "\u204B"
 
 DELETE = "\u2620"
 
+######### KEY PRESSES ##########
+UP = 24
+DOWN = 25
+RIGHT = 26
+LEFT = 27
+
 LINE_LENGTH = 80
