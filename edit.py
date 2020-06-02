@@ -177,3 +177,23 @@ l = split_text(
     "LOLOL")
 l = insert("K", 5, 0, l)
 print(l)
+
+l = split_text(
+    "LOLOL")
+l = insert("\n", 1, 0, l)
+print(l)
+
+l = split_text(
+    "LOLOL")
+l = insert("\r", 0, 0, l)
+print(l)
+
+l = split_text(
+    "LOLOL")
+l = insert("\r", 5, 0, l)
+print(l)
+
+l = split_text(
+    "LOLOL")
+l = insert("\r", 2, 0, l)
+print(l)
