@@ -235,25 +235,210 @@ print(l)
 class Screen:
     """
     Screen is an object representing the editing screen.
+    str_list is the list of string buffers
     h is the height of the screen [h >= 0]
     w is the width of the screen [w >= 0]
-    ulx is upper left x coordinate 
+    ulx is upper left x coordinate
     uly is upper left y coordinate
     cursor is a tuple containing an x - y pair of where the mouse
     is in:
     w > Cursor.x >= 0
-    and 
+    and
     h > Cursor.y >= 0
 
     TO BE USED IN A STRUCT MANNER
+
+    DIRECTION: X increases left yo right
+    Y increases top down
+
+    DISPLAY:
     """
 
-    def __init__(self, h=Constants.NROWS, w=Constants.NCOLS, ulx=0, uly=0, cursor=(0, 0)):
+    def __init__(self, str_list, h=Constants.NROWS, w=Constants.NCOLS, ulx=0, uly=0, cursor=(0, 0)):
         """
         Initializes a screen object for use as a struct
+
+        DIRECTION: X increases left yo right
+        Y increases top down
         """
+        self.buffer = str_list
         self.h = h
         self.w = w
         self.ulx = ulx
         self.uly = uly
         self.cursor = cursor
+
+    def scroll_up(self):
+        """
+        Decreases cursor y coordinate by 1 if possible (MOVES UP ONE ROW)
+        NOP if the cursor y is at the top row (e.g. equal to 0)
+
+        Updates self
+
+        REQUIRES: the Y coordinate was actually on a text element
+        """
+        if self.buffer == []:
+            return
+
+        x, y = self.cursor
+
+        # top most row
+        if y == 0:
+            return
+
+        buffer = self.buffer
+        s = buffer[y - 1]
+        l = len(s)
+
+        # if x coordinate in current row is not existent in next row up
+        if x >= l:
+            self.cursor = (l - 1, y - 1)
+            return
+
+        # x coordinate exists in next row up
+        self.cursor = (x, y - 1)
+
+    def scroll_down(self):
+        """
+        Increases cursor y coordinate by 1 if possible (MOVES DOWN ONE ROW)
+        NOP if there is no additional row of text below
+
+        Updates self
+
+        REQUIRES: the Y coordinate was actually on a text element
+        """
+        if self.buffer == []:
+            return
+
+        x, y = self.cursor
+        buffer = self.buffer
+
+        if y == len(buffer) - 1:
+            return
+
+        s = buffer[y + 1]
+        l = len(s)
+
+        # if x coordinate in current row is not existent in next row down
+        if x >= l:
+            self.cursor = (l - 1, y + 1)
+            return
+
+        # x coordinate exists in next row down
+        self.cursor = (x, y + 1)
+
+    def scroll_left(self):
+        """
+        Decreases cursor x coordinate by 1 if possible (MOVES LEFT ONE COLUMN)
+        NOP if there is no additional COLUMN of text to the left
+        NOP if at left column border
+
+        Updates self
+
+        REQUIRES: the X coordinate was actually on a text element
+        """
+        if self.buffer == []:
+            return
+
+        x, y = self.cursor
+
+        # if x is at the left border nop
+        if x == 0:
+            return
+
+        # update
+        self.cursor = (x - 1, y)
+
+    def scroll_right(self):
+        """
+        Increases cursor x coordinate by 1 if possible (MOVES RIGHT ONE COLUMN)
+        NOP if there is no additional COLUMN of text to the right
+
+        Updates self
+
+        REQUIRES: the X coordinate was actually on a text element
+        """
+        if self.buffer == []:
+            return
+
+        x, y = self.cursor
+        buffer = self.buffer
+        s = buffer[y]
+        l = len(s)
+        # check no more characters to the right or right boundary reached
+        if (x == Constants.LINE_LENGTH - 1) or x == (l - 1):
+            return
+
+        # update
+        self.cursor = (x + 1, y)
+
+    def scroll_top(self):
+        """
+        Decreases cursor y coordinate by to start of rows
+
+        Updates self
+
+        REQUIRES: the Y coordinate was actually on a text element
+        """
+        if self.buffer == []:
+            return
+
+        x, _ = self.cursor
+
+        buffer = self.buffer
+        s = buffer[0]
+        l = len(s)
+
+        if x >= l:
+            self.cursor = (l - 1, 0)
+            return
+
+        self.cursor = (x, 0)
+
+    def scroll_bottom(self):
+        if self.buffer == []:
+            return
+
+        x, _ = self.cursor
+
+        buffer = self.buffer
+        bottom = len(buffer) - 1
+        s = buffer[bottom]
+        l = len(s)
+
+        if x >= l:
+            self.cursor = (l - 1, bottom)
+            return
+
+        self.cursor = (x, bottom)
+
+    def scroll_far_left(self):
+        """
+        Decreases cursor x coordinate by to start of column 
+
+        Updates self
+
+        REQUIRES: the X coordinate was actually on a text element
+        """
+        if self.buffer == []:
+            return
+
+        _, y = self.cursor
+        self.cursor = (0, y)
+
+    def scroll_far_right(self):
+        """
+        Increases cursor x coordinate by to end of column 
+
+        Updates self
+
+        REQUIRES: the X coordinate was actually on a text element
+        """
+        if self.buffer == []:
+            return
+
+        _, y = self.cursor
+        buffer = self.buffer
+        s = buffer[y]
+        l = len(s)
+        self.cursor = (l - 1, y)
