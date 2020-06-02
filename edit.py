@@ -230,3 +230,30 @@ l = delete(10, 0, l)
 print(l)
 l = delete(14, 0, l)
 print(l)
+
+
+class Screen:
+    """
+    Screen is an object representing the editing screen.
+    h is the height of the screen [h >= 0]
+    w is the width of the screen [w >= 0]
+    ulx is upper left x coordinate 
+    uly is upper left y coordinate
+    cursor is a tuple containing an x - y pair of where the mouse
+    is in:
+    w > Cursor.x >= 0
+    and 
+    h > Cursor.y >= 0
+
+    TO BE USED IN A STRUCT MANNER
+    """
+
+    def __init__(self, h=Constants.NROWS, w=Constants.NCOLS, ulx=0, uly=0, cursor=(0, 0)):
+        """
+        Initializes a screen object for use as a struct
+        """
+        self.h = h
+        self.w = w
+        self.ulx = ulx
+        self.uly = uly
+        self.cursor = cursor
