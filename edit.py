@@ -1,5 +1,6 @@
 import Constants
 import curses
+import traceback
 from curses import textpad
 
 """
@@ -102,6 +103,9 @@ def join_text(str_list):
 
     PROPERTY: INverse of split_text
     """
+    l = len(str_list)
+    if (str_list[l - 1] == " "):
+        str_list = str_list[:(l - 1)]
     return "".join(str_list)
 
 
@@ -220,7 +224,7 @@ class Screen:
                 self.cursor = (0, max(y - 1, 0))
             self.buffer = new_str_list
         # insert newline/carriage return
-        elif op == Constants.NEXTLINE:
+        elif op == Constants.RETURN:
             x, y = self.cursor
             str_list = self.buffer
             new_str_list = insert("\n", x, y, str_list)
@@ -434,7 +438,7 @@ class Screen:
 
     def scroll_far_left(self):
         """
-        Decreases cursor x coordinate by to start of column 
+        Decreases cursor x coordinate by to start of column
 
         Updates self
 
@@ -448,7 +452,7 @@ class Screen:
 
     def scroll_far_right(self):
         """
-        Increases cursor x coordinate by to end of column 
+        Increases cursor x coordinate by to end of column
 
         Updates self
 
@@ -464,8 +468,89 @@ class Screen:
         self.cursor = (l - 1, y)
 
 
+def view_textbox(stdscr, insert_mode=True):
+    ncols, nlines = Constants.LINE_LENGTH, Constants.NUM_LINES
+    uly, ulx = 2, 2
+
+    text = "Hello World!"
+    str_list = split_text(text)
+
+    screen = Screen(str_list, nlines, ncols, ulx, uly, (0, 0))
+
+    textpad.rectangle(stdscr, uly-1, ulx-1, uly + nlines + 2, ulx + ncols + 2)
+    stdscr.move(uly, ulx)
+    stdscr.addstr(text)
+    stdscr.move(uly, ulx)
+    stdscr.refresh()
+
+    while True:
+        op = stdscr.getch()
+        c = chr(op)
+        # for s in str_list:
+        #     stdscr.addstr(s)
+        #     stdscr.move(uly, ulx)
+
+        if op == Constants.RIGHT:
+            if ulx < ncols:
+                ulx += 1
+            stdscr.move(uly, ulx)
+        elif op == Constants.LEFT:
+            if ulx > 0:
+                ulx -= 1
+            stdscr.move(uly, ulx)
+        elif op == Constants.UP:
+            if uly > 0:
+                uly -= 1
+            stdscr.move(uly, ulx)
+        elif op == Constants.DOWN:
+            if uly < nlines:
+                uly += 1
+            stdscr.move(uly, ulx)
+        stdscr.refresh()
+
+    # box = textpad.Textbox(win, insert_mode)
+
+    # contents = box.edit()
+    # stdscr.addstr(uly+ncols+2, 0, "Text entered in the box\n")
+    # stdscr.addstr(repr(contents))
+    # stdscr.addstr('\n')
+    # stdscr.addstr('Press any key')
+    # stdscr.getch()
+
+    # for i in range(3):
+    #     stdscr.move(uly+ncols+2 + i, 0)
+    #     stdscr.clrtoeol()
+
+
 def view():
-    pass
+    try:
+        # -- Initialize --
+        stdscr = curses.initscr()   # initialize curses screen
+
+        curses.noecho()
+        curses.cbreak()             # enter break mode where pressing Enter key
+        stdscr.keypad(1)
+
+        # -- Perform an action with Screen --
+
+        view_textbox(stdscr, insert_mode=False)
+
+        while True:
+            # stay in this loop till the user presses 'q'
+            ch = stdscr.getch()
+            if ch == ord('q'):
+                break
+
+        # -- End of user code --
+
+    except:
+        traceback.print_exc()     # print trace back log of the error
+    finally:
+        # --- Cleanup on exit ---
+        stdscr.keypad(0)
+        curses.echo()
+        curses.nocbreak()
+        curses.endwin()
 
 
 if __name__ == "__main__":
@@ -558,3 +643,5 @@ if __name__ == "__main__":
 
         l = join_text(l)
         print(l)
+
+    view()
