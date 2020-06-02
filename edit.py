@@ -1,4 +1,6 @@
 import Constants
+import curses
+from curses import textpad
 
 """
 edit.py provides the data structures and associated
@@ -40,6 +42,10 @@ in length, the data is sent is sent to the next line instead
 """
 
 
+def add_space_at_end(str_list):
+    return str_list + [" "]
+
+
 def split_text(text):
     """
     split_text(text) splits text into a list of strings satisfying the Representation
@@ -64,7 +70,7 @@ def split_text(text):
                 return split_text_helper(second_half, str_list + [first_half])
             i += 1
 
-    return split_text_helper(text, [])
+    return add_space_at_end(split_text_helper(text, []))
 
 
 def split_at_newline(text, str_list):
@@ -90,44 +96,6 @@ def split_at_newline(text, str_list):
     return str_list + [text]
 
 
-l = split_at_newline("Hello\nReady to go \r LOLOL\r", [])
-print(l)
-l = split_at_newline("Hello\n \r ", [])
-print(l)
-l = split_at_newline("\r\r", [])
-print(l)
-l = split_at_newline("\r", [])
-print(l)
-l = split_at_newline("", [])
-print(l)
-l = split_at_newline("H", [])
-print(l)
-
-l = split_text("Hello\nReady to go \r LOLOL\r")
-print(l)
-l = split_text("Hello\n \r ")
-print(l)
-l = split_text("\r\r")
-print(l)
-l = split_text("\r")
-print(l)
-l = split_text("")
-print(l)
-l = split_text("H")
-print(l)
-
-
-l = split_text(
-    "HelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHello")
-print(l)
-l = split_text(
-    "HelloHelloHelloHello\nHelloHelloHelloHello\rHelloHelloHelloHelloHelloHelloHelloHelloHelloHello")
-print(l)
-l = split_text(
-    "HelloHelloHelloHello\nHelloHelloHelloHello\r\nHelloHello\rHelloHelloHelloHelloHelloHelloHelloHello")
-print(l)
-
-
 def join_text(str_list):
     """
     join_text(text) joins list of strings into a string of text
@@ -135,10 +103,6 @@ def join_text(str_list):
     PROPERTY: INverse of split_text
     """
     return "".join(str_list)
-
-
-l = join_text(l)
-print(l)
 
 
 def insert(c, x, y, str_list):
@@ -157,7 +121,7 @@ def insert(c, x, y, str_list):
 
     new_text = join_text(str_list)
     new_str_list = split_text(new_text)
-    return new_str_list
+    return add_space_at_end(new_str_list)
 
 
 def delete(x, y, str_list):
@@ -179,57 +143,7 @@ def delete(x, y, str_list):
 
     new_text = join_text(str_list)
     new_str_list = split_text(new_text)
-    return new_str_list
-
-
-l = split_text(
-    "HelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHello")
-l = insert("K", 55, 0, l)
-print(l)
-
-l = split_text(
-    "LOLOL")
-l = insert("K", 0, 0, l)
-print(l)
-
-l = split_text(
-    "LOLOL")
-l = insert("K", 5, 0, l)
-print(l)
-
-l = split_text(
-    "LOLOL")
-l = insert("\n", 1, 0, l)
-print(l)
-
-l = split_text(
-    "LOLOL")
-l = insert("\r", 0, 0, l)
-print(l)
-
-l = split_text(
-    "LOLOL")
-l = insert("\r", 5, 0, l)
-print(l)
-
-l = split_text(
-    "LOLOL")
-l = insert("\r", 2, 0, l)
-print(l)
-
-s = "HelloHelloHelloHelloHelloHelloHelloHelloHello"
-l = split_text(s)
-print(l)
-for i in range(len(s) - 1, -1, -1):
-    l = delete(i, 0, l)
-print(l)
-
-s = "HelloHello\nHell\roHelloHelloHelloHelloHelloHello"
-l = split_text(s)
-l = delete(10, 0, l)
-print(l)
-l = delete(14, 0, l)
-print(l)
+    return add_space_at_end(new_str_list)
 
 
 class Screen:
@@ -247,7 +161,7 @@ class Screen:
     w > Cursor.x >= 0
     and
     h > Cursor.y >= 0
-    Can only animate portion of camera from camera_level to 
+    Can only animate portion of camera from camera_level to
     camera_level + h - 1, inclusive of both first and last lines
 
     IMPORTANT: the screen y coordinate is always between camera_level
@@ -277,7 +191,14 @@ class Screen:
         self.screen_cursor = (ulx, uly)
         self.camera_level = uly
 
-    def update_screen(self, op):
+    def update_screen(self, op, c):
+        """
+        update_screen(self, op) updates the screen based on op,
+        wjich is the ascii code for the key pressed
+        c is the corresponding character
+
+        e.g. Backspace or BS is ascii 08
+        """
         # update cursor
         if op == Constants.UP:
             self.scroll_up()
@@ -287,6 +208,31 @@ class Screen:
             self.scroll_right()
         elif op == Constants.LEFT:
             self.scroll_left()
+        elif op == Constants.DELETE:
+            x, y = self.cursor
+            str_list = self.buffer
+            new_str_list = delete(x, y, str_list)
+            # move x key back one if possible
+            if x != 0:
+                self.cursor = (max(x - 1, 0), y)
+            # otherwise push key up a row
+            else:
+                self.cursor = (0, max(y - 1, 0))
+            self.buffer = new_str_list
+        # insert newline/carriage return
+        elif op == Constants.NEXTLINE:
+            x, y = self.cursor
+            str_list = self.buffer
+            new_str_list = insert("\n", x, y, str_list)
+            self.cursor = (x, y)
+            self.buffer = new_str_list
+        # character update
+        else:
+            x, y = self.cursor
+            str_list = self.buffer
+            new_str_list = insert("\n", x, y, str_list)
+            self.cursor = (x, y)
+            self.buffer = new_str_list
 
         # update camera
         self.change_camera
@@ -516,3 +462,99 @@ class Screen:
         s = buffer[y]
         l = len(s)
         self.cursor = (l - 1, y)
+
+
+def view():
+    pass
+
+
+if __name__ == "__main__":
+
+    def test():
+        l = split_text(
+            "HelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHello")
+        l = insert("K", 55, 0, l)
+        print(l)
+
+        l = split_text(
+            "LOLOL")
+        l = insert("K", 0, 0, l)
+        print(l)
+
+        l = split_text(
+            "LOLOL")
+        l = insert("K", 5, 0, l)
+        print(l)
+
+        l = split_text(
+            "LOLOL")
+        l = insert("\n", 1, 0, l)
+        print(l)
+
+        l = split_text(
+            "LOLOL")
+        l = insert("\r", 0, 0, l)
+        print(l)
+
+        l = split_text(
+            "LOLOL")
+        l = insert("\r", 5, 0, l)
+        print(l)
+
+        l = split_text(
+            "LOLOL")
+        l = insert("\r", 2, 0, l)
+        print(l)
+
+        s = "HelloHelloHelloHelloHelloHelloHelloHelloHello"
+        l = split_text(s)
+        print(l)
+        for i in range(len(s) - 1, -1, -1):
+            l = delete(i, 0, l)
+        print(l)
+
+        s = "HelloHello\nHell\roHelloHelloHelloHelloHelloHello"
+        l = split_text(s)
+        l = delete(10, 0, l)
+        print(l)
+        l = delete(14, 0, l)
+        print(l)
+
+        l = split_at_newline("Hello\nReady to go \r LOLOL\r", [])
+        print(l)
+        l = split_at_newline("Hello\n \r ", [])
+        print(l)
+        l = split_at_newline("\r\r", [])
+        print(l)
+        l = split_at_newline("\r", [])
+        print(l)
+        l = split_at_newline("", [])
+        print(l)
+        l = split_at_newline("H", [])
+        print(l)
+
+        l = split_text("Hello\nReady to go \r LOLOL\r")
+        print(l)
+        l = split_text("Hello\n \r ")
+        print(l)
+        l = split_text("\r\r")
+        print(l)
+        l = split_text("\r")
+        print(l)
+        l = split_text("")
+        print(l)
+        l = split_text("H")
+        print(l)
+
+        l = split_text(
+            "HelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHello")
+        print(l)
+        l = split_text(
+            "HelloHelloHelloHello\nHelloHelloHelloHello\rHelloHelloHelloHelloHelloHelloHelloHelloHelloHello")
+        print(l)
+        l = split_text(
+            "HelloHelloHelloHello\nHelloHelloHelloHello\r\nHelloHello\rHelloHelloHelloHelloHelloHelloHelloHello")
+        print(l)
+
+        l = join_text(l)
+        print(l)
