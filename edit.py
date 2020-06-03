@@ -257,7 +257,7 @@ class Screen:
             self.buffer = new_str_list
 
         # update camera
-        # self.change_camera()
+        self.change_camera()
 
         # update screen cursor
         self.change_screen_cursor()
@@ -518,11 +518,11 @@ class Screen:
         self.cursor = (l - 1, y)
 
 
-def print_buffer_to_textbox(stdscr, buffer, max_rows, max_cols, uly, ulx):
+def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly, ulx):
     stdscr.erase()
     original_uly = uly
     stdscr.move(uly, ulx)
-    for i in range(min(max_rows, len(buffer))):
+    for i in range(camera_row, min(camera_row + max_rows, len(buffer))):
         stdscr.addstr(buffer[i])
         uly += 1
         stdscr.move(uly, ulx)
@@ -558,8 +558,9 @@ def view_textbox(stdscr, insert_mode=True):
 
             stdscr.move(uly, ulx)
 
+            camera_row = screen.camera_level
             print_buffer_to_textbox(
-                stdscr, screen.buffer, nlines, ncols, uly, ulx)
+                stdscr, camera_row, screen.buffer, nlines, ncols, uly, ulx)
 
             stdscr.move(uly + y, ulx + x)
 
