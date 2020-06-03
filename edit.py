@@ -830,16 +830,16 @@ def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly,
     # copy display
     stdscr.move(uly + max_rows + 3, ulx + 11)
     if screen.copy_loc2 != (None, None):
-        stdscr.addstr("[Copied to Clipboard]", curses.color_pair(1))
+        stdscr.addstr("[Copied to Clipboard]", curses.color_pair(3))
     elif screen.copy_loc1 != (None, None):
-        stdscr.addstr("[Copying... Give Next Location]", curses.color_pair(1))
+        stdscr.addstr("[Copying... Give Next Location]", curses.color_pair(3))
 
     # cut display
     stdscr.move(uly + max_rows + 4, ulx + 11)
     if screen.cut_loc2 != (None, None):
-        stdscr.addstr("[Cut onto Clipboard]", curses.color_pair(1))
+        stdscr.addstr("[Cut onto Clipboard]", curses.color_pair(3))
     elif screen.cut_loc1 != (None, None):
-        stdscr.addstr("[Cutting... Give Next Location]", curses.color_pair(1))
+        stdscr.addstr("[Cutting... Give Next Location]", curses.color_pair(3))
 
     # row column display
     num_digits = len(str(y + 1))
@@ -943,6 +943,7 @@ def view():
         curses.use_default_colors()
         curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_MAGENTA)
         curses.init_pair(2, curses.COLOR_BLACK, -1)
+        curses.init_pair(3, curses.COLOR_RED, -1)
 
         curses.noecho()
         curses.cbreak()             # enter break mode where pressing Enter key
