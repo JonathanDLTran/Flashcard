@@ -2,6 +2,8 @@ import Constants
 import curses
 import traceback
 from curses import textpad
+import math
+
 
 """
 edit.py provides the data structures and associated
@@ -535,7 +537,7 @@ class Screen:
         self.cursor = (l - 1, y)
 
 
-def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly, ulx):
+def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly, ulx, x, y):
     stdscr.erase()
     original_uly = uly
     stdscr.move(uly, ulx)
@@ -550,7 +552,16 @@ def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly,
                       max_rows + 2, ulx + max_cols + 2)
 
     stdscr.move(uly + max_rows + 3, ulx)
-    stdscr.addstr("[Edit Mode]")
+    stdscr.addstr("[Edit Mode]", curses.color_pair(1))
+
+    num_digits = len(str(y + 1))
+
+    stdscr.move(uly + max_rows + 3, ulx +
+                max_cols + 2 - num_digits - 1 - 4 - 5)
+    stdscr.addstr("Row " + str(y + 1), curses.color_pair(2))
+    stdscr.move(uly + max_rows + 3, ulx + max_cols + 2 - 5)
+    stdscr.addstr("Col " + str(x + 1), curses.color_pair(2))
+
     stdscr.move(uly, ulx)
 
 
@@ -568,8 +579,12 @@ def view_textbox(stdscr, insert_mode=True):
     stdscr.addstr(text)
     stdscr.move(uly, ulx)
 
+    textpad.rectangle(stdscr, uly-1, ulx-1, uly + nlines + 2, ulx + ncols + 2)
+    stdscr.move(uly, ulx)
+
     stdscr.move(uly + nlines + 3, ulx)
-    stdscr.addstr("[Edit Mode]")
+    stdscr.addstr("[Edit Mode]", curses.color_pair(1))
+
     stdscr.move(uly, ulx)
 
     stdscr.refresh()
@@ -581,12 +596,13 @@ def view_textbox(stdscr, insert_mode=True):
         try:
             screen.update_screen(op, c)
             x, y = screen.screen_cursor
+            real_x, real_y = screen.cursor
 
             stdscr.move(uly, ulx)
 
             camera_row = screen.camera_level
             print_buffer_to_textbox(
-                stdscr, camera_row, screen.buffer, nlines, ncols, uly, ulx)
+                stdscr, camera_row, screen.buffer, nlines, ncols, uly, ulx, real_x, real_y)
 
             stdscr.move(uly + y, ulx + x)
 
@@ -630,11 +646,11 @@ def view():
         # -- Initialize --
         stdscr = curses.initscr()   # initialize curses screen
 
-        # curses.start_color()
-        # curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_WHITE)
-        # curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_MAGENTA)
-        # stdscr.attrset(curses.color_pair(1))
-        # stdscr.bkgdset(" ", curses.color_pair(1))
+        curses.start_color()
+        curses.use_default_colors()
+        curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_MAGENTA)
+        curses.init_pair(2, curses.COLOR_BLACK, -1)
+
         curses.noecho()
         curses.cbreak()             # enter break mode where pressing Enter key
         stdscr.keypad(1)
