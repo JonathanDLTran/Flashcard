@@ -61,7 +61,7 @@ def split_text(text):
                 first_half = text[0: (i + 1)]
                 second_half = text[(i + 1): l]
                 return split_text_helper(second_half, str_list + [first_half])
-            elif (text[i] == "\n" or text[i] == "r"):
+            elif (text[i] == "\n" or text[i] == "\r"):
                 first_half = text[0: (i + 1)]
                 second_half = text[(i + 1): l]
                 return split_text_helper(second_half, str_list + [first_half])
@@ -221,6 +221,10 @@ class Screen:
             if x != 0:
                 self.cursor = (max(x - 1, 0), y)
             # otherwise push key up a row
+            elif y != 0:
+                buffer = str_list[y - 1]
+                l = len(buffer)
+                self.cursor = (l - 1, y - 1)
             else:
                 self.cursor = (0, max(y - 1, 0))
             self.buffer = new_str_list
@@ -247,7 +251,7 @@ class Screen:
             if x < (l - 1):
                 self.cursor = (x + 1, y)
             elif y < (num_rows - 1):
-                self.cursor = (x, y + 1)
+                self.cursor = (0, y + 1)
             else:
                 self.cursor = (x, y)
             self.buffer = new_str_list
@@ -352,18 +356,18 @@ class Screen:
         buffer = self.buffer
         l = len(buffer)
 
-        if (y == l - 1) and (buffer[y] != " "):
-            self.cursor = (0, y + 1)
-            self.buffer.append(Constants.EDITOR_START_CHAR)
-            return
-
-        if (y == l - 1) and (buffer[y] == " "):
-            self.cursor = (0, y)
-            return
-
-        if y > len(buffer) - 1:
+        if (y == l - 1):
             self.cursor = (x, y)
+            # self.buffer.append(Constants.EDITOR_START_CHAR)
             return
+
+        # if (y == l - 1) and (buffer[y] == " "):
+        #     self.cursor = (0, y)
+        #     return
+
+        # if y > len(buffer) - 1:
+        #     self.cursor = (x, y)
+        #     return
 
         s = buffer[y + 1]
         l = len(s)
