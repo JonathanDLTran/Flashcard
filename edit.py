@@ -213,6 +213,15 @@ class Screen:
             self.scroll_right()
         elif op == Constants.LEFT:
             self.scroll_left()
+        elif op == Constants.GO_RIGHT:
+            self.scroll_far_right()
+        elif op == Constants.GO_LEFT:
+            self.scroll_far_left()
+        elif op == Constants.GO_TOP:
+            self.scroll_top()
+        elif op == Constants.GO_BOTTOM:
+            self.scroll_bottom()
+
         elif op == Constants.DELETE:
             x, y = self.cursor
             str_list = self.buffer
