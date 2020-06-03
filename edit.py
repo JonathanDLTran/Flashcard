@@ -390,13 +390,16 @@ class Screen:
         # leave camera screen by scrolling up
         if y < screen_top:
             # never go up beyond actual top
-            self.camera_level = max(self.camera_level - self.h, self.uly)
+            mult = (screen_bottom - y) // self.h
+            self.camera_level = max(
+                self.camera_level - mult * self.h, self.uly)
             return
 
         # leave camera sceeen by scrolling down
         if y > screen_bottom:
             # shift camera down
-            self.camera_level = self.camera_level + self.h
+            mult = (y - screen_top) // self.h
+            self.camera_level = self.camera_level + mult * self.h
             return
 
         # NOP
@@ -634,6 +637,11 @@ def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly,
     stdscr.addstr("Row " + str(y + 1), curses.color_pair(2))
     stdscr.move(uly + max_rows + 3, ulx + max_cols + 2 - 5)
     stdscr.addstr("Col " + str(x + 1), curses.color_pair(2))
+
+    pages = (y + 1) // max_rows + 1
+    page_digits = len(str(pages))
+    stdscr.move(uly + max_rows + 4, ulx + max_cols + 2 - 4 - page_digits)
+    stdscr.addstr("Page " + str(pages), curses.color_pair(2))
 
     stdscr.move(uly, ulx)
 
