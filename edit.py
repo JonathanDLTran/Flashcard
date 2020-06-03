@@ -320,9 +320,28 @@ class Screen:
                 self.reset_paste()
                 return
 
+            last_length = len(self.buffer[y2])
             s = retrieve_text(x1, y1, x2, y2, self.buffer)
             self.copy_buffer = s
             self.buffer = bulk_delete(s, x1, y1, self.buffer)
+
+            self.reset_paste()
+
+            # move to beginning of cut
+            if x1 != 0:
+                self.cursor = (x1 - 1, y1)
+
+                if x2 == last_length - 1:
+                    self.buffer[y1] += "\n"
+
+            else:
+                buffer = self.buffer
+                s = buffer[y1 - 1]
+                l = len(s)
+                self.cursor = (l - 1, y1 - 1)
+
+                if x2 == last_length - 1:
+                    self.buffer[y1 - 1] += "\n"
 
     def update_copy(self):
         x, y = self.cursor
