@@ -165,7 +165,7 @@ class Screen:
     Can only animate portion of camera from camera_level to
     camera_level + h - 1, inclusive of both first and last lines
 
-    If the buffer list becomes empty, replace it with an empty string 
+    If the buffer list becomes empty, replace it with an empty string
     automatically
 
     IMPORTANT: the screen y coordinate is always between camera_level
@@ -194,6 +194,8 @@ class Screen:
         self.cursor = (0, 0)  # (ulx, uly)  # cursor = (0, 0)??
         self.screen_cursor = (0, 0)  # (ulx, uly)
         self.camera_level = 0  # uly
+
+        self.bookmarks = Constants.NUM_BOOKMARKS * [None]
 
     def update_screen(self, op, c):
         """
@@ -227,6 +229,77 @@ class Screen:
             return
         elif op == Constants.PASTE:
             return
+
+        elif op == Constants.SETB1:
+            self.bookmarks[0] = self.cursor[1]
+            return
+        elif op == Constants.SETB2:
+            self.bookmarks[1] = self.cursor[1]
+            return
+        elif op == Constants.SETB3:
+            self.bookmarks[2] = self.cursor[1]
+            return
+        elif op == Constants.SETB4:
+            self.bookmarks[3] = self.cursor[1]
+            return
+        elif op == Constants.SETB5:
+            self.bookmarks[4] = self.cursor[1]
+            return
+
+        elif op == Constants.JUMPB1:
+            y = self.bookmarks[0]
+            buffer = self.buffer
+            l = len(buffer)
+            if y >= l:
+                return
+            if y == None:
+                return
+            x, _ = self.cursor
+            self.cursor = (x, y)
+
+        elif op == Constants.JUMPB2:
+            y = self.bookmarks[1]
+            buffer = self.buffer
+            l = len(buffer)
+            if y >= l:
+                return
+            if y == None:
+                return
+            x, _ = self.cursor
+            self.cursor = (x, y)
+
+        elif op == Constants.JUMPB3:
+            y = self.bookmarks[2]
+            buffer = self.buffer
+            l = len(buffer)
+            if y >= l:
+                return
+            if y == None:
+                return
+            x, _ = self.cursor
+            self.cursor = (x, y)
+
+        elif op == Constants.JUMPB4:
+            y = self.bookmarks[3]
+            buffer = self.buffer
+            l = len(buffer)
+            if y >= l:
+                return
+            if y == None:
+                return
+            x, _ = self.cursor
+            self.cursor = (x, y)
+
+        elif op == Constants.JUMPB5:
+            y = self.bookmarks[4]
+            buffer = self.buffer
+            l = len(buffer)
+            if y >= l:
+                return
+            if y == None:
+                return
+            x, _ = self.cursor
+            self.cursor = (x, y)
 
         elif op == Constants.DELETE:
             x, y = self.cursor
@@ -662,6 +735,8 @@ def view():
         while True:
             # stay in this loop till the user presses 'q'
             ch = stdscr.getch()
+            stdscr.addstr(str(ch))
+            stdscr.addstr(" ")
             if ch == ord('q'):
                 break
 

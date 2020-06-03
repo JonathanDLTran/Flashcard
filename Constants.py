@@ -73,10 +73,10 @@ NUM_LINES = 10
 
 EDITOR_START_CHAR = " "
 
-GO_LEFT = 60  # <
-GO_RIGHT = 62  # >
-GO_TOP = 94  # ^
-GO_BOTTOM = 126  # ~
+GO_LEFT = 262  # fn <-
+GO_RIGHT = 360  # fn ->
+GO_TOP = 339  # fn up arrow
+GO_BOTTOM = 338  # fn down arrow
 
 COPY = 4  # ctrl + D
 CUT = 24  # ctrl + X
@@ -85,3 +85,16 @@ FIND = 6  # ctrl + F
 HIGHLIGHT_ALL = 1  # ctrl + A
 HIGHLIGHT = 17  # ctrl + Q
 BOLD = 2  # ctrl + B
+
+# Bookmarks
+NUM_BOOKMARKS = 5
+SETB1 = 265  # fn 1
+SETB2 = 266
+SETB3 = 267
+SETB4 = 268
+SETB5 = 269
+JUMPB1 = 270
+JUMPB2 = 271
+JUMPB3 = 272
+JUMPB4 = 273
+JUMPB5 = 274
