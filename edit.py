@@ -202,7 +202,9 @@ def bulk_delete(s, x, y, str_list):
 
     Use: Cut
     """
-    pass
+    for _ in range(len(s)):
+        str_list = delete(x, y, str_list)
+    return str_list
 
 
 class Screen:
@@ -260,6 +262,9 @@ class Screen:
         self.copy_loc1 = (None, None)
         self.copy_loc2 = (None, None)
 
+        self.cut_loc1 = (None, None)
+        self.cut_loc2 = (None, None)
+
         self.copy_buffer = None
 
     def reset_cut_copy(self):
@@ -273,10 +278,51 @@ class Screen:
 
     def reset_paste(self):
         """
-        reset_cut_copy(self) resets all cut locations
+        reset_copy_paste(self) resets all cut locations
         """
         self.copy_loc1 = (None, None)
         self.copy_loc2 = (None, None)
+
+        self.cut_loc1 = (None, None)
+        self.cut_loc2 = (None, None)
+
+    def update_cut(self):
+        x, y = self.cursor
+        if self.cut_loc1 == (None, None):
+            self.cut_loc1 = (x, y)
+            return
+        else:
+            self.cut_loc2 = (x, y)
+
+        if self.cut_loc2 != (None, None):
+            x1, y1 = self.cut_loc1
+            x2, y2 = self.cut_loc2
+            if y1 == y2:
+                tempx1 = x1
+                tempx2 = x2
+                x1 = min(tempx1, tempx2)
+                x2 = max(tempx1, tempx2)
+            elif y1 > y2:
+                tempx, tempy = x1, y1
+                x1, y1 = x2, y2
+                x2, y2 = tempx, tempy
+
+            buffer = self.buffer
+            l_buff = len(buffer)
+            if y1 >= l_buff or y2 >= l_buff:
+                self.reset_paste()
+                return
+            s1 = buffer[y1]
+            s2 = buffer[y2]
+            l_1 = len(s1)
+            l_2 = len(s2)
+            if x1 >= l_1 or x2 >= l_2:
+                self.reset_paste()
+                return
+
+            s = retrieve_text(x1, y1, x2, y2, self.buffer)
+            self.copy_buffer = s
+            self.buffer = bulk_delete(s, x1, y1, self.buffer)
 
     def update_copy(self):
         x, y = self.cursor
@@ -354,7 +400,7 @@ class Screen:
         elif op == Constants.COPY:
             self.update_copy()
         elif op == Constants.CUT:
-            return
+            self.update_cut()
         elif op == Constants.PASTE:
             self.update_paste()
 
@@ -764,10 +810,17 @@ def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly,
 
     # copy display
     stdscr.move(uly + max_rows + 3, ulx + 11)
-    if screen.copy_loc1 != (None, None):
-        stdscr.addstr("[Copying... Give Next Location]", curses.color_pair(1))
-    elif screen.copy_loc2 != (None, None):
+    if screen.copy_loc2 != (None, None):
         stdscr.addstr("[Copied to Clipboard]", curses.color_pair(1))
+    elif screen.copy_loc1 != (None, None):
+        stdscr.addstr("[Copying... Give Next Location]", curses.color_pair(1))
+
+    # cut display
+    stdscr.move(uly + max_rows + 4, ulx + 11)
+    if screen.cut_loc2 != (None, None):
+        stdscr.addstr("[Cut onto Clipboard]", curses.color_pair(1))
+    elif screen.cut_loc1 != (None, None):
+        stdscr.addstr("[Cutting... Give Next Location]", curses.color_pair(1))
 
     # row column display
     num_digits = len(str(y + 1))
