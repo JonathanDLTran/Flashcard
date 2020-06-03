@@ -43,10 +43,6 @@ in length, the data is sent is sent to the next line instead
 """
 
 
-def add_space_at_end(str_list):
-    return str_list + [" "]
-
-
 def split_text(text):
     """
     split_text(text) splits text into a list of strings satisfying the Representation
@@ -71,7 +67,7 @@ def split_text(text):
                 return split_text_helper(second_half, str_list + [first_half])
             i += 1
 
-    return add_space_at_end(split_text_helper(text, []))
+    return split_text_helper(text, [])
 
 
 def split_at_newline(text, str_list):
@@ -103,9 +99,6 @@ def join_text(str_list):
 
     PROPERTY: INverse of split_text
     """
-    l = len(str_list)
-    if (str_list[l - 1] == " "):
-        str_list = str_list[:(l - 1)]
     return "".join(str_list)
 
 
@@ -116,6 +109,7 @@ def insert(c, x, y, str_list):
     and returns the new formatted string buffer list
 
     REQUIRES: X and Y are valid coordinates in the str_list
+    e.g. X, Y actually in  str_list and not outside
     """
     s = str_list[y]
     l_s = len(s)
@@ -125,7 +119,7 @@ def insert(c, x, y, str_list):
 
     new_text = join_text(str_list)
     new_str_list = split_text(new_text)
-    return add_space_at_end(new_str_list)
+    return new_str_list
 
 
 def delete(x, y, str_list):
@@ -137,6 +131,7 @@ def delete(x, y, str_list):
     If str_list is empty, will act as NOP, no action
 
     REQUIRES: X and Y are valid coordinates in the str_list
+    e.g. X, Y actually in  str_list and not outside
     """
     if str_list == []:
         return str_list
@@ -147,7 +142,7 @@ def delete(x, y, str_list):
 
     new_text = join_text(str_list)
     new_str_list = split_text(new_text)
-    return add_space_at_end(new_str_list)
+    return new_str_list
 
 
 class Screen:
@@ -167,6 +162,9 @@ class Screen:
     h > Cursor.y >= 0
     Can only animate portion of camera from camera_level to
     camera_level + h - 1, inclusive of both first and last lines
+
+    If the buffer list becomes empty, replace it with an empty string 
+    automatically
 
     IMPORTANT: the screen y coordinate is always between camera_level
         and camera_level  + h  - 1 inclusive
@@ -203,6 +201,9 @@ class Screen:
 
         e.g. Backspace or BS is ascii 08
         """
+        # check not empty character
+        if self.buffer == []:
+            self.buffer = [Constants.EDITOR_START_CHAR]
         # update cursor
         if op == Constants.UP:
             self.scroll_up()
@@ -228,18 +229,31 @@ class Screen:
             x, y = self.cursor
             str_list = self.buffer
             new_str_list = insert("\n", x, y, str_list)
+            # buffer = new_str_list[y]
+            # l = len(buffer)
+            # if y == (l - 1):
+            #     # rule - insert space after a newline so can access
+            #     new_str_list = new_str_list + [" "]
             self.cursor = (x, y)
             self.buffer = new_str_list
         # character update
         else:
             x, y = self.cursor
             str_list = self.buffer
-            new_str_list = insert("\n", x, y, str_list)
-            self.cursor = (x, y)
+            new_str_list = insert(c, x, y, str_list)
+            num_rows = len(new_str_list)
+            buffer = new_str_list[y]
+            l = len(buffer)
+            if x < (l - 1):
+                self.cursor = (x + 1, y)
+            elif y < (num_rows - 1):
+                self.cursor = (x, y + 1)
+            else:
+                self.cursor = (x, y)
             self.buffer = new_str_list
 
         # update camera
-        self.change_camera
+        # self.change_camera()
 
         # update screen cursor
         self.change_screen_cursor()
@@ -336,8 +350,19 @@ class Screen:
 
         x, y = self.cursor
         buffer = self.buffer
+        l = len(buffer)
 
-        if y == len(buffer) - 1:
+        if (y == l - 1) and (buffer[y] != " "):
+            self.cursor = (0, y + 1)
+            self.buffer.append(Constants.EDITOR_START_CHAR)
+            return
+
+        if (y == l - 1) and (buffer[y] == " "):
+            self.cursor = (0, y)
+            return
+
+        if y > len(buffer) - 1:
+            self.cursor = (x, y)
             return
 
         s = buffer[y + 1]
@@ -381,6 +406,7 @@ class Screen:
         Updates self
 
         REQUIRES: the X coordinate was actually on a text element
+        OR if you are one element right of the buffer, but not at the border
         """
         if self.buffer == []:
             return
@@ -390,7 +416,27 @@ class Screen:
         s = buffer[y]
         l = len(s)
         # check no more characters to the right or right boundary reached
-        if (x == Constants.LINE_LENGTH - 1) or x == (l - 1):
+        if (x == Constants.LINE_LENGTH - 1):  # or x == (l - 1):
+            return
+
+        if (x == (l - 1)):
+
+            # last character is a regular space:
+            if s[l - 1] == " ":
+                self.cursor = (x, y)
+                return
+
+            # last character is a new line
+            if "\n" in s or "\r" in s:
+                self.cursor = (x, y)
+                return
+
+            else:
+                self.cursor = (x + 1, y)
+                return
+
+        if (x > (l - 1)):
+            self.cursor = (x, y)
             return
 
         # update
@@ -468,6 +514,21 @@ class Screen:
         self.cursor = (l - 1, y)
 
 
+def print_buffer_to_textbox(stdscr, buffer, max_rows, max_cols, uly, ulx):
+    stdscr.erase()
+    original_uly = uly
+    stdscr.move(uly, ulx)
+    for i in range(min(max_rows, len(buffer))):
+        stdscr.addstr(buffer[i])
+        uly += 1
+        stdscr.move(uly, ulx)
+
+    uly = original_uly
+    stdscr.move(uly, ulx)
+    textpad.rectangle(stdscr, uly-1, ulx-1, uly +
+                      max_rows + 2, ulx + max_cols + 2)
+
+
 def view_textbox(stdscr, insert_mode=True):
     ncols, nlines = Constants.LINE_LENGTH, Constants.NUM_LINES
     uly, ulx = 2, 2
@@ -490,6 +551,12 @@ def view_textbox(stdscr, insert_mode=True):
         try:
             screen.update_screen(op, c)
             x, y = screen.screen_cursor
+
+            stdscr.move(uly, ulx)
+
+            print_buffer_to_textbox(
+                stdscr, screen.buffer, nlines, ncols, uly, ulx)
+
             stdscr.move(uly + y, ulx + x)
 
         except:
@@ -648,5 +715,7 @@ if __name__ == "__main__":
 
         l = join_text(l)
         print(l)
+
+    test()
 
     view()
