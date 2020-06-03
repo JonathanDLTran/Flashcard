@@ -77,3 +77,11 @@ GO_LEFT = 60  # <
 GO_RIGHT = 62  # >
 GO_TOP = 94  # ^
 GO_BOTTOM = 126  # ~
+
+COPY = 4  # ctrl + D
+CUT = 24  # ctrl + X
+PASTE = 22  # ctrl + V
+FIND = 6  # ctrl + F
+HIGHLIGHT_ALL = 1  # ctrl + A
+HIGHLIGHT = 17  # ctrl + Q
+BOLD = 2  # ctrl + B

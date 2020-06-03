@@ -221,6 +221,10 @@ class Screen:
             self.scroll_top()
         elif op == Constants.GO_BOTTOM:
             self.scroll_bottom()
+        elif op == Constants.COPY:
+            return
+        elif op == Constants.PASTE:
+            return
 
         elif op == Constants.DELETE:
             x, y = self.cursor
@@ -247,7 +251,11 @@ class Screen:
             # if y == (l - 1):
             #     # rule - insert space after a newline so can access
             #     new_str_list = new_str_list + [" "]
-            self.cursor = (x, y)
+
+            # TRY NEW
+            # self.cursor = (x, y)
+            # TRY NEW
+            self.cursor = (0, y + 1)
             self.buffer = new_str_list
         # character update
         else:
@@ -541,12 +549,16 @@ def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly,
     textpad.rectangle(stdscr, uly-1, ulx-1, uly +
                       max_rows + 2, ulx + max_cols + 2)
 
+    stdscr.move(uly + max_rows + 3, ulx)
+    stdscr.addstr("[Edit Mode]")
+    stdscr.move(uly, ulx)
+
 
 def view_textbox(stdscr, insert_mode=True):
     ncols, nlines = Constants.LINE_LENGTH, Constants.NUM_LINES
     uly, ulx = 2, 2
 
-    text = "Hello World!"
+    text = "Hello World!\n"
     str_list = split_text(text)
 
     screen = Screen(str_list, nlines, ncols, ulx, uly, (0, 0))
@@ -555,6 +567,11 @@ def view_textbox(stdscr, insert_mode=True):
     stdscr.move(uly, ulx)
     stdscr.addstr(text)
     stdscr.move(uly, ulx)
+
+    stdscr.move(uly + nlines + 3, ulx)
+    stdscr.addstr("[Edit Mode]")
+    stdscr.move(uly, ulx)
+
     stdscr.refresh()
 
     while True:
@@ -613,6 +630,11 @@ def view():
         # -- Initialize --
         stdscr = curses.initscr()   # initialize curses screen
 
+        # curses.start_color()
+        # curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_WHITE)
+        # curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_MAGENTA)
+        # stdscr.attrset(curses.color_pair(1))
+        # stdscr.bkgdset(" ", curses.color_pair(1))
         curses.noecho()
         curses.cbreak()             # enter break mode where pressing Enter key
         stdscr.keypad(1)
