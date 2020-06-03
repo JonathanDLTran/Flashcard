@@ -124,6 +124,52 @@ def insert(c, x, y, str_list):
     return new_str_list
 
 
+def retrieve_text(x1, y1, x2, y2, str_list):
+    """
+    retrieve_text(x1, y1, x2, y2, str_list)
+    retrieves the strings of text from str_list bounded from
+    x1, y1 to x2, y2. Returns a string inclusive of x1 AND x2
+    that is includes both ending locations
+
+    USE: FOR COPY AND CUT
+
+    REQUORES: x1, y1 must come sequentially after x2, yx2
+    REQUIRES: x1 and x2 are valid locations in str_list
+    """
+    assert (x1 <= x2 and y1 == y2) or (y1 < y2)
+
+    def retrieve_text_helper(x1, y1, x2, y2, str_list, acc):
+        # same line (one line)
+        if (y1 == y2):
+            buffer = str_list[y1]
+            s = buffer[x1: (x2 + 1)]
+            return acc + [s]
+
+        # two or more lines
+        first_line = str_list[y1]
+        l = len(first_line)
+        s = first_line[x1: l]
+        return retrieve_text_helper(0, (y1 + 1), x2, y2, str_list, acc + [s])
+
+    return join_text(retrieve_text_helper(x1, y1, x2, y2, str_list, []))
+
+
+def bulk_insert(s, x, y, str_list):
+    """
+    bulk_insert(s, x, y, str_list) adds in all characters in s beginning
+    at x, y in str_list
+
+    Returns modified str_list after all bulk insertion is complete
+
+    USe: Copy/Cut
+    """
+    s_rev = s[::-1]
+    for i in range(len(s_rev)):
+        c = s_rev[i]
+        str_list = insert(c, x, y, str_list)
+    return str_list
+
+
 def delete(x, y, str_list):
     """
     delete(x, y, str_list) deletes the character at the yth row from the top and the xth
@@ -147,6 +193,18 @@ def delete(x, y, str_list):
     return new_str_list
 
 
+def bulk_delete(s, x, y, str_list):
+    """
+    bulk_delete(s, x, y, str_list) removes all characters in s beginning
+    at x, y in str_list
+
+    Returns the modified str_list after the bulk_delete has finished
+
+    Use: Cut
+    """
+    pass
+
+
 class Screen:
     """
     Screen is an object representing the editing screen.
@@ -164,6 +222,8 @@ class Screen:
     h > Cursor.y >= 0
     Can only animate portion of camera from camera_level to
     camera_level + h - 1, inclusive of both first and last lines
+
+    copy_loc2 cannot be anothing but None None if copy_loc1 is None None
 
     If the buffer list becomes empty, replace it with an empty string
     automatically
@@ -197,6 +257,70 @@ class Screen:
 
         self.bookmarks = Constants.NUM_BOOKMARKS * [None]
 
+        self.copy_loc1 = (None, None)
+        self.copy_loc2 = (None, None)
+
+        self.copy_buffer = None
+
+    def reset_cut_copy(self):
+        """
+        reset_cut_copy(self) resets all stores and buffers when copyiny
+        or cutting is terminated/escaped
+        """
+        self.reset_paste()
+
+        self.copy_buffer = None
+
+    def reset_paste(self):
+        """
+        reset_cut_copy(self) resets all cut locations
+        """
+        self.copy_loc1 = (None, None)
+        self.copy_loc2 = (None, None)
+
+    def update_copy(self):
+        x, y = self.cursor
+        if self.copy_loc1 == (None, None):
+            self.copy_loc1 = (x, y)
+        else:
+            self.copy_loc2 = (x, y)
+
+        if self.copy_loc2 != (None, None):
+            x1, y1 = self.copy_loc1
+            x2, y2 = self.copy_loc2
+            if y1 == y2:
+                tempx1 = x1
+                tempx2 = x2
+                x1 = min(tempx1, tempx2)
+                x2 = max(tempx1, tempx2)
+            elif y1 > y2:
+                tempx, tempy = x1, y1
+                x1, y1 = x2, y2
+                x2, y2 = tempx, tempy
+
+            buffer = self.buffer
+            l_buff = len(buffer)
+            if y1 >= l_buff or y2 >= l_buff:
+                self.reset_paste()
+                return
+            s1 = buffer[y1]
+            s2 = buffer[y2]
+            l_1 = len(s1)
+            l_2 = len(s2)
+            if x1 >= l_1 or x2 >= l_2:
+                self.reset_paste()
+                return
+
+            self.copy_buffer = retrieve_text(x1, y1, x2, y2, self.buffer)
+
+    def update_paste(self):
+        s = self.copy_buffer
+        if s != None:
+            x, y = self.cursor
+            self.buffer = bulk_insert(s, x, y, self.buffer)
+            self.reset_paste()
+            return
+
     def update_screen(self, op, c):
         """
         update_screen(self, op) updates the screen based on op,
@@ -208,6 +332,7 @@ class Screen:
         # check not empty character
         if self.buffer == []:
             self.buffer = [Constants.EDITOR_START_CHAR]
+
         # update cursor
         if op == Constants.UP:
             self.scroll_up()
@@ -225,10 +350,16 @@ class Screen:
             self.scroll_top()
         elif op == Constants.GO_BOTTOM:
             self.scroll_bottom()
+
         elif op == Constants.COPY:
+            self.update_copy()
+        elif op == Constants.CUT:
             return
         elif op == Constants.PASTE:
-            return
+            self.update_paste()
+
+        elif op == Constants.ESCAPE:
+            self.reset_cut_copy()
 
         elif op == Constants.SETB1:
             self.bookmarks[0] = self.cursor[1]
@@ -613,7 +744,7 @@ class Screen:
         self.cursor = (l - 1, y)
 
 
-def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly, ulx, x, y):
+def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly, ulx, x, y, screen):
     stdscr.erase()
     original_uly = uly
     stdscr.move(uly, ulx)
@@ -627,17 +758,26 @@ def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly,
     textpad.rectangle(stdscr, uly-1, ulx-1, uly +
                       max_rows + 2, ulx + max_cols + 2)
 
+    # mode display
     stdscr.move(uly + max_rows + 3, ulx)
     stdscr.addstr("[Edit Mode]", curses.color_pair(1))
 
-    num_digits = len(str(y + 1))
+    # copy display
+    stdscr.move(uly + max_rows + 3, ulx + 11)
+    if screen.copy_loc1 != (None, None):
+        stdscr.addstr("[Copying... Give Next Location]", curses.color_pair(1))
+    elif screen.copy_loc2 != (None, None):
+        stdscr.addstr("[Copied to Clipboard]", curses.color_pair(1))
 
+    # row column display
+    num_digits = len(str(y + 1))
     stdscr.move(uly + max_rows + 3, ulx +
                 max_cols + 2 - num_digits - 1 - 4 - 5)
     stdscr.addstr("Row " + str(y + 1), curses.color_pair(2))
     stdscr.move(uly + max_rows + 3, ulx + max_cols + 2 - 5)
     stdscr.addstr("Col " + str(x + 1), curses.color_pair(2))
 
+    # page number display
     pages = (y + 1) // max_rows + 1
     page_digits = len(str(pages))
     stdscr.move(uly + max_rows + 4, ulx + max_cols + 2 - 4 - page_digits)
@@ -683,7 +823,7 @@ def view_textbox(stdscr, insert_mode=True):
 
             camera_row = screen.camera_level
             print_buffer_to_textbox(
-                stdscr, camera_row, screen.buffer, nlines, ncols, uly, ulx, real_x, real_y)
+                stdscr, camera_row, screen.buffer, nlines, ncols, uly, ulx, real_x, real_y, screen)
 
             stdscr.move(uly + y, ulx + x)
 

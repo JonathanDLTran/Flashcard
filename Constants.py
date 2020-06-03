@@ -86,6 +86,8 @@ HIGHLIGHT_ALL = 1  # ctrl + A
 HIGHLIGHT = 17  # ctrl + Q
 BOLD = 2  # ctrl + B
 
+ESCAPE = 27  # ESC
+
 # Bookmarks
 NUM_BOOKMARKS = 5
 SETB1 = 265  # fn 1
