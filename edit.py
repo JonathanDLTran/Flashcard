@@ -386,6 +386,93 @@ class Screen:
             self.reset_paste()
             return
 
+    def update_delete(self):
+        """
+        update_delete(self) updates the cursor and buffer after
+        a character is deleted where the cursor was
+
+        Requires: cursor lies on a character
+        """
+        x, y = self.cursor
+        str_list = self.buffer
+        new_str_list = delete(x, y, str_list)
+        # move x key back one if possible
+        if x != 0:
+            self.cursor = (max(x - 1, 0), y)
+        # otherwise push key up a row
+        elif y != 0:
+            buffer = str_list[y - 1]
+            l = len(buffer)
+            self.cursor = (l - 1, y - 1)
+        else:
+            self.cursor = (0, max(y - 1, 0))
+        self.buffer = new_str_list
+
+    def update_return(self):
+        """
+        update_return(self) adds in a newline where the cursor is
+
+        Requires: cursor lies on a character
+        """
+        x, y = self.cursor
+        str_list = self.buffer
+        new_str_list = insert("\n", x, y, str_list)
+        # buffer = new_str_list[y]
+        # l = len(buffer)
+        # if y == (l - 1):
+        #     # rule - insert space after a newline so can access
+        #     new_str_list = new_str_list + [" "]
+
+        # TRY NEW
+        # self.cursor = (x, y)
+        # TRY NEW
+        self.cursor = (0, y + 1)
+        self.buffer = new_str_list
+
+    def update_insert(self, c):
+        """
+        update_insert(self) adds in a new character where the cursor is
+        and maintains invariant aftr
+
+        Requires: cursor lies on a character
+        """
+        x, y = self.cursor
+        str_list = self.buffer
+        new_str_list = insert(c, x, y, str_list)
+        num_rows = len(new_str_list)
+        buffer = new_str_list[y]
+        l = len(buffer)
+        if x < (l - 1):
+            self.cursor = (x + 1, y)
+        elif y < (num_rows - 1):
+            self.cursor = (0, y + 1)
+        else:
+            self.cursor = (x, y)
+        self.buffer = new_str_list
+
+    def jump_to_bookmark(self, bookmark_n):
+        """
+        jump_to_bookmark(self, bookmark_n) jumps cursor to book mark n
+        n is between 1 and 5 inclusive
+        """
+        y = self.bookmarks[bookmark_n - 1]
+        buffer = self.buffer
+        l = len(buffer)
+        if y == None:
+            return
+        if y >= l:
+            return
+        x, _ = self.cursor
+        self.cursor = (x, y)
+
+    def set_bookmark(self, bookmark_n):
+        """
+        set_bookmark(self, bookmark_n sets book mark n
+        at the current cursor line location
+        n is between 1 and 5 inclusive
+        """
+        self.bookmarks[bookmark_n - 1] = self.cursor[1]
+
     def update_screen(self, op, c):
         """
         update_screen(self, op) updates the screen based on op,
@@ -427,122 +514,40 @@ class Screen:
             self.reset_cut_copy()
 
         elif op == Constants.SETB1:
-            self.bookmarks[0] = self.cursor[1]
+            self.set_bookmark(1)
             return
         elif op == Constants.SETB2:
-            self.bookmarks[1] = self.cursor[1]
+            self.set_bookmark(2)
             return
         elif op == Constants.SETB3:
-            self.bookmarks[2] = self.cursor[1]
+            self.set_bookmark(3)
             return
         elif op == Constants.SETB4:
-            self.bookmarks[3] = self.cursor[1]
+            self.set_bookmark(4)
             return
         elif op == Constants.SETB5:
-            self.bookmarks[4] = self.cursor[1]
+            self.set_bookmark(5)
             return
 
         elif op == Constants.JUMPB1:
-            y = self.bookmarks[0]
-            buffer = self.buffer
-            l = len(buffer)
-            if y >= l:
-                return
-            if y == None:
-                return
-            x, _ = self.cursor
-            self.cursor = (x, y)
-
+            self.jump_to_bookmark(1)
         elif op == Constants.JUMPB2:
-            y = self.bookmarks[1]
-            buffer = self.buffer
-            l = len(buffer)
-            if y >= l:
-                return
-            if y == None:
-                return
-            x, _ = self.cursor
-            self.cursor = (x, y)
-
+            self.jump_to_bookmark(2)
         elif op == Constants.JUMPB3:
-            y = self.bookmarks[2]
-            buffer = self.buffer
-            l = len(buffer)
-            if y >= l:
-                return
-            if y == None:
-                return
-            x, _ = self.cursor
-            self.cursor = (x, y)
-
+            self.jump_to_bookmark(3)
         elif op == Constants.JUMPB4:
-            y = self.bookmarks[3]
-            buffer = self.buffer
-            l = len(buffer)
-            if y >= l:
-                return
-            if y == None:
-                return
-            x, _ = self.cursor
-            self.cursor = (x, y)
-
+            self.jump_to_bookmark(4)
         elif op == Constants.JUMPB5:
-            y = self.bookmarks[4]
-            buffer = self.buffer
-            l = len(buffer)
-            if y >= l:
-                return
-            if y == None:
-                return
-            x, _ = self.cursor
-            self.cursor = (x, y)
+            self.jump_to_bookmark(5)
 
         elif op == Constants.DELETE:
-            x, y = self.cursor
-            str_list = self.buffer
-            new_str_list = delete(x, y, str_list)
-            # move x key back one if possible
-            if x != 0:
-                self.cursor = (max(x - 1, 0), y)
-            # otherwise push key up a row
-            elif y != 0:
-                buffer = str_list[y - 1]
-                l = len(buffer)
-                self.cursor = (l - 1, y - 1)
-            else:
-                self.cursor = (0, max(y - 1, 0))
-            self.buffer = new_str_list
+            self.update_delete()
         # insert newline/carriage return
         elif op == Constants.RETURN:
-            x, y = self.cursor
-            str_list = self.buffer
-            new_str_list = insert("\n", x, y, str_list)
-            # buffer = new_str_list[y]
-            # l = len(buffer)
-            # if y == (l - 1):
-            #     # rule - insert space after a newline so can access
-            #     new_str_list = new_str_list + [" "]
-
-            # TRY NEW
-            # self.cursor = (x, y)
-            # TRY NEW
-            self.cursor = (0, y + 1)
-            self.buffer = new_str_list
+            self.update_return()
         # character update
         else:
-            x, y = self.cursor
-            str_list = self.buffer
-            new_str_list = insert(c, x, y, str_list)
-            num_rows = len(new_str_list)
-            buffer = new_str_list[y]
-            l = len(buffer)
-            if x < (l - 1):
-                self.cursor = (x + 1, y)
-            elif y < (num_rows - 1):
-                self.cursor = (0, y + 1)
-            else:
-                self.cursor = (x, y)
-            self.buffer = new_str_list
+            self.update_insert(c)
 
         # update camera
         self.change_camera()
