@@ -90,6 +90,9 @@ UNDERLINE = 21  # ctrl + U
 # ctrl + Z
 # ctrl + Y
 
+TAB = 9
+TAB_SIZE = 4  # must be less than line length
+
 
 ESCAPE = 27  # ESC - to escape a copy or cut, or delete a paste save
 

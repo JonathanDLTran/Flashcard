@@ -1,5 +1,6 @@
 import Constants
 import curses
+from curses import ascii
 import traceback
 from curses import textpad
 import math
@@ -61,11 +62,43 @@ def init_buffer(string):
     """
     initializes a buffer based on the string
     """
-    return split_text(add_style(string))
+    return split_text(add_style(clean_text(string)))
 
 
 def buffer_is_empty(buffer):
     return buffer == []
+
+
+def clean_text(string):
+    """
+    clean_text(string) replaces tabs with appropriate number of spaces not going
+    over column limit using TAB_SIZE as defined
+
+    Returns new string with tabs removed and replaced appropriately
+
+    REQUIRES: TAB SIZE <= LINE LENGTH
+    """
+    counter = 0
+    new_string = ""
+    for c in string:
+        if c == "\n" or c == "\r":
+            new_string += c
+            counter = 0
+        elif c == "\t" and counter + Constants.TAB_SIZE - 1 > Constants.LINE_LENGTH - 1:
+            # tab replaced with as many spaces as possible before hitting right bound
+            new_string += (Constants.LINE_LENGTH - counter) * " "
+            counter = 0
+        elif counter == Constants.LINE_LENGTH - 1:
+            new_string += c
+            counter = 0
+        elif c == "\t":
+            rem = Constants.TAB_SIZE - counter % Constants.TAB_SIZE
+            new_string += rem * " "
+            counter += rem
+        else:
+            new_string += c
+            counter += 1
+    return new_string
 
 
 def add_style(string):
@@ -740,6 +773,19 @@ class Screen:
             self.copy_all = None
             return
 
+    def update_tab(self):
+        x, y = self.cursor
+
+        # within left boundary
+        num_spaces = Constants.TAB_SIZE
+        if (x + Constants.TAB_SIZE - 1) > Constants.LINE_LENGTH - 1:
+            num_spaces = (Constants.LINE_LENGTH - x)
+        else:
+            num_spaces = Constants.TAB_SIZE - (x % Constants.TAB_SIZE)
+
+        s = [[" ", curses.A_NORMAL] for _ in range(num_spaces)]
+        self.buffer = bulk_insert(s, x, y, self.buffer)
+
     def update_screen(self, op, c):
         """
         update_screen(self, op) updates the screen based on op,
@@ -769,6 +815,9 @@ class Screen:
             self.scroll_top()
         elif op == Constants.GO_BOTTOM:
             self.scroll_bottom()
+
+        elif op == Constants.TAB:
+            self.update_tab()
 
         elif op == Constants.BOLD:
             self.update_bold()
@@ -1285,9 +1334,10 @@ def view():
         while True:
             # stay in this loop till the user presses 'q'
             ch = stdscr.getch()
+            # to get char code use str(ch)
             stdscr.addstr(str(ch), curses.A_NORMAL)
-            # curses.A_UNDERLINE | curses.A_BOLD | curses.A_STANDOUT
             stdscr.addstr(" ")
+
             if ch == ord('q'):
                 break
 
