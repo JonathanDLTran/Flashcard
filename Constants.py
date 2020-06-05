@@ -82,11 +82,18 @@ COPY = 4  # ctrl + D
 CUT = 24  # ctrl + X
 PASTE = 22  # ctrl + V
 FIND = 6  # ctrl + F
-HIGHLIGHT_ALL = 1  # ctrl + A
-HIGHLIGHT = 17  # ctrl + Q
+COPY_ALL = 1  # ctrl + A
+HIGHLIGHT = 263  # ctrl + H
 BOLD = 2  # ctrl + B
+UNDERLINE = 21  # ctrl + U
+# ctrl + Q is 17
+# ctrl + Z
+# ctrl + Y
 
-ESCAPE = 27  # ESC
+
+ESCAPE = 27  # ESC - to escape a copy or cut, or delete a paste save
+
+EXIT_EDITOR = 7  # ctrl + G
 
 # Bookmarks
 NUM_BOOKMARKS = 5
@@ -95,8 +102,10 @@ SETB2 = 266
 SETB3 = 267
 SETB4 = 268
 SETB5 = 269
-JUMPB1 = 270
+JUMPB1 = 270  # fn 6
 JUMPB2 = 271
 JUMPB3 = 272
 JUMPB4 = 273
 JUMPB5 = 274
+
+STRIKE_THROUGH = '\u0336'

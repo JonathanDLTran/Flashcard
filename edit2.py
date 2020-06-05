@@ -3,7 +3,7 @@ import curses
 import traceback
 from curses import textpad
 import math
-
+import functools
 
 """
 edit.py provides the data structures and associated
@@ -57,6 +57,47 @@ def strike(text):
     return result
 
 
+def init_buffer(string):
+    """
+    initializes a buffer based on the string
+    """
+    return split_text(add_style(string))
+
+
+def buffer_is_empty(buffer):
+    return buffer == []
+
+
+def add_style(string):
+    """
+    add_style(str) turns str into a list of lists with style inserted
+    """
+    final_split = []
+    for c in string:
+        final_split.append([c, curses.A_NORMAL])
+    return final_split
+
+
+def remove_style(style_list):
+    """
+    remove_style(style_list) restores the style list to a string
+    """
+    s = ""
+    for l in style_list:
+        s += l[0]
+    return s
+
+
+def buffer_repr(buffer):
+    """
+    buffer_repr(buffer) converts the buffer to a list - string represrntation
+    """
+    new_list = []
+    for l in buffer:
+        new_list.append(remove_style(l))
+    return new_list
+
+
 def split_text(text):
     """
     split_text(text) splits text into a list of strings satisfying the Representation
@@ -75,7 +116,7 @@ def split_text(text):
                 first_half = text[0: (i + 1)]
                 second_half = text[(i + 1): l]
                 return split_text_helper(second_half, str_list + [first_half])
-            elif (text[i] == "\n" or text[i] == "\r"):
+            elif (text[i][0] == "\n" or text[i][0] == "\r"):
                 first_half = text[0: (i + 1)]
                 second_half = text[(i + 1): l]
                 return split_text_helper(second_half, str_list + [first_half])
@@ -93,13 +134,13 @@ def split_at_newline(text, str_list):
 
     REQUIRES: text has less than or equal to 80 characters including all \n and \r
     """
-    if text == "":
+    if text == []:
         return str_list
 
     l = len(text)
     i = 0
     while (i < l):
-        if (text[i] == "\n") or (text[i] == "\r"):
+        if (text[i][0] == "\n") or (text[i][0] == "\r"):
             remainder = text[(i + 1): l]
             cut_portion = text[0:(i + 1)]
             return split_at_newline(remainder, str_list + [cut_portion])
@@ -113,7 +154,10 @@ def join_text(str_list):
 
     PROPERTY: INverse of split_text
     """
-    return "".join(str_list)
+    new_list = []
+    for l in str_list:
+        new_list += l
+    return new_list
 
 
 def insert(c, x, y, str_list):
@@ -123,12 +167,12 @@ def insert(c, x, y, str_list):
     and returns the new formatted string buffer list
 
     REQUIRES: X and Y are valid coordinates in the str_list
-    e.g. X, Y actually in  str_list and not outside
+    e.g. X, Y actually in str_list and not outside
     """
     s = str_list[y]
     l_s = len(s)
 
-    s_new = s[0: x] + str(c) + s[x: l_s]
+    s_new = s[0: x] + [c] + s[x: l_s]
     str_list[y] = s_new
 
     new_text = join_text(str_list)
@@ -191,7 +235,7 @@ def delete(x, y, str_list):
     If str_list is empty, will act as NOP, no action
 
     REQUIRES: X and Y are valid coordinates in the str_list
-    e.g. X, Y actually in  str_list and not outside
+    e.g. X, Y actually in str_list and not outside
     """
     if str_list == []:
         return str_list
@@ -219,6 +263,11 @@ def bulk_delete(s, x, y, str_list):
     return str_list
 
 
+def buffer_add_row(buffer, y, c):
+    buffer[y] += [[c, curses.A_NORMAL]]
+    return buffer
+
+
 def get_max_min(x1, y1, x2, y2):
     """
     get_max_min(x1, y1, x2, y2) returns two tuples,
@@ -237,14 +286,43 @@ def get_max_min(x1, y1, x2, y2):
     return ((x1, y1), (x2, y2))
 
 
+def insert_style_buffer(start_tup, end_tup, buffer, style):
+    x1, y1 = start_tup
+    x2, y2 = end_tup
+
+    if y1 == y2:
+        row = buffer[y1]
+        for i in list(range(x1, (x2 + 1), 1)):
+            c_list = row[i]
+            if style in c_list:
+                c_list.remove(style)
+            else:
+                c_list.append(style)
+        return buffer
+
+    else:
+        row = buffer[y1]
+        l = len(row)
+        for i in list(range(x1, l, 1)):
+            c_list = row[i]
+            if style in c_list:
+                c_list.remove(style)
+            else:
+                c_list.append(style)
+
+        next_tup = (0, y1 + 1)
+        return insert_style_buffer(
+            next_tup, end_tup, buffer, style)
+
+
 class Screen:
     """
     Screen is an object representing the editing screen.
     str_list is the list of string buffers
     camera_level is the row in the str_list that marks the top of the editing
         box
-    h is the height of the screen [h >= 0]
-    w is the width of the screen [w >= 0]
+    h is the height of the screen[h >= 0]
+    w is the width of the screen[w >= 0]
     ulx is upper left x coordinate
     uly is upper left y coordinate
     cursor is a tuple containing an x - y pair of where the mouse
@@ -261,7 +339,7 @@ class Screen:
     automatically
 
     IMPORTANT: the screen y coordinate is always between camera_level
-        and camera_level  + h  - 1 inclusive
+        and camera_level + h - 1 inclusive
 
     TO BE USED IN A STRUCT MANNER
 
@@ -271,18 +349,18 @@ class Screen:
     DISPLAY:
     """
 
-    def __init__(self, str_list, h=Constants.NROWS, w=Constants.NCOLS, ulx=0, uly=0, cursor=(0, 0)):
+    def __init__(self, string, h=Constants.NROWS, w=Constants.NCOLS, ulx=0, uly=0, cursor=(0, 0)):
         """
         Initializes a screen object for use as a struct
 
         DIRECTION: X increases left yo right
         Y increases top down
         """
-        self.buffer = str_list
+        self.buffer = init_buffer(string)
         self.h = h
         self.w = w
-        self.ulx = ulx - ulx
-        self.uly = uly - uly
+        self.ulx = 0
+        self.uly = 0
         self.cursor = (0, 0)  # (ulx, uly)  # cursor = (0, 0)??
         self.screen_cursor = (0, 0)  # (ulx, uly)
         self.camera_level = 0  # uly
@@ -299,6 +377,17 @@ class Screen:
 
         self.exit_editor = False
 
+        self.bold_loc1 = (None, None)
+        self.bold_loc2 = (None, None)
+
+        self.highlight1 = (None, None)
+        self.highlight2 = (None, None)
+
+        self.underline1 = (None, None)
+        self.underline2 = (None, None)
+
+        self.copy_all = None
+
     def reset_cut_copy(self):
         """
         reset_cut_copy(self) resets all stores and buffers when copyiny
@@ -307,6 +396,8 @@ class Screen:
         self.reset_paste()
 
         self.copy_buffer = None
+
+        self.copy_all = None
 
     def reset_paste(self):
         """
@@ -364,7 +455,7 @@ class Screen:
                 self.cursor = (x1 - 1, y1)
 
                 if x2 == last_length - 1:
-                    self.buffer[y1] += "\n"
+                    self.buffer = buffer_add_row(self.buffer, y1, "\n")
 
             elif x1 == 0 and y1 == 0:
                 self.cursor = (0, 0)
@@ -376,7 +467,7 @@ class Screen:
                 self.cursor = (l - 1, y1 - 1)
 
                 if x2 == last_length - 1:
-                    self.buffer[y1 - 1] += "\n"
+                    self.buffer = buffer_add_row(self.buffer, y1 - 1, "\n")
 
     def update_copy(self):
         x, y = self.cursor
@@ -411,7 +502,8 @@ class Screen:
                 self.reset_paste()
                 return
 
-            self.copy_buffer = retrieve_text(x1, y1, x2, y2, self.buffer)
+            self.copy_buffer = retrieve_text(
+                x1, y1, x2, y2, self.buffer)
 
     def update_paste(self):
         s = self.copy_buffer
@@ -451,7 +543,7 @@ class Screen:
         """
         x, y = self.cursor
         str_list = self.buffer
-        new_str_list = insert("\n", x, y, str_list)
+        new_str_list = insert(["\n", curses.A_NORMAL], x, y, str_list)
         # buffer = new_str_list[y]
         # l = len(buffer)
         # if y == (l - 1):
@@ -473,7 +565,7 @@ class Screen:
         """
         x, y = self.cursor
         str_list = self.buffer
-        new_str_list = insert(c, x, y, str_list)
+        new_str_list = insert([c, curses.A_NORMAL], x, y, str_list)
         num_rows = len(new_str_list)
         buffer = new_str_list[y]
         l = len(buffer)
@@ -511,6 +603,143 @@ class Screen:
     def update_quit(self):
         self.exit_editor = True
 
+    def update_bold(self):
+        """
+        update_bold(self) either marks the beginning of the bolding or
+        ends the bolding
+        """
+        x, y = self.cursor
+        if self.bold_loc1 == (None, None):
+            self.bold_loc1 = (x, y)
+            return
+        else:
+            self.bold_loc2 = (x, y)
+
+        # check both lie in buffer
+        x1, y1 = self.bold_loc1
+        x2, y2 = self.bold_loc2
+
+        buffer = self.buffer
+        l_buff = len(buffer)
+        if y1 >= l_buff or y2 >= l_buff:
+            self.bold_loc1 = (None, None)
+            self.bold_loc2 = (None, None)
+            return
+        s1 = buffer[y1]
+        s2 = buffer[y2]
+        l_1 = len(s1)
+        l_2 = len(s2)
+        if x1 >= l_1 or x2 >= l_2:
+            self.bold_loc1 = (None, None)
+            self.bold_loc2 = (None, None)
+            return
+
+        # update the bold buffer
+
+        start_tup, end_tup = get_max_min(x1, y1, x2, y2)
+        self.buffer = insert_style_buffer(
+            start_tup, end_tup, self.buffer, curses.A_BOLD)
+
+        # release bold loc 1 and 2
+        self.bold_loc1 = (None, None)
+        self.bold_loc2 = (None, None)
+
+    def update_highlight(self):
+        """
+        update_bold(self) either marks the beginning of the bolding or
+        ends the bolding
+        """
+        x, y = self.cursor
+        if self.highlight1 == (None, None):
+            self.highlight1 = (x, y)
+            return
+        else:
+            self.highlight2 = (x, y)
+
+        # check both lie in buffer
+        x1, y1 = self.highlight1
+        x2, y2 = self.highlight2
+
+        buffer = self.buffer
+        l_buff = len(buffer)
+        if y1 >= l_buff or y2 >= l_buff:
+            self.highlight1 = (None, None)
+            self.highlight2 = (None, None)
+            return
+        s1 = buffer[y1]
+        s2 = buffer[y2]
+        l_1 = len(s1)
+        l_2 = len(s2)
+        if x1 >= l_1 or x2 >= l_2:
+            self.highlight1 = (None, None)
+            self.highlight2 = (None, None)
+            return
+
+        # update the bold buffer
+
+        start_tup, end_tup = get_max_min(x1, y1, x2, y2)
+        self.buffer = insert_style_buffer(
+            start_tup, end_tup, self.buffer, curses.A_STANDOUT)
+
+        # release bold loc 1 and 2
+        self.highlight1 = (None, None)
+        self.highlight2 = (None, None)
+
+    def update_underline(self):
+        """
+        update_bold(self) either marks the beginning of the bolding or
+        ends the bolding
+        """
+        x, y = self.cursor
+        if self.underline1 == (None, None):
+            self.underline1 = (x, y)
+            return
+        else:
+            self.underline2 = (x, y)
+
+        # check both lie in buffer
+        x1, y1 = self.underline1
+        x2, y2 = self.underline2
+
+        buffer = self.buffer
+        l_buff = len(buffer)
+        if y1 >= l_buff or y2 >= l_buff:
+            self.underline1 = (None, None)
+            self.underline2 = (None, None)
+            return
+        s1 = buffer[y1]
+        s2 = buffer[y2]
+        l_1 = len(s1)
+        l_2 = len(s2)
+        if x1 >= l_1 or x2 >= l_2:
+            self.underline1 = (None, None)
+            self.underline2 = (None, None)
+            return
+
+        # update the bold buffer
+
+        start_tup, end_tup = get_max_min(x1, y1, x2, y2)
+        self.buffer = insert_style_buffer(
+            start_tup, end_tup, self.buffer, curses.A_UNDERLINE)
+
+        # release bold loc 1 and 2
+        self.underline1 = (None, None)
+        self.underline2 = (None, None)
+
+    def update_copy_all(self):
+        if self.copy_all == None:
+            buffer = self.buffer
+            l = len(buffer)
+            last_row = buffer[l - 1]
+            l_last = len(last_row)
+            self.copy_all = retrieve_text(0, 0, l_last - 1, l - 1, buffer)
+            return
+        else:
+            x, y = self.cursor
+            self.buffer = bulk_insert(self.copy_all, x, y, self.buffer)
+            self.copy_all = None
+            return
+
     def update_screen(self, op, c):
         """
         update_screen(self, op) updates the screen based on op,
@@ -520,8 +749,8 @@ class Screen:
         e.g. Backspace or BS is ascii 08
         """
         # check not empty character
-        if self.buffer == []:
-            self.buffer = [Constants.EDITOR_START_CHAR]
+        if buffer_is_empty(self.buffer):
+            self.buffer = init_buffer(Constants.EDITOR_START_CHAR)
 
         # update cursor
         if op == Constants.UP:
@@ -541,6 +770,13 @@ class Screen:
         elif op == Constants.GO_BOTTOM:
             self.scroll_bottom()
 
+        elif op == Constants.BOLD:
+            self.update_bold()
+        elif op == Constants.HIGHLIGHT:
+            self.update_highlight()
+        elif op == Constants.UNDERLINE:
+            self.update_underline()
+
         elif op == Constants.EXIT_EDITOR:
             self.update_quit()
 
@@ -553,6 +789,9 @@ class Screen:
 
         elif op == Constants.ESCAPE:
             self.reset_cut_copy()
+
+        elif op == Constants.COPY_ALL:
+            self.update_copy_all()
 
         elif op == Constants.SETB1:
             self.set_bookmark(1)
@@ -602,7 +841,7 @@ class Screen:
         to a screen display x y coordinate
 
         E.g. the y coordinate is always between camera_level
-        and camera_level  + h  - 1 inclusive
+        and camera_level + h - 1 inclusive
 
         REQUIRES: MUST BE CALLED ONLY AFTER change_camera is called
         so that the y coordinate is in camera frame
@@ -649,14 +888,14 @@ class Screen:
 
     def scroll_up(self):
         """
-        Decreases cursor y coordinate by 1 if possible (MOVES UP ONE ROW)
-        NOP if the cursor y is at the top row (e.g. equal to 0)
+        Decreases cursor y coordinate by 1 if possible(MOVES UP ONE ROW)
+        NOP if the cursor y is at the top row(e.g. equal to 0)
 
         Updates self
 
         REQUIRES: the Y coordinate was actually on a text element
         """
-        if self.buffer == []:
+        if buffer_is_empty(self.buffer):
             return
 
         x, y = self.cursor
@@ -679,14 +918,14 @@ class Screen:
 
     def scroll_down(self):
         """
-        Increases cursor y coordinate by 1 if possible (MOVES DOWN ONE ROW)
+        Increases cursor y coordinate by 1 if possible(MOVES DOWN ONE ROW)
         NOP if there is no additional row of text below
 
         Updates self
 
         REQUIRES: the Y coordinate was actually on a text element
         """
-        if self.buffer == []:
+        if buffer_is_empty(self.buffer):
             return
 
         x, y = self.cursor
@@ -695,7 +934,6 @@ class Screen:
 
         if (y == l - 1):
             self.cursor = (x, y)
-            # self.buffer.append(Constants.EDITOR_START_CHAR)
             return
 
         # if (y == l - 1) and (buffer[y] == " "):
@@ -719,7 +957,7 @@ class Screen:
 
     def scroll_left(self):
         """
-        Decreases cursor x coordinate by 1 if possible (MOVES LEFT ONE COLUMN)
+        Decreases cursor x coordinate by 1 if possible(MOVES LEFT ONE COLUMN)
         NOP if there is no additional COLUMN of text to the left
         NOP if at left column border
 
@@ -727,7 +965,7 @@ class Screen:
 
         REQUIRES: the X coordinate was actually on a text element
         """
-        if self.buffer == []:
+        if buffer_is_empty(self.buffer):
             return
 
         x, y = self.cursor
@@ -741,7 +979,7 @@ class Screen:
 
     def scroll_right(self):
         """
-        Increases cursor x coordinate by 1 if possible (MOVES RIGHT ONE COLUMN)
+        Increases cursor x coordinate by 1 if possible(MOVES RIGHT ONE COLUMN)
         NOP if there is no additional COLUMN of text to the right
 
         Updates self
@@ -749,7 +987,7 @@ class Screen:
         REQUIRES: the X coordinate was actually on a text element
         OR if you are one element right of the buffer, but not at the border
         """
-        if self.buffer == []:
+        if buffer_is_empty(self.buffer):
             return
 
         x, y = self.cursor
@@ -791,7 +1029,7 @@ class Screen:
 
         REQUIRES: the Y coordinate was actually on a text element
         """
-        if self.buffer == []:
+        if buffer_is_empty(self.buffer):
             return
 
         x, _ = self.cursor
@@ -807,7 +1045,7 @@ class Screen:
         self.cursor = (x, 0)
 
     def scroll_bottom(self):
-        if self.buffer == []:
+        if buffer_is_empty(self.buffer):
             return
 
         x, _ = self.cursor
@@ -831,7 +1069,7 @@ class Screen:
 
         REQUIRES: the X coordinate was actually on a text element
         """
-        if self.buffer == []:
+        if buffer_is_empty(self.buffer):
             return
 
         _, y = self.cursor
@@ -845,7 +1083,7 @@ class Screen:
 
         REQUIRES: the X coordinate was actually on a text element
         """
-        if self.buffer == []:
+        if buffer_is_empty(self.buffer):
             return
 
         _, y = self.cursor
@@ -859,13 +1097,20 @@ def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly,
     # regular text
     stdscr.erase()
     original_uly = uly
+    original_ulx = ulx
     stdscr.move(uly, ulx)
     for i in range(camera_row, min(camera_row + max_rows, len(buffer))):
-        stdscr.addstr(buffer[i])
+        row = buffer[i]
+        for c_list in row:
+            c = c_list[0]
+            c_attr = functools.reduce(lambda a, acc: a | acc, c_list[1:])
+            stdscr.addch(c, c_attr)
+
         uly += 1
         stdscr.move(uly, ulx)
 
     # redraw rectangle bounding box
+    ulx = original_ulx
     uly = original_uly
     stdscr.move(uly, ulx)
     textpad.rectangle(stdscr, uly-1, ulx-1, uly +
@@ -889,6 +1134,32 @@ def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly,
     elif screen.cut_loc1 != (None, None):
         stdscr.addstr("[Cutting... Give Next Location]", curses.color_pair(3))
 
+    # style display
+    stdscr.move(uly + max_rows + 5, ulx + 11)
+    if screen.bold_loc2 != (None, None):
+        stdscr.addstr("[Bolded on Screen]", curses.color_pair(4))
+    elif screen.bold_loc1 != (None, None):
+        stdscr.addstr("[Bolding... Give Next Location]", curses.color_pair(4))
+
+    stdscr.move(uly + max_rows + 6, ulx + 11)
+    if screen.highlight2 != (None, None):
+        stdscr.addstr("[Highlighted on Screen]", curses.color_pair(4))
+    elif screen.highlight1 != (None, None):
+        stdscr.addstr("[Highlighting... Give Next Location]",
+                      curses.color_pair(4))
+
+    stdscr.move(uly + max_rows + 7, ulx + 11)
+    if screen.underline2 != (None, None):
+        stdscr.addstr("[Underlined on Screen]", curses.color_pair(4))
+    elif screen.underline1 != (None, None):
+        stdscr.addstr("[Underlining... Give Next Location]",
+                      curses.color_pair(4))
+
+    # copy all
+    stdscr.move(uly + max_rows + 8, ulx + 11)
+    if screen.copy_all != None:
+        stdscr.addstr("[Copied All Text to Clipboard]", curses.color_pair(3))
+
     # row column display
     num_digits = len(str(y + 1))
     stdscr.move(uly + max_rows + 3, ulx +
@@ -911,9 +1182,8 @@ def view_textbox(stdscr, insert_mode=True):
     uly, ulx = 2, 2
 
     text = "Hello World!\n"
-    str_list = split_text(text)
 
-    screen = Screen(str_list, nlines, ncols, ulx, uly, (0, 0))
+    screen = Screen(text, nlines, ncols, ulx, uly, (0, 0))
 
     textpad.rectangle(stdscr, uly-1, ulx-1, uly + nlines + 2, ulx + ncols + 2)
     stdscr.move(uly, ulx)
@@ -951,8 +1221,9 @@ def view_textbox(stdscr, insert_mode=True):
             stdscr.move(uly, ulx)
 
             camera_row = screen.camera_level
+            buffer = screen.buffer
             print_buffer_to_textbox(
-                stdscr, camera_row, screen.buffer, nlines, ncols, uly, ulx, real_x, real_y, screen)
+                stdscr, camera_row, buffer, nlines, ncols, uly, ulx, real_x, real_y, screen)
 
             stdscr.move(uly + y, ulx + x)
 
@@ -1001,6 +1272,7 @@ def view():
         curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_MAGENTA)
         curses.init_pair(2, curses.COLOR_BLACK, -1)
         curses.init_pair(3, curses.COLOR_RED, -1)
+        curses.init_pair(4, curses.COLOR_BLUE, -1)
 
         curses.noecho()
         curses.cbreak()             # enter break mode where pressing Enter key

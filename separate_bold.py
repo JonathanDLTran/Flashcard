@@ -219,6 +219,108 @@ def bulk_delete(s, x, y, str_list):
     return str_list
 
 
+def init_tuple_buffer(length):
+    """
+    Inits a tuple buffer for operations like bold
+    """
+    outer_list = []
+    for _ in range(length):
+        outer_list.append([])
+    return outer_list
+
+
+def insert_tuple_buffer(start_tup, end_tup, string_buffer, tuple_buffer):
+    """
+    insert_tuple_buffer(buffer) inserts a tuple into the buffer
+    and makes sure that the tuples are all unique and removes overlaps
+    in tuples
+
+    row_length is the string buffer length of the row
+
+    Returns corrected buffer, (modified in place though)
+    """
+    def insert_tuple_buffer_helper(start_tup, end_tup, string_buffer, tuple_buffer):
+        x1, y1 = start_tup
+        x2, y2 = end_tup
+
+        if y1 == y2:
+            row = tuple_buffer[y1]
+            add_list = list(range(x1, (x2 + 1), 1))
+
+            fixed_row = []
+            for i in row:
+                if i in row and i not in add_list:
+                    fixed_row.append(i)
+                elif i in add_list and i not in row:
+                    fixed_row.append(i)
+
+            new_row = sorted(set(fixed_row))
+            tuple_buffer[y1] = new_row
+
+        else:
+            row = tuple_buffer[y1]
+            actual_row = string_buffer[y1]
+            l = len(actual_row)
+            add_list = list(range(x1, l, 1))
+
+            fixed_row = []
+            for i in row:
+                if i in row and i not in add_list:
+                    fixed_row.append(i)
+                elif i in add_list and i not in row:
+                    fixed_row.append(i)
+
+            new_row = sorted(set(fixed_row))
+            tuple_buffer[y1] = new_row
+
+            next_tup = (0, y1 + 1)
+            insert_tuple_buffer_helper(
+                next_tup, end_tup, string_buffer, tuple_buffer)
+    insert_tuple_buffer_helper(start_tup, end_tup, string_buffer, tuple_buffer)
+
+
+def merge_buffer(buffer1, buffer2):
+    """
+    merge_buffer(buffer1, buffer2) merges buffer1 into buffer2,fixing up
+    any inconsistencies in buffer2 that buffer 1 has. For example, if
+    an insertion, delete
+
+    REQUIRES: BUFFER 1 is correct buffer values
+
+    USE: update_bold BOLD Operation
+
+    buffer1 is a list of strings
+    buffer2 is a [list of [list of tuples]]
+
+    RETURNS: [list of [list of tuples]], like buffer2 which is merged by
+    buffer1, where buffer2 has exactly the same length as buffer1 and every
+    tuple x, y coordinate in buffer2 lies in buffer1 string boundaries
+    """
+    l1 = len(buffer1)
+    l2 = len(buffer2)
+    new_buffer2 = [[] for _ in range(l1)]
+    if l1 <= l2:
+        for j in range(l1):
+            row = buffer2[j]
+            new_row = []
+            for i in row:
+                row1 = len(buffer1[j])
+                if i < row1:
+                    new_row.append(i)
+            new_buffer2[j] = new_row
+        return new_buffer2
+
+    for j in range(l2):
+        row = buffer2[j]
+        new_row = []
+        for i in row:
+            row1 = len(buffer1[j])
+            if i < row1:
+                new_row.append(i)
+        new_buffer2[j] = new_row
+    return new_buffer2
+
+
 def get_max_min(x1, y1, x2, y2):
     """
     get_max_min(x1, y1, x2, y2) returns two tuples,
@@ -299,6 +401,43 @@ class Screen:
 
         self.exit_editor = False
 
+        # bold buffer
+        self.bold_buffer = init_tuple_buffer(len(str_list))
+
+        self.bold_loc1 = (None, None)
+        self.bold_loc2 = (None, None)
+
+    def update_bold_buffer(self):
+        """
+        Called as the last update after the string buffer has been fixed
+        up already.
+
+        REQUIRES: CALLS LAST IN ALL UPDATE SEQUENCING FOR CURSOR
+        """
+        self.bold_buffer = merge_buffer(self.buffer, self.bold_buffer)
+
+    def update_bold(self):
+        """
+        update_bold(self) either marks the beginning of the bolding or
+        ends the bolding
+        """
+        x, y = self.cursor
+        if self.bold_loc1 == (None, None):
+            self.bold_loc1 = (x, y)
+            return
+        else:
+            self.bold_loc2 = (x, y)
+
+        # update the bold buffer
+        x1, y1 = self.bold_loc1
+        x2, y2 = self.bold_loc2
+        start_tup, end_tup = get_max_min(x1, y1, x2, y2)
+        insert_tuple_buffer(start_tup, end_tup, self.buffer, self.bold_buffer)
+
+        # release bold loc 1 and 2
+        self.bold_loc1 = (None, None)
+        self.bold_loc2 = (None, None)
+
     def reset_cut_copy(self):
         """
         reset_cut_copy(self) resets all stores and buffers when copyiny
@@ -365,9 +504,6 @@ class Screen:
 
                 if x2 == last_length - 1:
                     self.buffer[y1] += "\n"
-
-            elif x1 == 0 and y1 == 0:
-                self.cursor = (0, 0)
 
             else:
                 buffer = self.buffer
@@ -544,6 +680,9 @@ class Screen:
         elif op == Constants.EXIT_EDITOR:
             self.update_quit()
 
+        elif op == Constants.BOLD:
+            self.update_bold()
+
         elif op == Constants.COPY:
             self.update_copy()
         elif op == Constants.CUT:
@@ -595,6 +734,9 @@ class Screen:
 
         # update screen cursor
         self.change_screen_cursor()
+
+        # update the bold buffer
+        self.update_bold_buffer()
 
     def change_screen_cursor(self):
         """
@@ -864,6 +1006,14 @@ def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly,
         stdscr.addstr(buffer[i])
         uly += 1
         stdscr.move(uly, ulx)
+
+    # bolded text:
+    bolded_text = screen.bold_buffer
+    for j in range(camera_row, min(camera_row + max_rows, len(buffer))):
+        row = bolded_text[i]
+        for i in range(len(row)):
+            stdscr.move(j + original_uly, ulx + i)
+            stdscr.addstr(buffer[j][i], curses.A_BOLD)
 
     # redraw rectangle bounding box
     uly = original_uly
