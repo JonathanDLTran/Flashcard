@@ -9,6 +9,7 @@ any of the operations I implemented anyways, and so I had to build my own data s
 - Insert (type)
 - Delete (delete)
 - Newline (return)
+- Tab (tab) : The user can tab, which will add spaces up to the next multiple of tab spacing
 
 - Left, Right, Up, Down Scroll (arrow keys)
 - Top of document, bottom of doc, farthest left, farthest right scroll (fn arrow keys)
