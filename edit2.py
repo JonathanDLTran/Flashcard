@@ -5,6 +5,8 @@ import traceback
 from curses import textpad
 import math
 import functools
+import json
+import copy
 
 """
 edit.py provides the data structures and associated
@@ -449,6 +451,97 @@ class Screen:
         self.color1 = (None, None)
         self.color2 = (None, None)
 
+        self.save_pointer = 0
+        self.save_buffer = [copy.deepcopy(self.buffer)]
+        self.saved_cursor = [copy.deepcopy(self.cursor)]
+
+        self.redo_pointer = 0
+        self.redo_buffer = [copy.deepcopy(self.buffer)]
+        self.redo_cursor = [copy.deepcopy(self.cursor)]
+
+    def update_edit_history(self, undo_occurred):
+        if undo_occurred:
+            return
+        self.save_pointer += 1
+        self.save_buffer += [copy.deepcopy(self.buffer)]
+        self.saved_cursor += [copy.deepcopy(self.cursor)]
+        if self.save_pointer >= Constants.SAVE_TRACK_LENGTH:
+            diff = self.save_pointer - Constants.SAVE_TRACK_LENGTH + 1
+            self.save_buffer = self.save_buffer[diff:]
+            self.saved_cursor = self.saved_cursor[diff:]
+            self.save_pointer -= diff
+
+        # at every update, the redo buffer is updated as well
+        self.redo_pointer = 0
+        self.redo_buffer = [copy.deepcopy(self.buffer)]
+        self.redo_cursor = [copy.deepcopy(self.cursor)]
+
+    def update_undo(self):
+        # reset redo
+        self.add_redo(self.buffer, self.cursor)
+
+        # if no edits made on current line, no op
+        if self.save_pointer == 0:
+            self.buffer = self.save_buffer[self.save_pointer]
+            # move cursor
+            self.cursor = self.saved_cursor[self.save_pointer]
+
+            self.save_buffer = [copy.deepcopy(self.buffer)]
+            self.saved_cursor = [copy.deepcopy(self.cursor)]
+            return
+
+        self.save_pointer -= 1
+        self.buffer = self.save_buffer[self.save_pointer]
+        # move cursor
+        self.cursor = self.saved_cursor[self.save_pointer]
+
+        # update saved buffer
+        l = len(self.save_buffer)
+        self.save_buffer = self.save_buffer[:(l - 1)]
+        # update saved cursor
+        self.saved_cursor = self.saved_cursor[:(l - 1)]
+
+    def flush_undo(self, buffer, cursor):
+        self.save_pointer = 0
+        self.saved_cursor = [copy.deepcopy(cursor)]
+        self.save_buffer = [copy.deepcopy(buffer)]
+
+    def add_redo(self, buffer, cursor):
+        self.redo_pointer += 1
+        self.redo_cursor += [copy.deepcopy(cursor)]
+        self.redo_buffer += [copy.deepcopy(buffer)]
+
+        if self.redo_pointer >= Constants.SAVE_TRACK_LENGTH:
+            diff = self.redo_pointer - Constants.SAVE_TRACK_LENGTH + 1
+            self.redo_buffer = self.redo_buffer[diff:]
+            self.redo_cursor = self.redo_cursor[diff:]
+            self.redo_pointer -= diff
+
+    def update_redo(self):
+        # once a redo occurs, undo is cleared
+        self.flush_undo(self.buffer, self.cursor)
+
+        # if no edits made on current line, no op
+        if self.redo_pointer == 0:
+            self.buffer = self.redo_buffer[self.redo_pointer]
+            # move cursor
+            self.cursor = self.redo_cursor[self.redo_pointer]
+
+            self.redo_buffer = [copy.deepcopy(self.buffer)]
+            self.redo_cursor = [copy.deepcopy(self.cursor)]
+            return
+
+        self.redo_pointer -= 1
+        self.buffer = self.redo_buffer[self.redo_pointer]
+        # move cursor
+        self.cursor = self.redo_cursor[self.redo_pointer]
+
+        # update saved buffer
+        l = len(self.redo_buffer)
+        self.redo_buffer = self.redo_buffer[:(l - 1)]
+        # update saved cursor
+        self.redo_cursor = self.redo_cursor[:(l - 1)]
+
     def reset_cut_copy(self):
         """
         reset_cut_copy(self) resets all stores and buffers when copyiny
@@ -851,7 +944,15 @@ class Screen:
         s = [[" ", curses.A_NORMAL] for _ in range(num_spaces)]
         self.buffer = bulk_insert(s, x, y, self.buffer)
 
-    def update_screen(self, op, c):
+        # update tab location
+        self.cursor = (x + num_spaces, y)
+
+    def update_save(self, json_path):
+        fp = open(json_path, "w")
+        json.dump(self.buffer, fp)
+        fp.close()
+
+    def update_screen(self, op, c, json_path):
         """
         update_screen(self, op) updates the screen based on op,
         which is the ascii code for the key pressed
@@ -884,6 +985,14 @@ class Screen:
         elif op == Constants.TAB:
             self.update_tab()
 
+        elif op == Constants.SAVE:
+            self.update_save(json_path)
+            return
+        elif op == Constants.UNDO:
+            self.update_undo()
+        elif op == Constants.REDO:
+            self.update_redo()
+
         elif op == Constants.BOLD:
             self.update_bold()
         elif op == Constants.HIGHLIGHT:
@@ -893,6 +1002,7 @@ class Screen:
 
         elif op == Constants.EXIT_EDITOR:
             self.update_quit()
+            self.update_save(json_path)
 
         # colors
         elif op == Constants.COLOR_BLACK:
@@ -960,6 +1070,9 @@ class Screen:
 
         # update screen cursor
         self.change_screen_cursor()
+
+        # update edit history
+        self.update_edit_history(op == Constants.UNDO or op == Constants.REDO)
 
     def change_screen_cursor(self):
         """
@@ -1311,7 +1424,7 @@ def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly,
     stdscr.move(uly, ulx)
 
 
-def view_textbox(stdscr, insert_mode=True):
+def view_textbox(stdscr, json_path, insert_mode=True):
     ncols, nlines = Constants.LINE_LENGTH, Constants.NUM_LINES
     uly, ulx = 2, 2
 
@@ -1338,7 +1451,8 @@ def view_textbox(stdscr, insert_mode=True):
 
         # check to exit editor
         if screen.exit_editor:
-            # save?
+            # second save can be commented out
+            # screen.update_save()
             stdscr.move(0, 0)
             stdscr.erase()
             stdscr.refresh()
@@ -1348,7 +1462,7 @@ def view_textbox(stdscr, insert_mode=True):
         c = chr(op)
 
         try:
-            screen.update_screen(op, c)
+            screen.update_screen(op, c, json_path)
             x, y = screen.screen_cursor
             real_x, real_y = screen.cursor
 
@@ -1396,7 +1510,7 @@ def view_textbox(stdscr, insert_mode=True):
     #     stdscr.clrtoeol()
 
 
-def view():
+def view(json_path):
     try:
         # -- Initialize --
         stdscr = curses.initscr()   # initialize curses screen
@@ -1421,17 +1535,17 @@ def view():
 
         # -- Perform an action with Screen --
 
-        view_textbox(stdscr, insert_mode=False)
+        view_textbox(stdscr, json_path, insert_mode=False)
 
-        while True:
-            # stay in this loop till the user presses 'q'
-            ch = stdscr.getch()
-            # to get char code use str(ch)
-            stdscr.addstr(str(ch), curses.color_pair(5))
-            stdscr.addstr(" ")
+        # while True:
+        #     # stay in this loop till the user presses 'q'
+        #     ch = stdscr.getch()
+        #     # to get char code use str(ch)
+        #     stdscr.addstr(str(ch), curses.color_pair(5))
+        #     stdscr.addstr(" ")
 
-            if ch == ord('q'):
-                break
+        #     if ch == ord('q'):
+        #         break
 
         # -- End of user code --
 
@@ -1538,4 +1652,5 @@ if __name__ == "__main__":
 
     # test()
 
-    view()
+    json_path = "test.json"
+    view(json_path)

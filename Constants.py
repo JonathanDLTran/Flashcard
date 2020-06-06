@@ -118,3 +118,10 @@ COLOR_CYAN = 16  # ctrl P
 COLOR_GREEN = 12  # ctrl L
 COLOR_YELLOW = 23  # ctrl W
 COLOR_BLACK = 5  # ctrl E
+
+SAVE = 11  # ctrl K
+
+SAVE_TRACK_LENGTH = 50
+
+UNDO = 20  # ctrl T
+REDO = 18  # ctrl R
