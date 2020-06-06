@@ -48,5 +48,9 @@ Line Copy
 Scroll Up by Page
 Scroll Down by Page
 
+### No Planned Support
+- Ctrl C (This is always going to stop execution)
+- other Ctrl + keys where no ascii code is given
+- Overwrite mode 
 
 
