@@ -37,6 +37,10 @@ Coloring:
 - Black, Red, Cyan, Green and Yellow Text colors
 - Commands are ctrl N, ctrl P, ctrl L, ctrl W, ctrl E
 
+Bookmarking:
+- 5 lines can be bookmarked and reset (fn 1 - 5)
+- Jump back to those bookmarks (fn 6 - 10)
+
 ### Future
 - Non Ascii Character insertion (wider character type), Meta Key support
 - Ctrl F search
