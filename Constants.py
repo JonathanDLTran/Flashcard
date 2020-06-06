@@ -112,3 +112,9 @@ JUMPB4 = 273
 JUMPB5 = 274
 
 STRIKE_THROUGH = '\u0336'
+
+COLOR_RED = 14  # ctrl N
+COLOR_CYAN = 16  # ctrl P
+COLOR_GREEN = 12  # ctrl L
+COLOR_YELLOW = 23  # ctrl W
+COLOR_BLACK = 5  # ctrl E

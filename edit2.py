@@ -348,6 +348,31 @@ def insert_style_buffer(start_tup, end_tup, buffer, style):
             next_tup, end_tup, buffer, style)
 
 
+def insert_color_buffer(start_tup, end_tup, buffer, color):
+    x1, y1 = start_tup
+    x2, y2 = end_tup
+
+    if y1 == y2:
+        row = buffer[y1]
+        for i in list(range(x1, (x2 + 1), 1)):
+            c_list = row[i]
+            # 1 index is color
+            c_list[1] = color
+        return buffer
+
+    else:
+        row = buffer[y1]
+        l = len(row)
+        for i in list(range(x1, l, 1)):
+            c_list = row[i]
+            # 1 index is color
+            c_list[1] = color
+
+        next_tup = (0, y1 + 1)
+        return insert_style_buffer(
+            next_tup, end_tup, buffer, color)
+
+
 class Screen:
     """
     Screen is an object representing the editing screen.
@@ -420,6 +445,9 @@ class Screen:
         self.underline2 = (None, None)
 
         self.copy_all = None
+
+        self.color1 = (None, None)
+        self.color2 = (None, None)
 
     def reset_cut_copy(self):
         """
@@ -759,6 +787,43 @@ class Screen:
         self.underline1 = (None, None)
         self.underline2 = (None, None)
 
+    def update_color(self, color):
+        x, y = self.cursor
+        if self.color1 == (None, None):
+            self.color1 = (x, y)
+            return
+        else:
+            self.color2 = (x, y)
+
+        # check both lie in buffer
+        x1, y1 = self.color1
+        x2, y2 = self.color2
+
+        buffer = self.buffer
+        l_buff = len(buffer)
+        if y1 >= l_buff or y2 >= l_buff:
+            self.color1 = (None, None)
+            self.color2 = (None, None)
+            return
+        s1 = buffer[y1]
+        s2 = buffer[y2]
+        l_1 = len(s1)
+        l_2 = len(s2)
+        if x1 >= l_1 or x2 >= l_2:
+            self.color1 = (None, None)
+            self.color2 = (None, None)
+            return
+
+        # update the bold buffer
+
+        start_tup, end_tup = get_max_min(x1, y1, x2, y2)
+        self.buffer = insert_color_buffer(
+            start_tup, end_tup, self.buffer, color)
+
+        # release bold loc 1 and 2
+        self.color1 = (None, None)
+        self.color2 = (None, None)
+
     def update_copy_all(self):
         if self.copy_all == None:
             buffer = self.buffer
@@ -828,6 +893,18 @@ class Screen:
 
         elif op == Constants.EXIT_EDITOR:
             self.update_quit()
+
+        # colors
+        elif op == Constants.COLOR_BLACK:
+            self.update_color(curses.A_NORMAL)
+        elif op == Constants.COLOR_CYAN:
+            self.update_color(curses.color_pair(5))
+        elif op == Constants.COLOR_GREEN:
+            self.update_color(curses.color_pair(6))
+        elif op == Constants.COLOR_YELLOW:
+            self.update_color(curses.color_pair(7))
+        elif op == Constants.COLOR_RED:
+            self.update_color(curses.color_pair(8))
 
         elif op == Constants.COPY:
             self.update_copy()
@@ -1204,6 +1281,14 @@ def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly,
         stdscr.addstr("[Underlining... Give Next Location]",
                       curses.color_pair(4))
 
+    # color display
+    stdscr.move(uly + max_rows + 8, ulx + 11)
+    if screen.color2 != (None, None):
+        stdscr.addstr("[Color on Screen]", curses.color_pair(9))
+    elif screen.color1 != (None, None):
+        stdscr.addstr("[Coloring... Give Next Location]",
+                      curses.color_pair(9))
+
     # copy all
     stdscr.move(uly + max_rows + 8, ulx + 11)
     if screen.copy_all != None:
@@ -1323,6 +1408,13 @@ def view():
         curses.init_pair(3, curses.COLOR_RED, -1)
         curses.init_pair(4, curses.COLOR_BLUE, -1)
 
+        # colors for coloring
+        curses.init_pair(5, curses.COLOR_CYAN, -1)
+        curses.init_pair(6, curses.COLOR_GREEN, -1)
+        curses.init_pair(7, curses.COLOR_YELLOW, -1)
+        curses.init_pair(8, curses.COLOR_RED, -1)
+        curses.init_pair(9, curses.COLOR_MAGENTA, -1)
+
         curses.noecho()
         curses.cbreak()             # enter break mode where pressing Enter key
         stdscr.keypad(1)
@@ -1335,7 +1427,7 @@ def view():
             # stay in this loop till the user presses 'q'
             ch = stdscr.getch()
             # to get char code use str(ch)
-            stdscr.addstr(str(ch), curses.A_NORMAL)
+            stdscr.addstr(str(ch), curses.color_pair(5))
             stdscr.addstr(" ")
 
             if ch == ord('q'):
