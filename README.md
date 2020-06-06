@@ -40,6 +40,7 @@ Coloring:
 ### Future
 - Non Ascii Character insertion (wider character type), Meta Key support
 - Ctrl F search
+- Ctrl R Replace with text
 - Ctrl S save into json
 - Ctrl Z undo
 - Ctrl Y redo 
