@@ -392,6 +392,10 @@ def legal_macro_commands(op):
         return False
     elif op == Constants.GO_BOTTOM:
         return False
+    elif op == Constants.UP_ONE_PAGE:
+        return False
+    elif op == Constants.DOWN_ONE_PAGE:
+        return False
 
     elif op == Constants.UNDO:
         return False
@@ -1061,6 +1065,15 @@ class Screen:
         for op in macro_history:
             self.update_screen(op, chr(op), json_path)
 
+    def update_up_one_page(self):
+        _, y = self.cursor
+        self.cursor = (0, max(y - Constants.NUM_LINES, 0))
+
+    def update_down_one_page(self):
+        _, y = self.cursor
+        l = len(self.buffer)
+        self.cursor = (0, min(y + Constants.NUM_LINES, l - 1))
+
     def update_screen(self, op, c, json_path):
         """
         update_screen(self, op) updates the screen based on op,
@@ -1090,6 +1103,10 @@ class Screen:
             self.scroll_top()
         elif op == Constants.GO_BOTTOM:
             self.scroll_bottom()
+        elif op == Constants.UP_ONE_PAGE:
+            self.update_up_one_page()
+        elif op == Constants.DOWN_ONE_PAGE:
+            self.update_down_one_page()
 
         elif op == Constants.TAB:
             self.update_tab()

@@ -128,7 +128,6 @@ REDO = 18  # ctrl R
 
 MACRO_RECORD = 276  # fn 12
 MACRO_RUN = 31  # ctrl _
-# ctrl F = 6
-# ctrl _ = 31
-# fn 12 = 276
-# shift-tab = 353
+
+UP_ONE_PAGE = 6  # ctrl F
+DOWN_ONE_PAGE = 353  # shift-tab = 353
