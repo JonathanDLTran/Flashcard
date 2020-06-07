@@ -7,9 +7,9 @@ curses as a base foundation. No curses textpads were used as that's like cheatin
 any of the operations I implemented anyways, and so I had to build my own data structures and operations instead.
 
 ### Requirements:
-Python 3.7 
-python distribution of curses, json, 
-Latest MAC OS, no guarantee for Windows or Linux
+- Python 3.7 
+- ython distribution of curses, json, 
+- Latest MAC OS, no guarantee for Windows or Linux
 
 ### Features
 #### Standard Typing Features
@@ -21,6 +21,8 @@ Latest MAC OS, no guarantee for Windows or Linux
 #### Movement
 - Left, Right, Up, Down Scroll (arrow keys)
 - Top of document, bottom of doc, farthest left, farthest right scroll (fn arrow keys)
+- Scroll Up by 1 Page (ctrl F)
+- Scroll Down by 1 Page (shift tab)
 
 #### Exit
 - Exit (Ctrl - G) 
@@ -58,14 +60,12 @@ Undo: Ctrl-T to undo up to undo limit number of undos (can set undo limit)
 - Fn 12 to record and end record
 - Ctrl _ to run macro
 
-### Future
+### Future Plans
 - Non Ascii Character insertion (wider character type), Meta/Alt/Option Key support
 - Ctrl F search hopefully with toggling through search with Ctrl T
 - Ctrl R Replace text with new text
 - Word Copy
 - Line Copy
-- Scroll Up by 1 Page
-- Scroll Down by 1 Page
 
 
 ### No Planned Support
@@ -73,6 +73,6 @@ Undo: Ctrl-T to undo up to undo limit number of undos (can set undo limit)
 - Ctrl I italics (Not supported by curses in python)
 - other Ctrl + keys where no ascii code is given
 - Overwrite mode 
-- Syntax Highlighting
+- Syntax Highlighting (another project perhaps)
 
 
