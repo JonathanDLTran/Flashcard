@@ -52,7 +52,7 @@ Save: Ctrl-S to save into a local json file
 Redo: Ctrl-R to redo an immediate undo
 Undo: Ctrl-T to undo up to undo limit number of undos (can set undo limit)
 
-### MACRO:
+#### Macro:
 - Keystroke macro and run macro (no recursive macros e.g embedded keystroke macros in a keystroke macros)
 - takes insert, delete, tab, newline for keystroke macros
 - Fn 12 to record and end record
