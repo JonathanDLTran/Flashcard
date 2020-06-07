@@ -86,9 +86,9 @@ COPY_ALL = 1  # ctrl + A
 HIGHLIGHT = 263  # ctrl + H
 BOLD = 2  # ctrl + B
 UNDERLINE = 21  # ctrl + U
-# ctrl + Q is 17
-# ctrl + Z
-# ctrl + Y
+# ctrl + Q is 17 NOT WORK
+# ctrl + Z NOT WORK
+# ctrl + Y NOT WORK
 
 TAB = 9
 TAB_SIZE = 4  # must be less than line length
@@ -125,3 +125,10 @@ SAVE_TRACK_LENGTH = 50
 
 UNDO = 20  # ctrl T
 REDO = 18  # ctrl R
+
+MACRO_RECORD = 276  # fn 12
+MACRO_RUN = 31  # ctrl _
+# ctrl F = 6
+# ctrl _ = 31
+# fn 12 = 276
+# shift-tab = 353

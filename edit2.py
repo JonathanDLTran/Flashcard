@@ -375,6 +375,94 @@ def insert_color_buffer(start_tup, end_tup, buffer, color):
             next_tup, end_tup, buffer, color)
 
 
+def legal_macro_commands(op):
+    if op == Constants.UP:
+        return False
+    elif op == Constants.DOWN:
+        return False
+    elif op == Constants.RIGHT:
+        return False
+    elif op == Constants.LEFT:
+        return False
+    elif op == Constants.GO_RIGHT:
+        return False
+    elif op == Constants.GO_LEFT:
+        return False
+    elif op == Constants.GO_TOP:
+        return False
+    elif op == Constants.GO_BOTTOM:
+        return False
+
+    elif op == Constants.UNDO:
+        return False
+    elif op == Constants.REDO:
+        return False
+
+    elif op == Constants.BOLD:
+        return False
+    elif op == Constants.HIGHLIGHT:
+        return False
+    elif op == Constants.UNDERLINE:
+        return False
+
+    elif op == Constants.EXIT_EDITOR:
+        return False
+
+    elif op == Constants.MACRO_RECORD:
+        return False
+    elif op == Constants.MACRO_RUN:
+        return False
+
+    # colors
+    elif op == Constants.COLOR_BLACK:
+        return False
+    elif op == Constants.COLOR_CYAN:
+        return False
+    elif op == Constants.COLOR_GREEN:
+        return False
+    elif op == Constants.COLOR_YELLOW:
+        return False
+    elif op == Constants.COLOR_RED:
+        return False
+
+    elif op == Constants.COPY:
+        return False
+    elif op == Constants.CUT:
+        return False
+    elif op == Constants.PASTE:
+        return False
+
+    elif op == Constants.ESCAPE:
+        return False
+
+    elif op == Constants.COPY_ALL:
+        return False
+
+    elif op == Constants.SETB1:
+        return False
+    elif op == Constants.SETB2:
+        return False
+    elif op == Constants.SETB3:
+        return False
+    elif op == Constants.SETB4:
+        return False
+    elif op == Constants.SETB5:
+        return False
+
+    elif op == Constants.JUMPB1:
+        return False
+    elif op == Constants.JUMPB2:
+        return False
+    elif op == Constants.JUMPB3:
+        return False
+    elif op == Constants.JUMPB4:
+        return False
+    elif op == Constants.JUMPB5:
+        return False
+
+    return True
+
+
 class Screen:
     """
     Screen is an object representing the editing screen.
@@ -458,6 +546,9 @@ class Screen:
         self.redo_pointer = 0
         self.redo_buffer = [copy.deepcopy(self.buffer)]
         self.redo_cursor = [copy.deepcopy(self.cursor)]
+
+        self.macro_buffer = []
+        self.start_macro = False
 
     def update_edit_history(self, undo_occurred):
         if undo_occurred:
@@ -952,6 +1043,24 @@ class Screen:
         json.dump(self.buffer, fp)
         fp.close()
 
+    def update_record_macro(self):
+        if not self.start_macro:
+            self.macro_buffer = []
+            self.start_macro = True
+            return
+        self.start_macro = False
+
+    def update_macro_history(self, op):
+        if self.start_macro:
+            if legal_macro_commands(op):
+                self.macro_buffer.append(op)
+                return
+
+    def update_run_macro(self, json_path):
+        macro_history = self.macro_buffer
+        for op in macro_history:
+            self.update_screen(op, chr(op), json_path)
+
     def update_screen(self, op, c, json_path):
         """
         update_screen(self, op) updates the screen based on op,
@@ -1003,6 +1112,11 @@ class Screen:
         elif op == Constants.EXIT_EDITOR:
             self.update_quit()
             self.update_save(json_path)
+
+        elif op == Constants.MACRO_RECORD:
+            self.update_record_macro()
+        elif op == Constants.MACRO_RUN:
+            self.update_run_macro(json_path)
 
         # colors
         elif op == Constants.COLOR_BLACK:
@@ -1070,6 +1184,9 @@ class Screen:
 
         # update screen cursor
         self.change_screen_cursor()
+
+        # update macro buffer
+        self.update_macro_history(op)
 
         # update edit history
         self.update_edit_history(op == Constants.UNDO or op == Constants.REDO)
@@ -1407,6 +1524,11 @@ def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly,
     if screen.copy_all != None:
         stdscr.addstr("[Copied All Text to Clipboard]", curses.color_pair(3))
 
+    # macro recording
+    stdscr.move(uly + max_rows + 9, ulx + 11)
+    if screen.start_macro:
+        stdscr.addstr("[Recording Macro]", curses.color_pair(10))
+
     # row column display
     num_digits = len(str(y + 1))
     stdscr.move(uly + max_rows + 3, ulx +
@@ -1529,6 +1651,8 @@ def view(json_path):
         curses.init_pair(8, curses.COLOR_RED, -1)
         curses.init_pair(9, curses.COLOR_MAGENTA, -1)
 
+        curses.init_pair(10, curses.COLOR_GREEN, curses.COLOR_RED)
+
         curses.noecho()
         curses.cbreak()             # enter break mode where pressing Enter key
         stdscr.keypad(1)
@@ -1537,15 +1661,15 @@ def view(json_path):
 
         view_textbox(stdscr, json_path, insert_mode=False)
 
-        # while True:
-        #     # stay in this loop till the user presses 'q'
-        #     ch = stdscr.getch()
-        #     # to get char code use str(ch)
-        #     stdscr.addstr(str(ch), curses.color_pair(5))
-        #     stdscr.addstr(" ")
+        while True:
+            # stay in this loop till the user presses 'q'
+            ch = stdscr.getch()
+            # to get char code use str(ch)
+            stdscr.addstr(str(ch), curses.color_pair(5))
+            stdscr.addstr(" ")
 
-        #     if ch == ord('q'):
-        #         break
+            if ch == ord('q'):
+                break
 
         # -- End of user code --
 
