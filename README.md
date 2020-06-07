@@ -52,6 +52,12 @@ Save: Ctrl-S to save into a local json file
 Redo: Ctrl-R to redo an immediate undo
 Undo: Ctrl-T to undo up to undo limit number of undos (can set undo limit)
 
+### MACRO:
+- Keystroke macro and run macro (no recursive macros e.g embedded keystroke macros in a keystroke macros)
+- takes insert, delete, tab, newline for keystroke macros
+- Fn 12 to record and end record
+- Ctrl _ to run macro
+
 ### Future
 - Non Ascii Character insertion (wider character type), Meta/Alt/Option Key support
 - Ctrl F search hopefully with toggling through search with Ctrl T
@@ -60,7 +66,7 @@ Undo: Ctrl-T to undo up to undo limit number of undos (can set undo limit)
 - Line Copy
 - Scroll Up by 1 Page
 - Scroll Down by 1 Page
-- Ctrl M keystroke macro and run macro (no recursive macros e.g embedded keystroke macros in a keystroke macros)
+
 
 ### No Planned Support
 - Ctrl C (This is always going to stop execution)
