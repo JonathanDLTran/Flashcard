@@ -73,6 +73,6 @@ Undo: Ctrl-T to undo up to undo limit number of undos (can set undo limit)
 - Ctrl I italics (Not supported by curses in python)
 - other Ctrl + keys where no ascii code is given
 - Overwrite mode 
-- Syntax Highlighting (another project perhaps)
+- Syntax Highlighting (another project perhaps?, build a language?)
 
 
