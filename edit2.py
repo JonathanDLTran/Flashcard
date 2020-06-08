@@ -543,6 +543,8 @@ class Screen:
         self.color1 = (None, None)
         self.color2 = (None, None)
 
+        self.color = None
+
         self.save_pointer = 0
         self.save_buffer = [copy.deepcopy(self.buffer)]
         self.saved_cursor = [copy.deepcopy(self.cursor)]
@@ -979,9 +981,15 @@ class Screen:
         x, y = self.cursor
         if self.color1 == (None, None):
             self.color1 = (x, y)
+            self.color = color
+            return
+        elif self.color1 != (None, None) and self.color != color:
+            self.color1 = (None, None)
+            self.color = None
             return
         else:
             self.color2 = (x, y)
+            self.color = None
 
         # check both lie in buffer
         x1, y1 = self.color1
