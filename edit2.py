@@ -60,6 +60,41 @@ def strike(text):
     return result
 
 
+def find_match(word, chars):
+    """
+    Returns a list of positions where word matches chars, if no  amtches then 
+    empty list reutnred
+
+    REQUIRES: word is a string and has length >= 1 and chars is a list
+    """
+    matches = []
+    w = word[0]
+    for i in range(len(chars)):
+        c = chars[i]
+        if w == c:
+            res = check_match(word, chars, i)
+            if res:
+                matches.append(i)
+    return matches
+
+
+def check_match(word, chars, i):
+    """
+    check_match(word, chars, i) checks that word completely matches
+    the characters at chars[i,...len(word) - 1 + i] and returns true
+    otherwise if no match than false. 
+    RequirsL i in chars e.g, i < len(chars) and word[0] == chars[i]
+    Word need not be in chars and can be longer than chars or extend
+    pass chars end
+    """
+    if len(word) > len(chars[i:]):
+        return False
+    for j in range(1, len(word)):
+        if word[j] != chars[i + j]:
+            return False
+    return True
+
+
 def init_buffer(string):
     """
     initializes a buffer based on the string
