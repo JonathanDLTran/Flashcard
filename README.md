@@ -62,7 +62,7 @@ Undo: Ctrl-T to undo up to undo limit number of undos (can set undo limit)
 
 ### Future Plans
 - Non Ascii Character insertion (wider character type), Meta/Alt/Option Key support
-- Ctrl F search hopefully with toggling through search with Ctrl T
+- Ctrl F search hopefully with toggling through search with Ctrl T [[In Progress Currently]]
 - Ctrl R Replace text with new text
 - Word Copy
 - Line Copy
@@ -73,6 +73,6 @@ Undo: Ctrl-T to undo up to undo limit number of undos (can set undo limit)
 - Ctrl I italics (Not supported by curses in python)
 - other Ctrl + keys where no ascii code is given
 - Overwrite mode 
-- Syntax Highlighting (another project perhaps?, build a language?)
+- Syntax Highlighting (another project perhaps?, build a language?) [[Next Planned Project is to construct a language, build an front end to lex and parse, and add intepreter, plus add syntax color]]
 
 
