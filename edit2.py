@@ -60,6 +60,23 @@ def strike(text):
     return result
 
 
+def find(word, chars):
+    if word == "":
+        remove_find_color()
+        return
+    match_locs = find_match(word, chars)
+    change_find_color()
+    return
+
+
+def change_find_color():
+    pass
+
+
+def remove_find_color():
+    pass
+
+
 def find_match(word, chars):
     """
     Returns a list of positions where word matches chars, if no  amtches then 
