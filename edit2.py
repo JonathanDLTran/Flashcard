@@ -1730,6 +1730,8 @@ def view(json_path):
 
         curses.init_pair(10, curses.COLOR_GREEN, curses.COLOR_RED)
 
+        curses.init_pair(11, curses.COLOR_BLACK, curses.COLOR_YELLOW)
+
         curses.noecho()
         curses.cbreak()             # enter break mode where pressing Enter key
         stdscr.keypad(1)
