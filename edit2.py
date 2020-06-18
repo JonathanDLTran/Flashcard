@@ -60,56 +60,109 @@ def strike(text):
     return result
 
 
-def find(word, chars):
-    if word == "":
-        remove_find_color()
-        return
-    match_locs = find_match(word, chars)
-    change_find_color()
-    return
-
-
-def change_find_color():
-    pass
-
-
-def remove_find_color():
-    pass
-
-
-def find_match(word, chars):
+def remove_highlight_color(buffer, color_num):
     """
-    Returns a list of positions where word matches chars, if no  amtches then 
+    remove_highlight_color(buffer) removes all color_pair(color_num)
+    form all chars in the buffer
+    REQUIRESL color_num not equal to defaul 0!!!!
+    Returns buffer
+    color_num is an int between 0 and len(color_pairs) - 1
+    """
+    assert (color_num != 0)
+    for row in buffer:
+        for char_list in row:
+            if curses.color_pair(color_num) in char_list:
+                char_list.remove(curses.color_pair(color_num))
+    return buffer
+
+
+def find(word, buffer, color_num):
+    """
+    find(word, buffer, color_num) is the list of list of locations in the buffer
+    corresponding to places where word matches buffer
+
+    color_num is the color to change the highlihgting in a find to
+    it is between 0 and len(color_pairs) - 1 inclusive
+
+    Returns: same buffer
+    word is string
+    buffer is a triply nested list, with inner list containing at least a string
+    REQUIRES: word does not have \n or \r or \t or any escape characters in it 
+    RAISES: assertion error if \n or \r ot \t found
+    REQUIRES: if word is empty string "" then returns buffer with 
+    the coloring cleared out
+    """
+    assert("\n" not in word)
+    assert("\r" not in word)
+    assert("\t" not in word)
+
+    if word == "":
+        return remove_highlight_color(buffer, color_num)
+
+    matches = find_matches(word, buffer)
+
+    for hit_locs in matches:
+        for i, j in hit_locs:
+            char_list = buffer[i][j]
+            if curses.color_pair(11) not in char_list:
+                char_list.append(curses.color_pair(color_num))
+
+    return buffer
+
+
+def find_matches(word, buffer):
+    """
+    Returns a list of lists positions in buffer where word matches the characters
+    in buffer, if no  matches then 
     empty list reutnred
 
-    REQUIRES: word is a string and has length >= 1 and chars is a list
+    REQUIRES: word is a string and has length >= 1 and buffer
+    is a list of list of lists, where the first element of the inner most
+    list must be a string
     """
     matches = []
     w = word[0]
-    for i in range(len(chars)):
-        c = chars[i]
-        if w == c:
-            res = check_match(word, chars, i)
-            if res:
-                matches.append(i)
+    for i in range(len(word)):
+        row = buffer[i]
+        for j in range(len(row)):
+            char_list = row[j]
+            char = char_list[0]
+            if char == w:
+                res, hit_locs = check_match(word, buffer, i, j)
+                if res:
+                    matches.append(hit_locs)
     return matches
 
 
-def check_match(word, chars, i):
+def check_match(word, buffer, i, j):
     """
     check_match(word, chars, i) checks that word completely matches
-    the characters at chars[i,...len(word) - 1 + i] and returns true
-    otherwise if no match than false. 
-    RequirsL i in chars e.g, i < len(chars) and word[0] == chars[i]
+    the characters at chars[i,...len(word) - 1 + i] of wrapping in to the next line
+    and returns a tuple of true and the list of match positions
+    otherwise if no match than false and []. 
+    Requires: i, j in buffer e.g, 0 <= i < len(buffer) and word[0] == buffer[i]
+    and 0 <= j < len(buffer[i])
     Word need not be in chars and can be longer than chars or extend
     pass chars end
+
+    i is row
+    j is column in buffer
     """
-    if len(word) > len(chars[i:]):
-        return False
-    for j in range(1, len(word)):
-        if word[j] != chars[i + j]:
-            return False
-    return True
+    def check_match_helper(word, buffer, i, j, hit_locs):
+        if word == "":
+            return (True, hit_locs)
+        if i >= len(buffer):
+            return (False, [])
+        w = word[0]
+        c = buffer[i][j][0]
+        if w != c:
+            return (False, [])
+        hit_locs.append((i, j))
+        remaining_word = word[1:]
+        if j == len(buffer[i]) - 1:
+            return check_match_helper(remaining_word, buffer, (i + 1), j, hit_locs)
+        return check_match_helper(remaining_word, buffer, i, (j + 1), hit_locs)
+    return check_match_helper(word, buffer, i, j, [])
 
 
 def init_buffer(string):
