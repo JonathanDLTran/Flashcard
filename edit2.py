@@ -665,22 +665,28 @@ class Screen:
         self.start_macro = False
 
         # FIND STUFF
-        self.run_find = False  # whether the finding is activated
+        self.edit_find = False  # edit mode find updates
         self.using_find = False  # whether we can enter finding in search bar
         self.find_buffer = ""  # value shown in search bar
         self.find_x = 0  # the further x column of find
         self.find_y = Constants.NUM_LINES
 
-    def change_find(self):
-        if self.using_find:
-            self.using_find = False
-            self.run_find = False
-            self.find_buffer = ""
-            self.find_x = 0
-        else:
-            self.using_find = True
-            self.find_buffer = ""
-            self.find_x = 0
+    def enter_find(self):
+        self.using_find = True
+        self.edit_find = False
+        self.find_buffer = ""
+        self.find_x = 0
+
+    def enter_edit_find(self):
+        self.using_find = False
+        self.edit_find = True
+
+    def leave_edit_find(self):
+        self.using_find = False
+        self.edit_find = False
+        self.find_buffer = ""
+        self.find_x = 0
+        self.buffer = remove_highlight_color(self.buffer, color_num=11)
 
     def update_find(self, op, c):
         """
@@ -695,8 +701,10 @@ class Screen:
             self.find_x -= 1
             return
         elif op == Constants.RETURN:
-            self.run_find = True
+            # do not reset self.find_buffer or find_x to keep showing the find
+            # on screen
             self.buffer = find(self.find_buffer, self.buffer, color_num=11)
+            self.enter_edit_find()
             return
         # tab no-op
         elif op == Constants.TAB:
@@ -704,6 +712,10 @@ class Screen:
         # is character
         self.find_buffer += c
         self.find_x += 1
+
+    def update_edit_find(self):
+        self.buffer = remove_highlight_color(self.buffer, color_num=11)
+        self.buffer = find(self.find_buffer, self.buffer, color_num=11)
 
     def update_edit_history(self, undo_occurred):
         if undo_occurred:
@@ -1244,16 +1256,24 @@ class Screen:
             self.buffer = init_buffer(Constants.EDITOR_START_CHAR)
 
         # update find:
-        if op == Constants.FIND:
-            self.change_find()
-
-        if self.using_find and legal_macro_commands(op):
-            self.update_find(op, c)
-            # don't update screen
+        if op == Constants.FIND and not self.using_find and not self.edit_find:
+            self.enter_find()
             return
-        elif self.using_find and not legal_macro_commands(op):
+
+        if self.using_find and not self.edit_find and legal_macro_commands(op):
+            self.update_find(op, c)
+            # do not continue to update screen
+            return
+        elif self.using_find and not self.edit_find and not legal_macro_commands(op):
             # no update to find
             return
+
+        if op == Constants.FIND and not self.using_find and self.edit_find:
+            self.leave_edit_find()
+            return
+
+        if not self.using_find and self.edit_find:
+            self.update_edit_find()
 
         # update cursor
         if op == Constants.UP:
@@ -1676,6 +1696,12 @@ def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly,
     if screen.using_find:
         stdscr.move(uly + max_rows + 4, ulx)
         stdscr.addstr("[Find Mode]", curses.color_pair(11))
+
+    # search display
+    if screen.edit_find:
+        stdscr.move(uly + max_rows + 4, ulx)
+        stdscr.addstr("[Searching for your find request...]",
+                      curses.color_pair(11))
 
     # copy display
     stdscr.move(uly + max_rows + 3, ulx + 11)
