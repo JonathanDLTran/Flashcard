@@ -60,9 +60,14 @@ Undo: Ctrl-T to undo up to undo limit number of undos (can set undo limit)
 - Fn 12 to record and end record
 - Ctrl _ to run macro
 
+### Find and Search:
+- Shift ~ is used to find
+- Enter to finish the find statement
+- In edit-find mode, will search and highlight all occurrences of find statement
+- Shift ~ to leave edit-find mode and remove all highlights, clears find buffer
+
 ### Future Plans
-- Non Ascii Character insertion (wider character type), Meta/Alt/Option Key support
-- Ctrl F search hopefully with toggling through search with Ctrl T [[In Progress Currently]]
+- Non Ascii Character insertion (wider character type), Meta/Alt/Option Key support [[Research In Progress]]
 - Ctrl R Replace text with new text
 - Word Copy
 - Line Copy
