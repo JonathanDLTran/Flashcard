@@ -569,6 +569,9 @@ def legal_macro_commands(op):
     elif op == Constants.JUMPB5:
         return False
 
+    elif op == Constants.FIND:
+        return False
+
     return True
 
 
@@ -660,6 +663,46 @@ class Screen:
 
         self.macro_buffer = []
         self.start_macro = False
+
+        # FIND STUFF
+        self.run_find = False  # whether the finding is activated
+        self.using_find = False  # whether we can enter finding in search bar
+        self.find_buffer = ""  # value shown in search bar
+        self.find_x = 0  # the further x column of find
+        self.find_y = Constants.NUM_LINES
+
+    def change_find(self):
+        if self.using_find:
+            self.using_find = False
+            self.run_find = False
+            self.find_buffer = ""
+            self.find_x = 0
+        else:
+            self.using_find = True
+            self.find_buffer = ""
+            self.find_x = 0
+
+    def update_find(self, op, c):
+        """
+        update_find(self, c)
+        requires self.using_find to be true to call
+        """
+        if op == Constants.DELETE:
+            l = len(self.find_buffer)
+            if l == 0:
+                return
+            self.find_buffer = self.find_buffer[:(l-1)]
+            self.find_x -= 1
+            return
+        elif op == Constants.RETURN:
+            self.run_find = True
+            return
+        # tab no-op
+        elif op == Constants.TAB:
+            return
+        # is character
+        self.find_buffer += c
+        self.find_x += 1
 
     def update_edit_history(self, undo_occurred):
         if undo_occurred:
@@ -1199,6 +1242,18 @@ class Screen:
         if buffer_is_empty(self.buffer):
             self.buffer = init_buffer(Constants.EDITOR_START_CHAR)
 
+        # update find:
+        if op == Constants.FIND:
+            self.change_find()
+
+        if self.using_find and legal_macro_commands(op):
+            self.update_find(op, c)
+            # don't update screen
+            return
+        elif self.using_find and not legal_macro_commands(op):
+            # no update to find
+            return
+
         # update cursor
         if op == Constants.UP:
             self.scroll_up()
@@ -1595,6 +1650,16 @@ def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly,
         uly += 1
         stdscr.move(uly, ulx)
 
+    # ctrl-find text
+    ulx = original_ulx
+    uly = original_uly
+    stdscr.move(uly + screen.find_y, ulx)
+    find_string = screen.find_buffer
+    l_find = len(find_string)
+    if l_find > Constants.FIND_COLS:
+        find_string = find_string[-Constants.FIND_COLS:]
+    stdscr.addstr(find_string)
+
     # redraw rectangle bounding box
     ulx = original_ulx
     uly = original_uly
@@ -1792,6 +1857,10 @@ def view(json_path):
         # -- Perform an action with Screen --
 
         view_textbox(stdscr, json_path, insert_mode=False)
+
+        while 1:
+            c = stdscr.get_wch()
+            stdscr.addstr("%s: %s\n" % (repr(c), type(c)))
 
         while True:
             # stay in this loop till the user presses 'q'

@@ -71,6 +71,8 @@ LINEFEED = RETURN
 LINE_LENGTH = 70
 NUM_LINES = 10
 
+FIND_COLS = 20
+
 EDITOR_START_CHAR = " "
 
 GO_LEFT = 262  # fn <-
@@ -81,7 +83,7 @@ GO_BOTTOM = 338  # fn down arrow
 COPY = 4  # ctrl + D
 CUT = 24  # ctrl + X
 PASTE = 22  # ctrl + V
-FIND = 6  # ctrl + F
+FIND = 6  # ctrl + F # TO CHANGE
 COPY_ALL = 1  # ctrl + A
 HIGHLIGHT = 263  # ctrl + H
 BOLD = 2  # ctrl + B
