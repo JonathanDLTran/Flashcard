@@ -104,7 +104,7 @@ def find(word, buffer, color_num):
     for hit_locs in matches:
         for i, j in hit_locs:
             char_list = buffer[i][j]
-            if curses.color_pair(11) not in char_list:
+            if curses.color_pair(color_num) not in char_list:
                 char_list.append(curses.color_pair(color_num))
 
     return buffer
@@ -122,7 +122,7 @@ def find_matches(word, buffer):
     """
     matches = []
     w = word[0]
-    for i in range(len(word)):
+    for i in range(len(buffer)):
         row = buffer[i]
         for j in range(len(row)):
             char_list = row[j]
@@ -696,6 +696,7 @@ class Screen:
             return
         elif op == Constants.RETURN:
             self.run_find = True
+            self.buffer = find(self.find_buffer, self.buffer, color_num=11)
             return
         # tab no-op
         elif op == Constants.TAB:
@@ -1670,6 +1671,11 @@ def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly,
     # mode display
     stdscr.move(uly + max_rows + 3, ulx)
     stdscr.addstr("[Edit Mode]", curses.color_pair(1))
+
+    # find display
+    if screen.using_find:
+        stdscr.move(uly + max_rows + 4, ulx)
+        stdscr.addstr("[Find Mode]", curses.color_pair(11))
 
     # copy display
     stdscr.move(uly + max_rows + 3, ulx + 11)
