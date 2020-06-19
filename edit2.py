@@ -1890,9 +1890,10 @@ def view(json_path):
 
         view_textbox(stdscr, json_path, insert_mode=False)
 
-        while 1:
-            c = stdscr.get_wch()
-            stdscr.addstr("%s: %s\n" % (repr(c), type(c)))
+        ####-- code for wide char number/character ---####
+        # while 1:
+        #     c = stdscr.get_wch()
+        #     stdscr.addstr("%s: %s\n" % (repr(c), type(c)))
 
         while True:
             # stay in this loop till the user presses 'q'
