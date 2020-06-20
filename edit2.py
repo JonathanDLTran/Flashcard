@@ -1700,7 +1700,7 @@ def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly,
     # search display
     if screen.edit_find:
         stdscr.move(uly + max_rows + 4, ulx)
-        stdscr.addstr("[Searching for your find request...]",
+        stdscr.addstr("[Searching...]",
                       curses.color_pair(11))
 
     # copy display
@@ -1815,8 +1815,14 @@ def view_textbox(stdscr, json_path, insert_mode=True):
             stdscr.refresh()
             return
 
-        op = stdscr.getch()
-        c = chr(op)
+        # get character input - blocking NOT AYSNCHRONOUS!!!
+        ### -- old version use regular size char --###
+        # op = stdscr.getch()
+        # c = chr(op)
+
+        ### -- new version use wide size char --###
+        wide_char = stdscr.get_wch()
+        op, c = translate_wide_to_op_char(wide_char)
 
         try:
             screen.update_screen(op, c, json_path)
@@ -1867,6 +1873,36 @@ def view_textbox(stdscr, json_path, insert_mode=True):
     #     stdscr.clrtoeol()
 
 
+def translate_wide_to_op_char(wide_char):
+    """
+    translate_wide_to_op_char(wide_char) translates a wide_char
+    to a (op, char) pair
+
+    wide_char is a wide character from extended ASCII from 
+    curses.get_wch()
+
+    if is \n or \t return ord of the wide_char, None
+    if it is any other string type return None, wide_char
+
+    if wide_char is of type int, return wide_char, None
+    """
+    if type(wide_char) == str:
+        # check if it is "\n":
+        if wide_char == "\n":
+            return (ord(wide_char), None)
+        elif wide_char == "\t":
+            return (ord(wide_char), None)
+        elif wide_char in Constants.key_string_to_numeric_code_dict:
+            op = Constants.key_string_to_numeric_code_dict[wide_char]
+            return (op, None)
+        return (None, wide_char)
+    elif type(wide_char) == int:
+        # fn, ctrl, meta key type
+        return (wide_char, None)
+    else:
+        raise TypeError
+
+
 def view(json_path):
     try:
         # -- Initialize --
@@ -1899,10 +1935,11 @@ def view(json_path):
         view_textbox(stdscr, json_path, insert_mode=False)
 
         ####-- code for wide char number/character ---####
-        # while 1:
-        #     c = stdscr.get_wch()
-        #     stdscr.addstr("%s: %s\n" % (repr(c), type(c)))
+        while 1:
+            c = stdscr.get_wch()
+            stdscr.addstr("%s: %s\n" % (repr(c), type(c)))
 
+        ####-- code for regular char number/character ---####
         while True:
             # stay in this loop till the user presses 'q'
             ch = stdscr.getch()

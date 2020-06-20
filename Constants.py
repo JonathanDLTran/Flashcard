@@ -59,12 +59,37 @@ LITERATURE = "\u204B"
 DELETE = "\u2620"
 
 ######### KEY PRESSES ##########
+key_string_to_numeric_code_dict = {
+    '\x7f': 127,
+    '\x04': 4,
+    '\x18': 24,
+    '\x16': 22,
+    '\x01': 1,
+    '\x02': 2,
+    '\x15': 21,
+    '\x1b': 27,
+    '\x07': 7,
+    '\x0e': 14,
+    '\x10': 16,
+    '\x0c': 12,
+    '\x17': 23,
+    '\x05': 5,
+    '\x0b': 11,
+    '\x14': 20,
+    '\x12': 18,
+    '\x1f': 31,
+    '\x06': 6,
+}
+
+numeric_code_to_key_string_dict = {
+    key_string_to_numeric_code_dict[k]: k for k in key_string_to_numeric_code_dict}
+
 UP = 259
 DOWN = 258
 RIGHT = 261
 LEFT = 260
 DELETE = 127
-RETURN = 10
+RETURN = 10  # actuallly "\n" in wide_char, but we translate to (ord(\n) == 10)
 ENTER = RETURN
 LINEFEED = RETURN
 
@@ -83,7 +108,7 @@ GO_BOTTOM = 338  # fn down arrow
 COPY = 4  # ctrl + D
 CUT = 24  # ctrl + X
 PASTE = 22  # ctrl + V
-FIND = 126  # shift ~
+FIND = 343  # fn - return # OLD # 126  # shift ~
 COPY_ALL = 1  # ctrl + A
 HIGHLIGHT = 263  # ctrl + H
 BOLD = 2  # ctrl + B
