@@ -1757,18 +1757,26 @@ def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly,
         stdscr.addstr("[Recording Macro]", curses.color_pair(10))
 
     # row column display
-    num_digits = len(str(y + 1))
+    row_digits = len(str(y + 1))
+    col_digits = len(str(x + 1))
+    # stdscr.move(uly + max_rows + 3, ulx +
+    #             max_cols + 2 - row_digits - 1 - 4 - 5)
     stdscr.move(uly + max_rows + 3, ulx +
-                max_cols + 2 - num_digits - 1 - 4 - 5)
+                max_cols - row_digits - 1 - 4 - col_digits - 1)
     stdscr.addstr("Row " + str(y + 1), curses.color_pair(2))
-    stdscr.move(uly + max_rows + 3, ulx + max_cols + 2 - 5)
+    # stdscr.move(uly + max_rows + 3, ulx + max_cols + 2 - col_digits - 1)
+    stdscr.move(uly + max_rows + 3, ulx + max_cols - col_digits - 1)
     stdscr.addstr("Col " + str(x + 1), curses.color_pair(2))
 
     # page number display
+    total_pages = y + 1
+    total_page_digits = len(str(total_pages))
     pages = (y + 1) // max_rows + 1
     page_digits = len(str(pages))
-    stdscr.move(uly + max_rows + 4, ulx + max_cols + 2 - 4 - page_digits)
-    stdscr.addstr("Page " + str(pages), curses.color_pair(2))
+    stdscr.move(uly + max_rows + 4, ulx + max_cols + 2 -
+                4 - page_digits - 4 - total_page_digits)
+    stdscr.addstr("Page " + str(pages) + " of " +
+                  str(total_pages), curses.color_pair(2))
 
     stdscr.move(uly, ulx)
 
@@ -2012,3 +2020,5 @@ if __name__ == "__main__":
 
     json_path = "test.json"
     view(json_path)
+
+# https://stackoverflow.com/questions/22157426/getch-returns-wrong-characters
