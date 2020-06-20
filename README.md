@@ -8,7 +8,7 @@ any of the operations I implemented anyways, and so I had to build my own data s
 
 ### Requirements:
 - Python 3.7 
-- ython distribution of curses, json, 
+- Python distribution of curses, json, 
 - Latest MAC OS, no guarantee for Windows or Linux
 
 ### Features
@@ -61,13 +61,15 @@ Undo: Ctrl-T to undo up to undo limit number of undos (can set undo limit)
 - Ctrl _ to run macro
 
 ### Find and Search:
-- Shift ~ is used to find
+- Fn Return is used to find
 - Enter to finish the find statement
 - In edit-find mode, will search and highlight all occurrences of find statement
-- Shift ~ to leave edit-find mode and remove all highlights, clears find buffer
+- FN Returnto leave edit-find mode and remove all highlights, clears find buffer
+
+### Wide Characters
+- Non Ascii Character insertion (wider character type), Meta/Alt/Option Key support 
 
 ### Future Plans
-- Non Ascii Character insertion (wider character type), Meta/Alt/Option Key support [[Research In Progress]]
 - Ctrl R Replace text with new text
 - Word Copy
 - Line Copy
