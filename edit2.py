@@ -1769,7 +1769,7 @@ def print_buffer_to_textbox(stdscr, camera_row, buffer, max_rows, max_cols, uly,
     stdscr.addstr("Col " + str(x + 1), curses.color_pair(2))
 
     # page number display
-    total_pages = y + 1
+    total_pages = len(screen.buffer) // max_rows + 1
     total_page_digits = len(str(total_pages))
     pages = (y + 1) // max_rows + 1
     page_digits = len(str(pages))
