@@ -480,6 +480,10 @@ def insert_color_buffer(start_tup, end_tup, buffer, color):
             next_tup, end_tup, buffer, color)
 
 
+def get_word(buffer, x, y):
+    pass
+
+
 def legal_macro_commands(op):
     if op == Constants.UP:
         return False
@@ -545,6 +549,8 @@ def legal_macro_commands(op):
         return False
 
     elif op == Constants.COPY_ALL:
+        return False
+    elif op == Constants.COPY_WORD:
         return False
 
     elif op == Constants.SETB1:
@@ -1348,6 +1354,8 @@ class Screen:
 
         elif op == Constants.COPY_ALL:
             self.update_copy_all()
+        elif op == Constants.COPY_WORD:
+            return
 
         elif op == Constants.SETB1:
             self.set_bookmark(1)

@@ -79,6 +79,7 @@ key_string_to_numeric_code_dict = {
     '\x12': 18,
     '\x1f': 31,
     '\x06': 6,
+    '∑': ord('∑'),
 }
 
 numeric_code_to_key_string_dict = {
@@ -158,3 +159,5 @@ MACRO_RUN = 31  # ctrl _
 
 UP_ONE_PAGE = 6  # ctrl F
 DOWN_ONE_PAGE = 353  # shift-tab = 353
+
+COPY_WORD = ord('∑')  # fn- opt W
