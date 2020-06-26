@@ -7,6 +7,10 @@ SPACES = [" ", "\n", "\t"]
 LPAREN = "("
 RPAREN = ")"
 ASSIGN = ":="
+PLUS = "+"
+MINUS = "-"
+TIMES = "*"
+DIV = "/"
 EQ = "="
 LT = "<"
 GT = ">"
@@ -16,25 +20,34 @@ IF = "if"
 ELSE = "else"
 WHILE = "while"
 
+# Order matters in keywords
 keywords = [
+    LPAREN,
+    RPAREN,
     ASSIGN,
+    LTE,
+    GTE,
     EQ,
     LT,
     GT,
-    LTE,
-    GTE,
+    PLUS,
+    MINUS,
+    TIMES,
+    DIV,
     IF,
     ELSE,
     WHILE,
 ]
 
-add_space_in_parse = [
+keywords_lens = {kw: len(kw) for kw in keywords}
+
+add_space_in_lex = [
     IF,
     ELSE,
     WHILE,
 ]
 
-no_space_in_parse = [kw for kw in keywords if kw not in add_space_in_parse]
+no_space_in_lex = [kw for kw in keywords if kw not in add_space_in_lex]
 
 ALPHABETICAL = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 NUMERICAL = "0123456789"
@@ -93,9 +106,9 @@ def match_int(string, idx):
     Only matches positive ints!
     Requires: idx does not start at alocation not corresponding to an int
     """
-    def match_int_helper(string, idx, num, length):
+    def match_int_helper(string, string_len, idx, num, length):
         # check is there remaining string to process
-        if idx >= len(string):
+        if idx >= string_len:
             return (num, length)
 
         first = string[idx]
@@ -104,20 +117,80 @@ def match_int(string, idx):
         if first not in NUMERICAL:
             return (num, length)
 
-        return match_int_helper(string, idx + 1, num + first, length + 1)
-    return match_int_helper(string, idx, "", 0)
+        return match_int_helper(string, string_len, idx + 1, num + first, length + 1)
+    # check if you have double 0's at beginning, in which case lex fails
+    l = len(string)
+    if string[idx] == '0' and idx + 1 < l and string[idx + 1] == '0':
+        return (None, 0)
+    return match_int_helper(string, l, idx, "", 0)
 
 
-def match_keywords(program_str, idx, keyword, add_space):
-    if add_space:
-        keyword += SPACE
-    if len(keyword) > len(program_str[idx:]):
+def match_keyword(string, idx, keyword, keywords_lens):
+    """
+    match_keywords(string, idx, keyword) returns True if kewword matched else False
+
+    keyword_lens is a dictionary mapping keyword to its length
+    Requires: the first char of keyword is also shared by string
+    """
+    l_key = keywords_lens[keyword]
+    l_str = len(string)
+    if idx + l_key > l_str:
         return False
-    for i in range(len(keyword)):
-        actual_i = i + idx
-        if program_str[actual_i] != keyword[i]:
-            return False
-    return True
+    return string[idx:(idx + l_key)] == keyword
+
+
+def match_keywords(string, idx, keywords_lst=keywords, keywords_lens=keywords_lens, space_in_lex=add_space_in_lex):
+    """
+    match_keywords(string, idx, keywords_lst) returns (keyword, len) for the 
+    FIRST matched keyword in keywords_lst
+
+    If no matches returns (None, 0)
+
+    Requires a space after the keyword for a keyword in space_in_lex
+    and no space if the keyword is not in space_in_lex. No space is needed if the
+    program terminates
+
+    REQUIRES: All \t, \r, \b, \n, \f are replaced with " " space characters already
+    in string
+
+    REQUIRES: keywords_lst is ordered in order of importance of lexing
+
+    REQUIRES: idx is an idnex in string
+
+    string is the program string
+    idx is the index in the string, must be in stirng
+    keyword is a list of strings representing keywords
+    space_in_parse is a list of keywords requiring a space after lexing
+    """
+    for kw in keywords_lst:
+        if match_keyword(string, idx, kw, keywords_lens):
+            l_key = keywords_lens[kw]
+            if kw in space_in_lex:
+                l_s = len(string)
+                # is the keyword the last characters in the string
+                if l_key + idx >= l_s:
+                    return (kw, l_key)
+                else:
+                    if string[l_key + idx] == SPACE:
+                        return (kw, l_key)
+                    else:
+                        # not end with space
+                        return (None, 0)
+            else:
+                return (kw, l_key)
+    return (None, 0)
+
+
+# def match_keywords(program_str, idx, keyword, add_space):
+#     if add_space:
+#         keyword += SPACE
+#     if len(keyword) > len(program_str[idx:]):
+#         return False
+#     for i in range(len(keyword)):
+#         actual_i = i + idx
+#         if program_str[actual_i] != keyword[i]:
+#             return False
+#     return True
 
 
 def match_first_keyword(program_str, idx, keyword_list, add_space):

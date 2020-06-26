@@ -90,7 +90,98 @@ def test_match_int():
     m = match_int(program, 5)
     assert (m == ("1219", 4))
 
+    # test no leading 0's
+    program = "00"
+    m = match_int(program, 0)
+    assert (m == (None, 0))
+
+    program = "007"
+    m = match_int(program, 0)
+    assert (m == (None, 0))
+
+    program = "ssh1 007"
+    m = match_int(program, 5)
+    assert (m == (None, 0))
+
+    program = "00001007"
+    m = match_int(program, 0)
+    assert (m == (None, 0))
+
     print("Tested Match Var")
+
+
+def test_match_keywords():
+    print("Testing Match Keywords")
+
+    program = "if else"
+    m = match_keywords(program, 0)
+    assert (m == ("if", 2))
+
+    program = "if else"
+    m = match_keywords(program, 3)
+    assert (m == ("else", 4))
+
+    program = "if while "
+    m = match_keywords(program, 3)
+    assert (m == ("while", 5))
+
+    program = "if while"
+    m = match_keywords(program, 3)
+    assert (m == ("while", 5))
+
+    program = "i"
+    m = match_keywords(program, 0)
+    assert (m == (None, 0))
+
+    program = "eLSe"
+    m = match_keywords(program, 0)
+    assert (m == (None, 0))
+
+    program = "+"
+    m = match_keywords(program, 0)
+    assert (m == ("+", 1))
+
+    program = "-"
+    m = match_keywords(program, 0)
+    assert (m == ("-", 1))
+
+    program = "*"
+    m = match_keywords(program, 0)
+    assert (m == ("*", 1))
+
+    program = "/"
+    m = match_keywords(program, 0)
+    assert (m == ("/", 1))
+
+    program = "("
+    m = match_keywords(program, 0)
+    assert (m == ("(", 1))
+
+    program = ")"
+    m = match_keywords(program, 0)
+    assert (m == (")", 1))
+
+    program = ">"
+    m = match_keywords(program, 0)
+    assert (m == (">", 1))
+
+    program = "<"
+    m = match_keywords(program, 0)
+    assert (m == ("<", 1))
+
+    program = ">="
+    m = match_keywords(program, 0)
+    assert (m == (">=", 2))
+
+    program = "<="
+    m = match_keywords(program, 0)
+    assert (m == ("<=", 2))
+
+    program = "x:=3"
+    m = match_keywords(program, 1)
+    assert (m == (":=", 2))
+
+    print("Tested Match Keywords")
 
 
 def test_get_var():
@@ -105,3 +196,4 @@ if __name__ == "__main__":
     test_get_var()
     test_match_var()
     test_match_int()
+    test_match_keywords()
