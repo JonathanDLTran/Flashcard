@@ -56,6 +56,40 @@ def test_match_var():
     m = match_variable(program, 2)
     assert (m == ("K2", 2))
 
+    program = "S"
+    m = match_variable(program, 0)
+    assert (m == ("S", 1))
+
+    print("Tested Match Var")
+
+
+def test_match_int():
+    print("Testing Match Int")
+
+    program = "3"
+    m = match_int(program, 0)
+    assert (m == ("3", 1))
+
+    program = "0"
+    m = match_int(program, 0)
+    assert (m == ("0", 1))
+
+    program = "100"
+    m = match_int(program, 0)
+    assert (m == ("100", 3))
+
+    program = "405"
+    m = match_int(program, 0)
+    assert (m == ("405", 3))
+
+    program = "x = 23"
+    m = match_int(program, 4)
+    assert (m == ("23", 2))
+
+    program = "x0 = 1219"
+    m = match_int(program, 5)
+    assert (m == ("1219", 4))
+
     print("Tested Match Var")
 
 
@@ -70,3 +104,4 @@ def test_get_var():
 if __name__ == "__main__":
     test_get_var()
     test_match_var()
+    test_match_int()

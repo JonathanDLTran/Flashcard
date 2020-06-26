@@ -83,6 +83,31 @@ def match_variable(string, idx, var_chars=variable_chars):
     return (n, l)
 
 
+def match_int(string, idx):
+    """
+    match_int(string, idx) is an integer stirng and the length of the string if
+    wtring matches 
+
+    Requires: string begins at an integer location
+
+    Only matches positive ints!
+    Requires: idx does not start at alocation not corresponding to an int
+    """
+    def match_int_helper(string, idx, num, length):
+        # check is there remaining string to process
+        if idx >= len(string):
+            return (num, length)
+
+        first = string[idx]
+
+        # check var_chars
+        if first not in NUMERICAL:
+            return (num, length)
+
+        return match_int_helper(string, idx + 1, num + first, length + 1)
+    return match_int_helper(string, idx, "", 0)
+
+
 def match_keywords(program_str, idx, keyword, add_space):
     if add_space:
         keyword += SPACE
