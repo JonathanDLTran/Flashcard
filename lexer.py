@@ -1,8 +1,12 @@
 # We use Jay Conrod's IMP language
 
+# ------- CONSTANTS ---------
 SPACE = " "
 
 SPACES = [" ", "\n", "\t"]
+
+# Spaces to preprocess out of program string
+ILLEGAL_SPACES = ["\b", "\n", "\t", "\f", "\r"]
 
 LPAREN = "("
 RPAREN = ")"
@@ -16,6 +20,8 @@ LT = "<"
 GT = ">"
 LTE = "<="
 GTE = ">="
+TRUE = "True"
+FALSE = "False"
 IF = "if"
 ELSE = "else"
 WHILE = "while"
@@ -34,6 +40,8 @@ keywords = [
     MINUS,
     TIMES,
     DIV,
+    TRUE,
+    FALSE,
     IF,
     ELSE,
     WHILE,
@@ -42,6 +50,8 @@ keywords = [
 keywords_lens = {kw: len(kw) for kw in keywords}
 
 add_space_in_lex = [
+    TRUE,
+    FALSE,
     IF,
     ELSE,
     WHILE,
@@ -61,6 +71,18 @@ variable_chars = [
 
 VARIABLE_NOT_START_NUMERIC = True
 
+# ------ EXCEPTIONS --------
+
+
+class TOKENIZATION_ERROR(Exception):
+    """
+    Raised when tokenization fails
+    """
+    pass
+
+
+# ------- MATCH TOKENS FUNCTIONS --------
+
 
 def match_variable(string, idx, var_chars=variable_chars):
     """
@@ -69,8 +91,8 @@ def match_variable(string, idx, var_chars=variable_chars):
     based on the character rules allowed for a variable name in var_chars
 
     Returns (var_name, len) if possible, else (None, 0)
-    Requires: idx in str could be the start of a variable, and so thus, the first
-    cannot be a numeral
+    Returns (None, 0) if string does not being with a variable allowed char, like udnerscore or
+    alphabetical
     """
     def match_variable_helper(string, idx, var_chars, name, length):
         # check is there remaining string to process
@@ -90,20 +112,31 @@ def match_variable(string, idx, var_chars=variable_chars):
 
         return match_variable_helper(string, idx + 1, var_chars, name + first, length + 1)
 
+    # check if the first character could be variable:
+    if (string[idx] not in UNDERSCORE) and (string[idx] not in ALPHABETICAL):
+        return (None, 0)
+
     n, l = match_variable_helper(string, idx, var_chars, "", 0)
+
+    # no match
     if l == 0:
-        return None, 0
+        return (None, 0)
+
+    # variable cannot start with numeric
+    if VARIABLE_NOT_START_NUMERIC and n[0] in NUMERICAL:
+        return (None, 0)
+
     return (n, l)
 
 
 def match_int(string, idx):
     """
     match_int(string, idx) is an integer stirng and the length of the string if
-    wtring matches 
+    wtring matches
 
     Requires: string begins at an integer location
 
-    Only matches positive ints!
+    Returns (NOne, 0) if string does not begin with an int
     Requires: idx does not start at alocation not corresponding to an int
     """
     def match_int_helper(string, string_len, idx, num, length):
@@ -118,10 +151,16 @@ def match_int(string, idx):
             return (num, length)
 
         return match_int_helper(string, string_len, idx + 1, num + first, length + 1)
+
+    # check it begins with an int
+    if string[idx] not in NUMERICAL:
+        return (None, 0)
+
     # check if you have double 0's at beginning, in which case lex fails
     l = len(string)
     if string[idx] == '0' and idx + 1 < l and string[idx + 1] == '0':
         return (None, 0)
+
     return match_int_helper(string, l, idx, "", 0)
 
 
@@ -141,7 +180,7 @@ def match_keyword(string, idx, keyword, keywords_lens):
 
 def match_keywords(string, idx, keywords_lst=keywords, keywords_lens=keywords_lens, space_in_lex=add_space_in_lex):
     """
-    match_keywords(string, idx, keywords_lst) returns (keyword, len) for the 
+    match_keywords(string, idx, keywords_lst) returns (keyword, len) for the
     FIRST matched keyword in keywords_lst
 
     If no matches returns (None, 0)
@@ -172,7 +211,9 @@ def match_keywords(string, idx, keywords_lst=keywords, keywords_lens=keywords_le
                     return (kw, l_key)
                 else:
                     if string[l_key + idx] == SPACE:
-                        return (kw, l_key)
+                        # here length is one longer than keyword to capture
+                        # the space
+                        return (kw, l_key + 1)
                     else:
                         # not end with space
                         return (None, 0)
@@ -181,50 +222,46 @@ def match_keywords(string, idx, keywords_lst=keywords, keywords_lens=keywords_le
     return (None, 0)
 
 
-# def match_keywords(program_str, idx, keyword, add_space):
-#     if add_space:
-#         keyword += SPACE
-#     if len(keyword) > len(program_str[idx:]):
-#         return False
-#     for i in range(len(keyword)):
-#         actual_i = i + idx
-#         if program_str[actual_i] != keyword[i]:
-#             return False
-#     return True
+# ----- PREPROCESSING PROGRAM -------
 
 
-def match_first_keyword(program_str, idx, keyword_list, add_space):
-    for kw in keyword_list:
-        if match_keywords(program_str, idx, kw, add_space):
-            return kw
-    return None
+def clean_spaces(program_str):
+    """
+    Removes: \n, \r, \t, \f, \b and replaces with spaces
+    Strips at front and end
+    Returns cleaned program string
+    """
+    program_str = program_str.strip()
+    for c in ILLEGAL_SPACES:
+        program_str = program_str.replace(c, SPACE)
+    return program_str
 
 
-def match_char(char, keywords_list):
-    kws = []
-    for kw in keywords_list:
-        if kw[0] == char:
-            kws.append(kw)
-    return kws
+def preprocess(program_str):
+    """
+    preprocess(program_str) preprocesses the program string
+    Removes: \n, \r, \t, \f, \b and replaces with spaces
+    Strips at front and end
 
+    Return preprocessed program_str
+    """
+    return clean_spaces(program_str)
 
-def get_var(program_str, idx):
-    l = len(program_str)
-    var_name = ""
-    while (idx < l):
-        c = program_str[idx]
-        if c in SPACES:
-            return var_name
-        var_name += c
-        idx += 1
-    return var_name
+# ------ LEXER ------
 
 
 def lex(program_str):
     """
-    program_str is striped already, beigns and ends on char
+    LEXER/TOKENIZER
+    Progam_str is a string of the program source code
+
+    Returns list of Tokens
+
+    Starts by Preprocesses program string
+
     Lex is recursive
     We have the invariant as below:
+    END if program_str is empty!
     0. If we match character with a kwyword, check if it is a keyword and
     lex it, no space is needed after it (e.g. a left paren, right paren, equals
     <=, etc)
@@ -238,43 +275,31 @@ def lex(program_str):
             III. When a () parentheses is reached
     3. Numbers are numerics and are pulled out, only iotegers
     4. Spaces are eliminated
-    5. If not all consumed, terminate
-
+    5. If not all consumed, terminate by raising 
     """
+    def lex_helper(program_str, acc):
+        if program_str == "":
+            return acc
 
-    tokens = []
-    is_var = False
-    var_name = ""
-    l = len(program_str)
-    i = 0
-    while (i != l):
-        char = program_str[i]
-        if not is_var:
-            match_keywords_list = match_char(char, keywords)
-            kw = match_first_keyword(
-                program_str, i, match_keywords_list, False)
-            # need to change true condition
-            if kw != None:
-                tokens.append(kw)
-                l = len(kw)
-                i += l
+        token, length = match_keywords(program_str, 0)
+        if token != None:
+            return lex_helper(program_str[length:], acc + [token])
 
-            else:
-                is_var = True
-                var_name += char
-                i += 1
-        else:
-            if char == SPACE:
-                is_var = False
-                tokens.append(var_name)
-                var_name = ""
-                i += 1
-            else:
-                var_name += char
-                i += 1
-    return tokens
+        token, length = match_variable(program_str, 0)
+        if token != None:
+            return lex_helper(program_str[length:], acc + [token])
+
+        token, length = match_int(program_str, 0)
+        if token != None:
+            return lex_helper(program_str[length:], acc + [token])
+
+        if program_str[0] == SPACE:
+            return lex_helper(program_str[1:], acc)
+
+        raise TOKENIZATION_ERROR("Could not consume characters")
+
+    return lex_helper(preprocess(program_str), [])
 
 
 if __name__ == "__main__":
-    program = "if else"
-    print(lex(program))
+    pass
