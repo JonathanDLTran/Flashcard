@@ -10,16 +10,19 @@ ILLEGAL_SPACES = ["\b", "\n", "\t", "\f", "\r"]
 
 LPAREN = "("
 RPAREN = ")"
-ASSIGN = ":="
 PLUS = "+"
+FUN_ARROW = "->"
 MINUS = "-"
 TIMES = "*"
 DIV = "/"
 EQ = "="
 LT = "<"
 GT = ">"
+ASSIGN = ":="
 LTE = "<="
 GTE = ">="
+FUN = "fun"
+END_FUN = "endfun"
 TRUE = "True"
 FALSE = "False"
 IF = "if"
@@ -30,6 +33,7 @@ WHILE = "while"
 keywords = [
     LPAREN,
     RPAREN,
+    FUN_ARROW,
     ASSIGN,
     LTE,
     GTE,
@@ -42,14 +46,18 @@ keywords = [
     DIV,
     TRUE,
     FALSE,
+    FUN,
     IF,
     ELSE,
     WHILE,
+    END_FUN,
 ]
 
 keywords_lens = {kw: len(kw) for kw in keywords}
 
 add_space_in_lex = [
+    FUN,
+    END_FUN,
     TRUE,
     FALSE,
     IF,
@@ -70,6 +78,14 @@ variable_chars = [
 ]
 
 VARIABLE_NOT_START_NUMERIC = True
+
+
+# ------ TOKEN TYPES -------
+
+VARIABLE = "variable"
+INTEGER = "integer"
+KEYWORD = "keyword"
+
 
 # ------ EXCEPTIONS --------
 
@@ -116,17 +132,17 @@ def match_variable(string, idx, var_chars=variable_chars):
     if (string[idx] not in UNDERSCORE) and (string[idx] not in ALPHABETICAL):
         return (None, 0)
 
-    n, l = match_variable_helper(string, idx, var_chars, "", 0)
+    v, l = match_variable_helper(string, idx, var_chars, "", 0)
 
     # no match
     if l == 0:
         return (None, 0)
 
     # variable cannot start with numeric
-    if VARIABLE_NOT_START_NUMERIC and n[0] in NUMERICAL:
+    if VARIABLE_NOT_START_NUMERIC and v[0] in NUMERICAL:
         return (None, 0)
 
-    return (n, l)
+    return ((VARIABLE, v), l)
 
 
 def match_int(string, idx):
@@ -161,7 +177,8 @@ def match_int(string, idx):
     if string[idx] == '0' and idx + 1 < l and string[idx + 1] == '0':
         return (None, 0)
 
-    return match_int_helper(string, l, idx, "", 0)
+    i, l = match_int_helper(string, l, idx, "", 0)
+    return ((INTEGER, int(i)), l)
 
 
 def match_keyword(string, idx, keyword, keywords_lens):
@@ -189,6 +206,9 @@ def match_keywords(string, idx, keywords_lst=keywords, keywords_lens=keywords_le
     and no space if the keyword is not in space_in_lex. No space is needed if the
     program terminates
 
+    WARNING: DOES NOT INCLUDE SPACE IN THE KEYWORD LENGTH THAT IS RETURNED;
+    IGNORES SPACE AFTER KEYWORD THAT NEEDS SPACE
+
     REQUIRES: All \t, \r, \b, \n, \f are replaced with " " space characters already
     in string
 
@@ -208,17 +228,15 @@ def match_keywords(string, idx, keywords_lst=keywords, keywords_lens=keywords_le
                 l_s = len(string)
                 # is the keyword the last characters in the string
                 if l_key + idx >= l_s:
-                    return (kw, l_key)
+                    return ((KEYWORD, kw), l_key)
                 else:
                     if string[l_key + idx] == SPACE:
-                        # here length is one longer than keyword to capture
-                        # the space
-                        return (kw, l_key + 1)
+                        return ((KEYWORD, kw), l_key)
                     else:
                         # not end with space
                         return (None, 0)
             else:
-                return (kw, l_key)
+                return ((KEYWORD, kw), l_key)
     return (None, 0)
 
 
