@@ -1,25 +1,25 @@
 """
 Grammar:
-Variable ::= 
+Variable ::=
     | [a-zA-z etc.]
-Boolean ::= 
+Boolean ::=
     | True
     | False
-Value ::= 
+Value ::=
     | Boolean
     | Int i
 BOP ::=
-    | + 
-    | - 
-    | / 
-    | * 
+    | +
+    | -
+    | /
+    | *
     | and
     | or
 
 UNOP ::=
  | -
  | not
-Expression ::= 
+Expression ::=
 | Value
 | Variable
 | (e1)
@@ -39,30 +39,30 @@ import lexer
 
 # ------- GRAMMAR PRODUCTION RULES ------------fds
 
-VALUE = 'value'
-INTEGER = 'integer'
-BOOLEAN = 'boolean'
-EXPRESSION = 'expression'
-# BOP = "bop"
+# VALUE = 'value'
+# INTEGER = 'integer'
+# BOOLEAN = 'boolean'
+# EXPRESSION = 'expression'
+# # BOP = "bop"
 
-VALUE_RULES = [
-    [INTEGER],
-    [BOOLEAN],
-]
+# VALUE_RULES = [
+#     [INTEGER],
+#     [BOOLEAN],
+# ]
 
-BOPS = [
-    lexer.PLUS,
-    lexer.MINUS,
-    lexer.TIMES,
-    lexer.DIV,
-]
+# BOPS = [
+#     lexer.PLUS,
+#     lexer.MINUS,
+#     lexer.TIMES,
+#     lexer.DIV,
+# ]
 
-EXPRESSION_RULES = [
-    [VALUE],
-    [EXPRESSION, BOP, EXPRESSION],
-    []
+# EXPRESSION_RULES = [
+#     [VALUE],
+#     [EXPRESSION, BOP, EXPRESSION],
+#     []
 
-]
+# ]
 
 # ------ EXCEPTIONS ---------
 
@@ -73,6 +73,21 @@ class MissingParens(Exception):
 
 
 class ParseError(Exception):
+    def __init__(self, str):
+        pass
+
+
+class BopMissingArg(Exception):
+    def __init__(self, str):
+        pass
+
+
+class UnopAdditionalArg(Exception):
+    def __init__(self, str):
+        pass
+
+
+class UnmatchedParenError(Exception):
     def __init__(self, str):
         pass
 
@@ -107,7 +122,7 @@ class Expr(object):
 
 class IntValue(Expr):
     """
-    IntValue represents an Int Value 
+    IntValue represents an Int Value
     """
 
     def __init__(self, value):
@@ -145,7 +160,7 @@ class Unop(Expr):
     """
 
     def __init__(self, unop, expr=None):
-        uper().__init__()
+        super().__init__()
         self.unop = unop
         self.expr = expr
 
@@ -158,11 +173,8 @@ class Unop(Expr):
 
 # ------ MATCH FUNCTIONS --------
 
-def match_value(lex_buff, idx):
-    lex_typ, val = lex_buff[idx]
-    if lex_typ != lexer.INTEGER:
-        return None
-    return Value(val, lex_typ)
+def match_integer(lexbuf, val):
+    return match_expr(IntValue(val), lexbuf)
 
 
 def get_between_brackets(lex_buff, idx):
@@ -200,18 +212,24 @@ def match_open_paren(ast, lex_buff, idx):
     return match_expr(new_ast, new_lex_buff)
 
 
-def match_bop(ast, lex_buff):
-    lex_typ, val = lex_buff[0]
-    if val == lexer.PLUS:
-        if ast.is_empty():
-            raise issue:
-        bop_node = BOP(lexer.PLUS, ast, None)
-        return bop_node
+def match_bop(ast, lexbuf, bop):
+    bop_node = Bop(bop)
+    bop_node.set_left(ast)
+    right_node = match_expr(None, lexbuf)
+    bop_node.set_right(right_node)
+    return bop_node
+
+
+def match_unop(lexbuf, unop):
+    unop_node = Unop(unop)
+    bottom_node = match_expr(None, lexbuf)
+    unop_node.set_expr(bottom_node)
+    return unop_node
 
 
 def match_expr(ast, lexbuf):
     """
-    match_expr(ast, lexbuf) creates an ast from lexbuf, otherwise raises 
+    match_expr(ast, lexbuf) creates an ast from lexbuf, otherwise raises
     appropriate execption
     """
     if lexbuf == []:
@@ -223,20 +241,21 @@ def match_expr(ast, lexbuf):
     if typ == lexer.INTEGER:
         return match_integer(tail, val)
     elif ast == None and typ in lexer.BOPS:
-        raise Bop_Missing_Arg("Missing arg %s" % (val))
+        raise BopMissingArg("Missing arg %s" % (val))
     elif ast != None and typ in lexer.BOPS:
         return match_bop(ast, tail, val)
     elif ast == None and typ in lexer.UNOPS:
         return match_unop(tail, val)
     elif ast != None and typ in lexer.UNOPS:
-        raise Unop_Additional_Arg(
+        raise UnopAdditionalArg(
             "Additional arg to a unary operation %s" % (val))
     elif typ == lexer.LPAREN:
-        return match_lparent(ast, tail, val)
+        pass
+        # return match_lparent(ast, tail, val)
     elif typ == lexer.RPAREN:
-        raise Unmatched_Paren_Error("Unmatched right parentehesis %s" % (val))
+        raise UnmatchedParenError("Unmatched right parenthesis %s" % (val))
 
-    raise MatchError
+    raise ParseError("Error in Parsing Tokens")
 
 
 def match(lexbuf):
