@@ -53,6 +53,22 @@ keywords = [
     END_FUN,
 ]
 
+UNOPS = [
+    MINUS,
+]
+
+BOPS = [
+    LTE,
+    GTE,
+    EQ,
+    LT,
+    GT,
+    PLUS,
+    MINUS,
+    TIMES,
+    DIV,
+]
+
 keywords_lens = {kw: len(kw) for kw in keywords}
 
 add_space_in_lex = [
