@@ -231,9 +231,15 @@ def match_bop(ast, lexbuf, bop):
 
 def match_unop(lexbuf, unop):
     unop_node = Unop(unop)
-    bottom_node = match_expr(None, lexbuf)
-    unop_node.set_expr(bottom_node)
-    return unop_node
+    head = lexbuf[0]
+    tail = lexbuf[1:]
+    la_typ, _ = head
+    if la_typ in lexer.INTEGER:
+        bottom_node = match_expr(None, [head])
+        unop_node.set_expr(bottom_node)
+        return match_expr(unop_node, tail)
+    raise UnopAdditionalArg(
+        "Additional arg to a unary operation %s" % (unop))
 
 
 def match_expr(ast, lexbuf):
@@ -249,12 +255,12 @@ def match_expr(ast, lexbuf):
 
     if typ == lexer.INTEGER:
         return match_integer(tail, val)
+    elif ast == None and val in lexer.UNOPS:
+        return match_unop(tail, val)
     elif ast == None and val in lexer.BOPS:
         raise BopMissingArg("Missing arg %s" % (val))
     elif ast != None and val in lexer.BOPS:
         return match_bop(ast, tail, val)
-    elif ast == None and val in lexer.UNOPS:
-        return match_unop(tail, val)
     elif ast != None and val in lexer.UNOPS:
         raise UnopAdditionalArg(
             "Additional arg to a unary operation %s" % (val))

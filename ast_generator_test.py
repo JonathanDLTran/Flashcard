@@ -31,7 +31,52 @@ def test_match_expr():
     ast = match_expr(None, lexbuf)
     print(ast)
 
-    program = "3 * 4 -  6"
+    program = "3 * 4 - 6"
+    lexbuf = lex(program)
+    ast = match_expr(None, lexbuf)
+    print(ast)
+
+    program = "-3"
+    lexbuf = lex(program)
+    ast = match_expr(None, lexbuf)
+    print(ast)
+
+    program = "-3"
+    lexbuf = lex(program)
+    ast = match_expr(None, lexbuf)
+    print(ast)
+
+    program = "-10 + -20"
+    lexbuf = lex(program)
+    ast = match_expr(None, lexbuf)
+    print(ast)
+
+    program = "-10 + -20 * 30"
+    lexbuf = lex(program)
+    ast = match_expr(None, lexbuf)
+    print(ast)
+
+    program = "5 * -10 + -20 * 30"
+    lexbuf = lex(program)
+    ast = match_expr(None, lexbuf)
+    print(ast)
+
+    program = "3 * 5 * -10/4 + 7--20 * 30"
+    lexbuf = lex(program)
+    ast = match_expr(None, lexbuf)
+    print(ast)
+
+    program = "1 -- 1"
+    lexbuf = lex(program)
+    ast = match_expr(None, lexbuf)
+    print(ast)
+
+    program = "-1 -- 1"
+    lexbuf = lex(program)
+    ast = match_expr(None, lexbuf)
+    print(ast)
+
+    program = "-1 + -1"
     lexbuf = lex(program)
     ast = match_expr(None, lexbuf)
     print(ast)
