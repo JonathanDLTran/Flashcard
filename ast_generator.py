@@ -215,8 +215,17 @@ def match_open_paren(ast, lex_buff, idx):
 def match_bop(ast, lexbuf, bop):
     bop_node = Bop(bop)
     bop_node.set_left(ast)
-    right_node = match_expr(None, lexbuf)
-    bop_node.set_right(right_node)
+    # need to wrap in try.except if theis is undefined
+    head = lexbuf[0]
+    la_typ, _ = head
+    if (bop == lexer.TIMES or bop == lexer.DIV) and la_typ in lexer.INTEGER:
+        right_node = match_expr(None, [head])
+        bop_node.set_right(right_node)
+        tail = lexbuf[1:]
+        return match_expr(bop_node, tail)
+    else:
+        right_node = match_expr(None, lexbuf)
+        bop_node.set_right(right_node)
     return bop_node
 
 
@@ -240,13 +249,13 @@ def match_expr(ast, lexbuf):
 
     if typ == lexer.INTEGER:
         return match_integer(tail, val)
-    elif ast == None and typ in lexer.BOPS:
+    elif ast == None and val in lexer.BOPS:
         raise BopMissingArg("Missing arg %s" % (val))
-    elif ast != None and typ in lexer.BOPS:
+    elif ast != None and val in lexer.BOPS:
         return match_bop(ast, tail, val)
-    elif ast == None and typ in lexer.UNOPS:
+    elif ast == None and val in lexer.UNOPS:
         return match_unop(tail, val)
-    elif ast != None and typ in lexer.UNOPS:
+    elif ast != None and val in lexer.UNOPS:
         raise UnopAdditionalArg(
             "Additional arg to a unary operation %s" % (val))
     elif typ == lexer.LPAREN:
