@@ -81,6 +81,46 @@ def test_match_expr():
     ast = match_expr(None, lexbuf)
     print(ast)
 
+    program = "(1 + 1)"
+    lexbuf = lex(program)
+    ast = match_expr(None, lexbuf)
+    print(ast)
+
+    program = "(1 + 1) + 1"
+    lexbuf = lex(program)
+    ast = match_expr(None, lexbuf)
+    print(ast)
+
+    program = "2 * (1 + 1) + 1"
+    lexbuf = lex(program)
+    ast = match_expr(None, lexbuf)
+    print(ast)
+
+    program = "(1/ 2) * (1 + 1) + 1"
+    lexbuf = lex(program)
+    ast = match_expr(None, lexbuf)
+    print(ast)
+
+    program = "(1/ (2 + 3)) * (1 + 1) + 1"
+    lexbuf = lex(program)
+    ast = match_expr(None, lexbuf)
+    print(ast)
+
+    program = "()"
+    lexbuf = lex(program)
+    ast = match_expr(None, lexbuf)
+    print(ast)
+
+    program = "((1 + ((1 + (1 + ((1 + 1)))))))"
+    lexbuf = lex(program)
+    ast = match_expr(None, lexbuf)
+    print(ast)
+
+    program = "(((1)))"
+    lexbuf = lex(program)
+    ast = match_expr(None, lexbuf)
+    print(ast)
+
     print("Tested Match Expr")
 
 

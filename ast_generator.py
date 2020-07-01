@@ -130,7 +130,7 @@ class IntValue(Expr):
         self.value = value
 
     def __repr__(self):
-        return "IntValue: " + str(self.value)
+        return "(IntValue: " + str(self.value) + ")"
 
 
 class Bop(Expr):
@@ -151,7 +151,7 @@ class Bop(Expr):
         self.right = right
 
     def __repr__(self):
-        return "BOP: " + str(self.left) + str(self.bop) + str(self.right)
+        return "(BOP: " + str(self.left) + str(self.bop) + str(self.right) + ")"
 
 
 class Unop(Expr):
@@ -168,7 +168,7 @@ class Unop(Expr):
         self.expr = expr
 
     def __repr__(self):
-        return "UNOP: " + str(self.unop) + str(self.expr)
+        return "(UNOP: " + str(self.unop) + str(self.expr) + ")"
 
 
 # ------ MATCH FUNCTIONS --------
@@ -183,17 +183,19 @@ def get_between_brackets(lex_buff, idx):
     stack.append(lexer.LPAREN)
     expr_terms = []
     i = idx
+
     while (i < len(lex_buff) and stack != []):
-        _, val = lex_buff[i]
+
+        typ, val = lex_buff[i]
         if val == lexer.LPAREN:
             stack.append(val)
         elif val == lexer.RPAREN:
             if stack != [] and stack[-1] == lexer.LPAREN:
                 stack.pop()
-        expr_terms.append(val)
+        expr_terms.append((typ, val))
         i += 1
 
-    if i >= len(lex_buff):
+    if i > len(lex_buff):
         raise MissingParens("Missing or Misplaced Parentheses")
     if stack != []:
         raise MissingParens("Missing or Misplaced Parentheses")
@@ -202,14 +204,23 @@ def get_between_brackets(lex_buff, idx):
     return (expr_terms, l)
 
 
-def match_open_paren(ast, lex_buff, idx):
-    lex_typ, val = lex_buff[idx]
+def match_open_paren(ast, lex_buff):
+
+    lex_typ, val = lex_buff[0]
     if val != lexer.LPAREN:
         return None
-    middle_terms, length = get_between_brackets(lex_buff, idx + 1)
-    new_lex_buff = lex_buff[idx + 1 + length:]
-    new_ast = match_expr(ast, middle_terms)
-    return match_expr(new_ast, new_lex_buff)
+
+    middle_terms, length = get_between_brackets(lex_buff[1:], 0)
+    new_lex_buff = lex_buff[1 + length:]
+    new_ast = match_expr(None, middle_terms)
+
+    if ast != None:
+        ast.set_right(new_ast)
+
+    else:
+        ast = new_ast
+
+    return match_expr(ast, new_lex_buff)
 
 
 def match_bop(ast, lexbuf, bop):
@@ -217,15 +228,19 @@ def match_bop(ast, lexbuf, bop):
     bop_node.set_left(ast)
     # need to wrap in try.except if theis is undefined
     head = lexbuf[0]
-    la_typ, _ = head
+    la_typ, la_val = head
     if (bop == lexer.TIMES or bop == lexer.DIV) and la_typ in lexer.INTEGER:
         right_node = match_expr(None, [head])
         bop_node.set_right(right_node)
         tail = lexbuf[1:]
         return match_expr(bop_node, tail)
+    elif (bop == lexer.TIMES or bop == lexer.DIV) and la_val == lexer.LPAREN:
+        right_node = match_open_paren(bop_node, lexbuf)
+        return right_node
     else:
         right_node = match_expr(None, lexbuf)
         bop_node.set_right(right_node)
+
     return bop_node
 
 
@@ -264,10 +279,10 @@ def match_expr(ast, lexbuf):
     elif ast != None and val in lexer.UNOPS:
         raise UnopAdditionalArg(
             "Additional arg to a unary operation %s" % (val))
-    elif typ == lexer.LPAREN:
-        pass
+    elif val == lexer.LPAREN:
+        return match_open_paren(ast, lexbuf)
         # return match_lparent(ast, tail, val)
-    elif typ == lexer.RPAREN:
+    elif val == lexer.RPAREN:
         raise UnmatchedParenError("Unmatched right parenthesis %s" % (val))
 
     raise ParseError("Error in Parsing Tokens")
