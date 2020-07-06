@@ -121,6 +121,26 @@ def test_match_expr():
     ast = match_expr(None, lexbuf)
     print(ast)
 
+    program = "(((-1)))"
+    lexbuf = lex(program)
+    ast = match_expr(None, lexbuf)
+    print(ast)
+
+    program = "4 + -3 * (-1 + -2) - 5"
+    lexbuf = lex(program)
+    ast = match_expr(None, lexbuf)
+    print(ast)
+
+    program = "4 * -3 * 2 + 1"
+    lexbuf = lex(program)
+    ast = match_expr(None, lexbuf)
+    print(ast)
+
+    program = "-(1)"
+    lexbuf = lex(program)
+    ast = match_expr(None, lexbuf)
+    print(ast)
+
     print("Tested Match Expr")
 
 

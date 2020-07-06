@@ -69,6 +69,8 @@ BOPS = [
     DIV,
 ]
 
+OPERATIONS = UNOPS + BOPS
+
 keywords_lens = {kw: len(kw) for kw in keywords}
 
 add_space_in_lex = [
