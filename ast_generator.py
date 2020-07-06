@@ -324,18 +324,12 @@ def parse(lex_buff):
     return parse_helper(lex_buff, AST(), [])
 
 
-precendence_map = {
-    lexer.PLUS: 1,
-    lexer.MINUS: 1,
-    lexer.TIMES: 2,
-    lexer.DIV: 2,
-}
-
 PRECENDENCE_MAP = {
     lexer.PLUS: 1,
     lexer.MINUS: 1,
     lexer.TIMES: 2,
     lexer.DIV: 2,
+    lexer.EXP: 3,
 }
 
 
@@ -360,15 +354,13 @@ def reduce_stack(precedence, stack):
     if l == 1:
         return stack[0]
 
-    print(stack, "stack")
-    if precedence == 0 or precedence == 1:
+    if precedence <= 3:
         end_stack = stack[:3]
         bop = end_stack[1][1]
         start = end_stack[0]
         end = end_stack[2]
         new_stack = deepcopy(stack[3:])
         new_stack.insert(0, Bop(bop, start, end))
-        print(new_stack, "new stack")
         return reduce_stack(precedence, new_stack)
     elif precedence == 2:
         end_stack = stack[:3]
@@ -379,10 +371,8 @@ def reduce_stack(precedence, stack):
         new_stack.insert(0, Bop(bop, start, end))
         return reduce_stack(precedence, new_stack)
 
-    print(precedence, "precedence")
 
-
-def parse_expr(count, precedence, stack, lexbuf):
+def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
 
     # nothing more to parse
     if lexbuf == []:
@@ -397,7 +387,6 @@ def parse_expr(count, precedence, stack, lexbuf):
             new_stack.append(VarValue(val_curr))
         else:
             raise EndWithOperatorError(val_curr)
-        print(new_stack)
         return (count + 1, reduce_stack(precedence, new_stack))
 
     if typ_curr == lexer.INTEGER:
@@ -408,30 +397,33 @@ def parse_expr(count, precedence, stack, lexbuf):
         new_precedence = get_precedence(val_la, PRECENDENCE_MAP)
         if new_precedence > precedence:
 
-            print(1)
             new_stack = []
             new_stack.append(IntValue(val_curr))
-            new_idx, res_ast = parse_expr(
-                0, new_precedence, new_stack, lexbuf[1:])
+            new_idx, res_ast = parse_expr(precedence,
+                                          0, new_precedence, new_stack, lexbuf[1:])
             stack.append(res_ast)
-            return parse_expr(count + new_idx + 1, precedence, stack, lexbuf[1 + new_idx:])
+            return parse_expr(prev_precedence, count + new_idx + 1, precedence, stack, lexbuf[1 + new_idx:])
 
         elif new_precedence == precedence:
-            print(2)
             stack.append(IntValue(val_curr))
             # reduced_stack = reduce_stack(precedence, stack)
-            return parse_expr(count + 1, precedence, stack, lexbuf[1:])
+            return parse_expr(prev_precedence, count + 1, precedence, stack, lexbuf[1:])
 
         else:
-            print(3)
             stack.append(IntValue(val_curr))
             res_ast = reduce_stack(precedence, stack)
+            next_precedence = get_precedence(
+                lexbuf[1][1], PRECENDENCE_MAP) if len(lexbuf) >= 2 else -1
+            if prev_precedence < next_precedence:
+                next_stack = []
+                next_stack.append(res_ast)
+                return parse_expr(precedence, count + 1, next_precedence, next_stack, lexbuf[1:])
             return count + 1, res_ast
             # return parse_expr(0, new_precedence, [], lexbuf[1:])
 
     elif val_curr in lexer.OPERATIONS:
         stack.append(lexbuf[0])
-        return parse_expr(count + 1, precedence, stack, lexbuf[1:])
+        return parse_expr(prev_precedence, count + 1, precedence, stack, lexbuf[1:])
 
 
-print(parse_expr(0, 0, [], lexer.lex("3 + 3 * 3 * 3 * 3 * 3")))
+print(parse_expr(0, 0, 0, [], lexer.lex("3 + 3 * 3 + 3 ** 3 ** 3 * 3")))
