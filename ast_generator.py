@@ -362,14 +362,14 @@ def reduce_stack(precedence, stack):
         new_stack = deepcopy(stack[3:])
         new_stack.insert(0, Bop(bop, start, end))
         return reduce_stack(precedence, new_stack)
-    elif precedence == 2:
-        end_stack = stack[:3]
-        bop = end_stack[1][1]
-        start = end_stack[0]
-        end = end_stack[2]
-        new_stack = deepcopy(stack[3:])
-        new_stack.insert(0, Bop(bop, start, end))
-        return reduce_stack(precedence, new_stack)
+    # elif precedence == 2:
+    #     end_stack = stack[:3]
+    #     bop = end_stack[1][1]
+    #     start = end_stack[0]
+    #     end = end_stack[2]
+    #     new_stack = deepcopy(stack[3:])
+    #     new_stack.insert(0, Bop(bop, start, end))
+    #     return reduce_stack(precedence, new_stack)
 
 
 def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
@@ -426,4 +426,4 @@ def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
         return parse_expr(prev_precedence, count + 1, precedence, stack, lexbuf[1:])
 
 
-print(parse_expr(0, 0, 0, [], lexer.lex("3 + 3 * 3 + 3 ** 3 ** 3 * 3")))
+print(parse_expr(0, 0, 0, [], lexer.lex("52")))
