@@ -362,6 +362,13 @@ def reduce_stack(precedence, stack):
         new_stack = deepcopy(stack[3:])
         new_stack.insert(0, Bop(bop, start, end))
         return reduce_stack(precedence, new_stack)
+
+    elif precedence == 4:
+        unop = stack[0]
+        val = stack[1]
+        new_stack = deepcopy(stack[2:])
+        new_stack.insert(0, Unop(unop, val))
+        return reduce_stack(precedence, new_stack)
     # elif precedence == 2:
     #     end_stack = stack[:3]
     #     bop = end_stack[1][1]
@@ -389,14 +396,14 @@ def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
             raise EndWithOperatorError(val_curr)
         return (count + 1, reduce_stack(precedence, new_stack))
 
+    type_la, val_la = lexbuf[1]
     if typ_curr == lexer.INTEGER:
-        type_la, val_la = lexbuf[1]
         if type_la == lexer.INTEGER or type_la == lexer.VARIABLE:
             raise ParseError
 
         new_precedence = get_precedence(val_la, PRECENDENCE_MAP)
-        if new_precedence > precedence:
 
+        if new_precedence > precedence:
             new_stack = []
             new_stack.append(IntValue(val_curr))
             new_idx, res_ast = parse_expr(precedence,
@@ -410,6 +417,7 @@ def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
             return parse_expr(prev_precedence, count + 1, precedence, stack, lexbuf[1:])
 
         else:
+
             stack.append(IntValue(val_curr))
             res_ast = reduce_stack(precedence, stack)
             next_precedence = get_precedence(
@@ -417,13 +425,38 @@ def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
             if prev_precedence < next_precedence:
                 next_stack = []
                 next_stack.append(res_ast)
+
                 return parse_expr(precedence, count + 1, next_precedence, next_stack, lexbuf[1:])
             return count + 1, res_ast
             # return parse_expr(0, new_precedence, [], lexbuf[1:])
 
     elif val_curr in lexer.OPERATIONS:
+
+        if stack == []:
+            # unop case (Negation)
+            new_stack = []
+            new_stack.append(lexbuf[0])
+            unop_precedence = 4
+            shift, res_ast = parse_expr(
+                precedence, 0, unop_precedence, new_stack, lexbuf[1:])
+            stack.append(res_ast)
+
+            return parse_expr(prev_precedence, count + shift + 1, precedence, stack, lexbuf[1 + shift:])
+        elif val_la in lexer.UNOPS:
+
+            # unop case (Negation)
+            new_stack = []
+            stack.append(lexbuf[0])
+            new_stack.append(lexbuf[1])
+            unop_precedence = 4
+            shift, res_ast = parse_expr(
+                precedence, 1, unop_precedence, new_stack, lexbuf[2:])
+            stack.append(res_ast)
+
+            return parse_expr(prev_precedence, count + shift + 1, precedence, stack, lexbuf[1 + shift:])
+
         stack.append(lexbuf[0])
         return parse_expr(prev_precedence, count + 1, precedence, stack, lexbuf[1:])
 
 
-print(parse_expr(0, 0, 0, [], lexer.lex("52")))
+print(parse_expr(0, 0, 0, [], lexer.lex("-100 ** 3 + - 200 * -400 * -600 + 300")))
