@@ -354,6 +354,7 @@ def reduce_stack(precedence, stack):
     if l == 1:
         return stack[0]
 
+    print(stack)
     if precedence <= 3:
         end_stack = stack[:3]
         bop = end_stack[1][1]
@@ -364,19 +365,11 @@ def reduce_stack(precedence, stack):
         return reduce_stack(precedence, new_stack)
 
     elif precedence == 4:
-        unop = stack[0]
+        unop = stack[0][1]
         val = stack[1]
         new_stack = deepcopy(stack[2:])
         new_stack.insert(0, Unop(unop, val))
         return reduce_stack(precedence, new_stack)
-    # elif precedence == 2:
-    #     end_stack = stack[:3]
-    #     bop = end_stack[1][1]
-    #     start = end_stack[0]
-    #     end = end_stack[2]
-    #     new_stack = deepcopy(stack[3:])
-    #     new_stack.insert(0, Bop(bop, start, end))
-    #     return reduce_stack(precedence, new_stack)
 
 
 def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
@@ -403,6 +396,8 @@ def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
 
         new_precedence = get_precedence(val_la, PRECENDENCE_MAP)
 
+        print(precedence, "precedence")
+        print(new_precedence, "new precedence")
         if new_precedence > precedence:
             new_stack = []
             new_stack.append(IntValue(val_curr))
@@ -427,12 +422,23 @@ def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
                 next_stack.append(res_ast)
 
                 return parse_expr(precedence, count + 1, next_precedence, next_stack, lexbuf[1:])
+            print("ret")
             return count + 1, res_ast
-            # return parse_expr(0, new_precedence, [], lexbuf[1:])
+
+    elif val_curr == lexer.LPAREN:
+        middle_terms, length = get_between_brackets(lexbuf[1:], 0)
+        _, parens_ast = parse_expr(1, 0, 1, [], middle_terms)
+        stack.append(parens_ast)
+        return parse_expr(prev_precedence, count + length + 1, precedence, stack, lexbuf[1 + length:])
+
+    elif val_curr == lexer.RPAREN:
+        raise UnmatchedParenError(
+            "Unmatched right parenthesis %s" % (val_curr))
 
     elif val_curr in lexer.OPERATIONS:
 
         if stack == []:
+            print("Case 1")
             # unop case (Negation)
             new_stack = []
             new_stack.append(lexbuf[0])
@@ -443,7 +449,7 @@ def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
 
             return parse_expr(prev_precedence, count + shift + 1, precedence, stack, lexbuf[1 + shift:])
         elif val_la in lexer.UNOPS:
-
+            print("Case 2")
             # unop case (Negation)
             new_stack = []
             stack.append(lexbuf[0])
@@ -453,10 +459,19 @@ def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
                 precedence, 1, unop_precedence, new_stack, lexbuf[2:])
             stack.append(res_ast)
 
+            print("Val la", val_la)
+            print(precedence, "prec")
             return parse_expr(prev_precedence, count + shift + 1, precedence, stack, lexbuf[1 + shift:])
 
         stack.append(lexbuf[0])
+        if precedence != get_precedence(val_curr, PRECENDENCE_MAP):
+            # issue here
+            shift, ast = parse_expr(
+                precedence, 0, get_precedence(val_curr, PRECENDENCE_MAP), [], lexbuf[1:])
+            stack.append(ast)
+            return parse_expr(prev_precedence, count + shift + 1, precedence, stack, lexbuf[1 + shift:])
+
         return parse_expr(prev_precedence, count + 1, precedence, stack, lexbuf[1:])
 
 
-print(parse_expr(0, 0, 0, [], lexer.lex("-100 ** 3 + - 200 * -400 * -600 + 300")))
+print(parse_expr(1, 0, 1, [], lexer.lex("((-1 * -1) + 4 * 3 * 2) * (7 + 4 * 5 *6)")))
