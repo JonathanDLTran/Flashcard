@@ -191,6 +191,24 @@ class Unop(Expr):
         return "(UNOP: " + str(self.unop) + str(self.expr) + ")"
 
 
+class Apply(Expr):
+    """
+    Apply represents fun (arg1 arg2...) with possibly no args as in
+    fun () , with only open and close brackets.
+    """
+
+    def __init__(self, fun, args_list=[]):
+        super().__init__()
+        self.fun = fun
+        self.args_list = args_list
+
+    def set_args(self, args_list):
+        self.args_list = args_list
+
+    def __repr__(self):
+        return "(Apply: " + str(self.fun) + "(" + (" ".join(list(map(lambda a: str(a), self.args_list)))) + ")" + ")"
+
+
 # ------ MATCH FUNCTIONS --------
 
 def match_integer(lexbuf, val):
@@ -354,7 +372,6 @@ def reduce_stack(precedence, stack):
     if l == 1:
         return stack[0]
 
-    print(stack)
     if precedence <= 3:
         end_stack = stack[:3]
         bop = end_stack[1][1]
@@ -392,12 +409,11 @@ def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
     type_la, val_la = lexbuf[1]
     if typ_curr == lexer.INTEGER:
         if type_la == lexer.INTEGER or type_la == lexer.VARIABLE:
-            raise ParseError
+            raise ParseError(
+                "Integer cannot be followed by a variable or integer")
 
         new_precedence = get_precedence(val_la, PRECENDENCE_MAP)
 
-        print(precedence, "precedence")
-        print(new_precedence, "new precedence")
         if new_precedence > precedence:
             new_stack = []
             new_stack.append(IntValue(val_curr))
@@ -422,8 +438,66 @@ def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
                 next_stack.append(res_ast)
 
                 return parse_expr(precedence, count + 1, next_precedence, next_stack, lexbuf[1:])
-            print("ret")
+
             return count + 1, res_ast
+
+    # parse variables
+    elif typ_curr == lexer.VARIABLE:
+
+        if type_la == lexer.INTEGER or type_la == lexer.VARIABLE:
+            raise ParseError(
+                "Variable cannot be followed by a variable or integer")
+        elif val_la == lexer.RPAREN:
+            raise UnmatchedParenError(
+                "Unmatched right parenthesis %s" % (val_curr))
+
+        elif val_la == lexer.LPAREN:
+
+            middle_terms, length = get_between_brackets(lexbuf[2:], 0)
+
+            # this is a function call with no arguments
+            if middle_terms == []:
+                apply_obj = Apply(val_curr, [])
+                stack.append(apply_obj)
+                return parse_expr(prev_precedence, count + 3, precedence, stack, lexbuf[3:])
+
+            # function call with args
+            else:
+                args_pairs = list(map(lambda arg: parse_expr(
+                    1, 0, 1, [], [arg]), middle_terms))
+                args = list(map(lambda pair: pair[1], args_pairs))
+                apply_obj = Apply(val_curr, args)
+                stack.append(apply_obj)
+                return parse_expr(prev_precedence, count + length + 2, precedence, stack, lexbuf[2 + length:])
+
+        # just a variable
+        else:
+            new_precedence = get_precedence(val_la, PRECENDENCE_MAP)
+
+            if new_precedence > precedence:
+                new_stack = []
+                new_stack.append(VarValue(val_curr))
+                new_idx, res_ast = parse_expr(precedence,
+                                              0, new_precedence, new_stack, lexbuf[1:])
+                stack.append(res_ast)
+                return parse_expr(prev_precedence, count + new_idx + 1, precedence, stack, lexbuf[1 + new_idx:])
+
+            elif new_precedence == precedence:
+                stack.append(VarValue(val_curr))
+                # reduced_stack = reduce_stack(precedence, stack)
+                return parse_expr(prev_precedence, count + 1, precedence, stack, lexbuf[1:])
+
+            else:
+                stack.append(IntValue(val_curr))
+                res_ast = reduce_stack(precedence, stack)
+                next_precedence = get_precedence(
+                    lexbuf[1][1], PRECENDENCE_MAP) if len(lexbuf) >= 2 else -1
+                if prev_precedence < next_precedence:
+                    next_stack = []
+                    next_stack.append(res_ast)
+                    return parse_expr(precedence, count + 1, next_precedence, next_stack, lexbuf[1:])
+
+                return count + 1, res_ast
 
     elif val_curr == lexer.LPAREN:
         middle_terms, length = get_between_brackets(lexbuf[1:], 0)
@@ -438,7 +512,6 @@ def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
     elif val_curr in lexer.OPERATIONS:
 
         if stack == []:
-            print("Case 1")
             # unop case (Negation)
             new_stack = []
             new_stack.append(lexbuf[0])
@@ -449,7 +522,6 @@ def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
 
             return parse_expr(prev_precedence, count + shift + 1, precedence, stack, lexbuf[1 + shift:])
         elif val_la in lexer.UNOPS:
-            print("Case 2")
             # unop case (Negation)
             new_stack = []
             stack.append(lexbuf[0])
@@ -459,8 +531,6 @@ def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
                 precedence, 1, unop_precedence, new_stack, lexbuf[2:])
             stack.append(res_ast)
 
-            print("Val la", val_la)
-            print(precedence, "prec")
             return parse_expr(prev_precedence, count + shift + 1, precedence, stack, lexbuf[1 + shift:])
 
         stack.append(lexbuf[0])
@@ -474,4 +544,11 @@ def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
         return parse_expr(prev_precedence, count + 1, precedence, stack, lexbuf[1:])
 
 
-print(parse_expr(1, 0, 1, [], lexer.lex("((-1 * -1) + 4 * 3 * 2) * (7 + 4 * 5 *6)")))
+print(parse_expr(1, 0, 1, [], lexer.lex(
+    "((-1 * -1) + 4 * y * z * 3 * 2) * (7 + 4 * 5 *6)")))
+
+print(parse_expr(1, 0, 1, [], lexer.lex(
+    "f (3 4)")))
+
+print(parse_expr(1, 0, 1, [], lexer.lex(
+    "3 + unitary ()")))
