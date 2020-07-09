@@ -216,6 +216,29 @@ class Assign(Expr):
         return "(Assign: " + str(self.var) + " := " + str(self.expr) + ")"
 
 
+class While(Expr):
+    """
+    While represents 
+    while guard_expr dowhile
+        phrases
+    endwhile
+    """
+
+    def __init__(self, guard=None, body_list=None):
+        super().__init__()
+        self.guard = guard
+        self.body = body_list
+
+    def set_guard(self, guard):
+        self.guard = guard
+
+    def set_body(self, body_list):
+        self.body = body_list
+
+    def __repr__(self):
+        return "(while " + str(self.guard) + " endwhile\n\t" + "\n\t".join(list(map(lambda phrase: str(phrase), self.body))) + "\nendwhile)"
+
+
 class Apply(Expr):
     """
     Apply represents fun (arg1 arg2...) with possibly no args as in
@@ -715,6 +738,14 @@ def parse_if_then_else(lexbuf):
 
 
 def parse_while(lexbuf):
+    """
+    parse_while(lexbuf) parses:
+    while expr dowhile:
+        phrases...
+    endwhile 
+    as
+    While(guard, body)
+    """
     pass
 
 
