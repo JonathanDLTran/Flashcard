@@ -98,6 +98,11 @@ class EndWithOperatorError(Exception):
     def __init__(self, str):
         pass
 
+
+class AssignVariableException(Exception):
+    def __init__(self, str):
+        pass
+
 # ------ AST CLASSES --------
 
 
@@ -191,6 +196,26 @@ class Unop(Expr):
         return "(UNOP: " + str(self.unop) + str(self.expr) + ")"
 
 
+class Assign(Expr):
+    """
+    assign represents var assign expre
+    """
+
+    def __init__(self, var, expr=None):
+        super().__init__()
+        self.var = var
+        self.expr = expr
+
+    def set_expr(self, expr):
+        self.expr = expr
+
+    def set_var(self, var):
+        self.var = var
+
+    def __repr__(self):
+        return "(Assign: " + str(self.var) + " := " + str(self.expr) + ")"
+
+
 class Apply(Expr):
     """
     Apply represents fun (arg1 arg2...) with possibly no args as in
@@ -211,8 +236,8 @@ class Apply(Expr):
 
 # ------ MATCH FUNCTIONS --------
 
-def match_integer(lexbuf, val):
-    return match_expr(IntValue(val), lexbuf)
+# def match_integer(lexbuf, val):
+#     return match_expr(IntValue(val), lexbuf)
 
 
 def get_between_brackets(lex_buff, idx):
@@ -242,104 +267,104 @@ def get_between_brackets(lex_buff, idx):
     return (expr_terms, l)
 
 
-def match_open_paren(ast, lex_buff):
+# def match_open_paren(ast, lex_buff):
 
-    lex_typ, val = lex_buff[0]
-    if val != lexer.LPAREN:
-        return None
+#     lex_typ, val = lex_buff[0]
+#     if val != lexer.LPAREN:
+#         return None
 
-    middle_terms, length = get_between_brackets(lex_buff[1:], 0)
-    new_lex_buff = lex_buff[1 + length:]
-    new_ast = match_expr(None, middle_terms)
+#     middle_terms, length = get_between_brackets(lex_buff[1:], 0)
+#     new_lex_buff = lex_buff[1 + length:]
+#     new_ast = match_expr(None, middle_terms)
 
-    if ast != None:
-        ast.set_right(new_ast)
+#     if ast != None:
+#         ast.set_right(new_ast)
 
-    else:
-        ast = new_ast
+#     else:
+#         ast = new_ast
 
-    return match_expr(ast, new_lex_buff)
-
-
-def match_bop(ast, lexbuf, bop):
-    bop_node = Bop(bop)
-    bop_node.set_left(ast)
-    # need to wrap in try.except if theis is undefined
-    head = lexbuf[0]
-    la_typ, la_val = head
-    if (bop == lexer.TIMES or bop == lexer.DIV) and la_typ in lexer.INTEGER:
-        right_node = match_expr(None, [head])
-        bop_node.set_right(right_node)
-        tail = lexbuf[1:]
-        return match_expr(bop_node, tail)
-    elif (bop == lexer.TIMES or bop == lexer.DIV) and la_val == lexer.LPAREN:
-        right_node = match_open_paren(bop_node, lexbuf)
-        return right_node
-    else:
-        right_node = match_expr(None, lexbuf)
-        bop_node.set_right(right_node)
-
-    return bop_node
+#     return match_expr(ast, new_lex_buff)
 
 
-def match_unop(lexbuf, unop):
-    unop_node = Unop(unop)
-    head = lexbuf[0]
-    tail = lexbuf[1:]
-    la_typ, _ = head
-    if la_typ in lexer.INTEGER:
-        bottom_node = match_expr(None, [head])
-        unop_node.set_expr(bottom_node)
-        return match_expr(unop_node, tail)
-    raise UnopAdditionalArg(
-        "Additional arg to a unary operation %s" % (unop))
+# def match_bop(ast, lexbuf, bop):
+#     bop_node = Bop(bop)
+#     bop_node.set_left(ast)
+#     # need to wrap in try.except if theis is undefined
+#     head = lexbuf[0]
+#     la_typ, la_val = head
+#     if (bop == lexer.TIMES or bop == lexer.DIV) and la_typ in lexer.INTEGER:
+#         right_node = match_expr(None, [head])
+#         bop_node.set_right(right_node)
+#         tail = lexbuf[1:]
+#         return match_expr(bop_node, tail)
+#     elif (bop == lexer.TIMES or bop == lexer.DIV) and la_val == lexer.LPAREN:
+#         right_node = match_open_paren(bop_node, lexbuf)
+#         return right_node
+#     else:
+#         right_node = match_expr(None, lexbuf)
+#         bop_node.set_right(right_node)
+
+#     return bop_node
 
 
-def match_expr(ast, lexbuf):
-    """
-    match_expr(ast, lexbuf) creates an ast from lexbuf, otherwise raises
-    appropriate execption
-    """
-    if lexbuf == []:
-        return ast
-
-    typ, val = lexbuf[0]
-    tail = lexbuf[1:]
-
-    if typ == lexer.INTEGER:
-        return match_integer(tail, val)
-    elif ast == None and val in lexer.UNOPS:
-        return match_unop(tail, val)
-    elif ast == None and val in lexer.BOPS:
-        raise BopMissingArg("Missing arg %s" % (val))
-    elif ast != None and val in lexer.BOPS:
-        return match_bop(ast, tail, val)
-    elif ast != None and val in lexer.UNOPS:
-        raise UnopAdditionalArg(
-            "Additional arg to a unary operation %s" % (val))
-    elif val == lexer.LPAREN:
-        return match_open_paren(ast, lexbuf)
-        # return match_lparent(ast, tail, val)
-    elif val == lexer.RPAREN:
-        raise UnmatchedParenError("Unmatched right parenthesis %s" % (val))
-
-    raise ParseError("Error in Parsing Tokens")
+# def match_unop(lexbuf, unop):
+#     unop_node = Unop(unop)
+#     head = lexbuf[0]
+#     tail = lexbuf[1:]
+#     la_typ, _ = head
+#     if la_typ in lexer.INTEGER:
+#         bottom_node = match_expr(None, [head])
+#         unop_node.set_expr(bottom_node)
+#         return match_expr(unop_node, tail)
+#     raise UnopAdditionalArg(
+#         "Additional arg to a unary operation %s" % (unop))
 
 
-def match(lexbuf):
-    """
-    match(lexbuf) creates an ast from from lexbuf, otherwises
-    raises an appropriate exeception
-    """
-    ast = None
-    return match_expr(ast, lexbuf)
+# def match_expr(ast, lexbuf):
+#     """
+#     match_expr(ast, lexbuf) creates an ast from lexbuf, otherwise raises
+#     appropriate execption
+#     """
+#     if lexbuf == []:
+#         return ast
+
+#     typ, val = lexbuf[0]
+#     tail = lexbuf[1:]
+
+#     if typ == lexer.INTEGER:
+#         return match_integer(tail, val)
+#     elif ast == None and val in lexer.UNOPS:
+#         return match_unop(tail, val)
+#     elif ast == None and val in lexer.BOPS:
+#         raise BopMissingArg("Missing arg %s" % (val))
+#     elif ast != None and val in lexer.BOPS:
+#         return match_bop(ast, tail, val)
+#     elif ast != None and val in lexer.UNOPS:
+#         raise UnopAdditionalArg(
+#             "Additional arg to a unary operation %s" % (val))
+#     elif val == lexer.LPAREN:
+#         return match_open_paren(ast, lexbuf)
+#         # return match_lparent(ast, tail, val)
+#     elif val == lexer.RPAREN:
+#         raise UnmatchedParenError("Unmatched right parenthesis %s" % (val))
+
+#     raise ParseError("Error in Parsing Tokens")
 
 
-def parse(lex_buff):
-    def parse_helper(lex_buff, ast, stack):
-        if lex_buff == []:
-            return
-    return parse_helper(lex_buff, AST(), [])
+# def match(lexbuf):
+#     """
+#     match(lexbuf) creates an ast from from lexbuf, otherwises
+#     raises an appropriate exeception
+#     """
+#     ast = None
+#     return match_expr(ast, lexbuf)
+
+
+# def parse(lex_buff):
+#     def parse_helper(lex_buff, ast, stack):
+#         if lex_buff == []:
+#             return
+#     return parse_helper(lex_buff, AST(), [])
 
 
 PRECENDENCE_MAP = {
@@ -641,3 +666,64 @@ print(parse_expr(1, 0, 1, [], lexer.lex(
 # bug in invariant
 print(parse_expr(1, 0, 1, [], lexer.lex(
     "2 + (3 * 5) * 4 * 3 * 2")))
+
+
+def parse_phrase(lexbuf):
+    split_buffer = split_lexbuf(lexbuf, lexer.SEMI)
+    print(split_buffer)
+    return list(map(lambda l: parse_assign(l), split_buffer))
+
+
+def split_lexbuf(lexbuf, demarcation):
+    def split_lexbuf_helper(lexbuf, demarcation, gather, acc):
+        if lexbuf == []:
+            return acc
+
+        expr = lexbuf[0]
+        remainder = lexbuf[1:]
+        if expr[1] != demarcation:
+            gather.append(expr)
+            return split_lexbuf_helper(remainder, demarcation, gather, acc)
+
+        new_gather = []
+        acc.append(gather)
+        return split_lexbuf_helper(remainder, demarcation, new_gather, acc)
+
+    return split_lexbuf_helper(lexbuf, demarcation, [], [])
+
+
+def parse_assign(lexbuf):
+    tokens_list = list(map(lambda pair: pair[1], lexbuf))
+    assign_pos = tokens_list.index(lexer.ASSIGN)
+
+    var_list = lexbuf[: assign_pos]
+    if len(var_list) != 1:
+        raise AssignVariableException(
+            " ".join(var_list) + " is not a variable.")
+
+    var = var_list[0]
+    if var[0] != lexer.VARIABLE:
+        raise AssignVariableException(str(var) + " is not a variable.")
+
+    expr_list = lexbuf[(assign_pos + 1):]
+    _, expr_ast = parse_expr(1, 0, 1, [], expr_list)
+    return Assign(var, expr_ast)
+
+
+def parse_if_then_else(lexbuf):
+    pass
+
+
+def parse_while(lexbuf):
+    pass
+
+
+def parse_function(lexbuf):
+    pass
+
+
+def parse_for(lexbuf):
+    pass
+
+
+print(parse_phrase(lexer.lex("x := 3; y := 2 + (3 * 5) * 4 * 3 * 2;")))

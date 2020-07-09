@@ -8,6 +8,7 @@ SPACES = [" ", "\n", "\t"]
 # Spaces to preprocess out of program string
 ILLEGAL_SPACES = ["\b", "\n", "\t", "\f", "\r"]
 
+SEMI = ";"
 EXP = "**"
 LPAREN = "("
 RPAREN = ")"
@@ -32,6 +33,7 @@ WHILE = "while"
 
 # Order matters in keywords
 keywords = [
+    SEMI,
     EXP,
     LPAREN,
     RPAREN,
