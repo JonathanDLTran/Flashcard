@@ -236,7 +236,7 @@ class While(Expr):
         self.body = body_list
 
     def __repr__(self):
-        return "(while " + str(self.guard) + " endwhile\n\t" + "\n\t".join(list(map(lambda phrase: str(phrase), self.body))) + "\nendwhile)"
+        return "(while " + str(self.guard) + " dowhile\n\t" + "\n\t".join(list(map(lambda phrase: str(phrase), self.body))) + "\nendwhile)"
 
 
 class IfThenElse(Expr):
@@ -279,6 +279,19 @@ class Apply(Expr):
 
     def __repr__(self):
         return "(Apply: " + str(self.fun) + "(" + (" ".join(list(map(lambda a: str(a), self.args_list)))) + ")" + ")"
+
+
+class Program(Expr):
+    """
+    Program represents a syntacucally valid program
+    """
+
+    def __init__(self, phrase_list=[]):
+        super().__init__()
+        self.phrases = phrase_list
+
+    def __repr__(self):
+        return "(Program:\n" + "\n".join(list(map(lambda phrase: str(phrase), self.phrases))) + "\n)"
 
 
 # ------ MATCH FUNCTIONS --------
@@ -767,9 +780,58 @@ print(parse_expr(1, 0, 1, [], lexer.lex(
     "1 - -(3 - (3 + 4) * 2 + 4)")))
 
 
+def parse_program(lexbuf):
+    return Program(parse_phrase(lexbuf))
+
+
 def parse_phrase(lexbuf):
-    split_buffer = split_lexbuf(lexbuf, lexer.SEMI)
-    return list(map(lambda l: parse_assign(l), split_buffer))
+    """
+    parse_phrase(lexbuf) creates a list of lists, with the inner lists
+    being sections of lexbuf to parse. Applies correct parse to each section
+    of list.
+    """
+    def parse_phrase_helper(lexbuf, tokens, acc):
+        # base case
+        if lexbuf == []:
+            return acc
+
+        # assignment
+        if lexbuf[0][0] == lexer.VARIABLE:
+            assign_list = []
+            new_lex_buff = lexbuf
+            new_tokens = tokens
+            while (len(new_lex_buff) > 0 and new_lex_buff[0][0] == lexer.VARIABLE):
+                end_assign = new_tokens.index(lexer.SEMI)
+                assignment = new_lex_buff[0:end_assign + 1]
+                new_lex_buff = new_lex_buff[end_assign + 1:]
+                new_tokens = new_tokens[end_assign + 1:]
+                assign_list += assignment
+            split_buffer = split_lexbuf(assign_list, lexer.SEMI)
+            assign_list = list(map(lambda l: parse_assign(l), split_buffer))
+            acc += assign_list
+            return parse_phrase_helper(new_lex_buff, new_tokens, acc)
+
+        # while loop
+        if lexbuf[0][1] == lexer.WHILE:
+            end_while_loc = parse_end(
+                lexbuf, 1, lexer.WHILE, lexer.END_WHILE)
+            while_statement = lexbuf[0:end_while_loc + 1]
+            while_parsed = parse_while(while_statement)
+            new_lex_buff = lexbuf[end_while_loc + 1:]
+            new_tokens = tokens[end_while_loc + 1:]
+            acc.append(while_parsed)
+            return parse_phrase_helper(new_lex_buff, new_tokens, acc)
+
+        # if statement
+
+        # for loop
+
+        # function
+
+        # error
+        raise ParseError("Unrecognized token")
+
+    return parse_phrase_helper(lexbuf, list(map(lambda pair: pair[1], lexbuf)), [])
 
 
 def split_lexbuf(lexbuf, demarcation):
@@ -797,7 +859,7 @@ def parse_assign(lexbuf):
     var_list = lexbuf[: assign_pos]
     if len(var_list) != 1:
         raise AssignVariableException(
-            " ".join(var_list) + " is not a variable.")
+            " ".join(list(map(lambda pair: str(pair[1]), var_list))) + " is not a variable.")
 
     var = var_list[0]
     if var[0] != lexer.VARIABLE:
@@ -805,7 +867,7 @@ def parse_assign(lexbuf):
 
     expr_list = lexbuf[(assign_pos + 1):]
     _, expr_ast = parse_expr(1, 0, 1, [], expr_list)
-    return Assign(var, expr_ast)
+    return Assign(var[1], expr_ast)
 
 
 def parse_end(lexbuf, start_loc, start_marker, end_marker):
@@ -935,7 +997,8 @@ def parse_while(lexbuf):
     """
     tokens_list = list(map(lambda pair: pair[1], lexbuf))
     dowhile_pos = tokens_list.index(lexer.DO_WHILE)
-    endwhile_post = tokens_list.index(lexer.END_WHILE)
+    endwhile_post = parse_end(lexbuf, 1, lexer.WHILE, lexer.END_WHILE)
+    # endwhile_post = tokens_list.index(lexer.END_WHILE)
     while_pos = 0
 
     guard_list = lexbuf[while_pos + 1:dowhile_pos]
@@ -957,6 +1020,10 @@ def parse_for(lexbuf):
 
 
 print(parse_phrase(lexer.lex("x := 3; y := 2 + (3 * 5) * 4 * 3 * 2;")))
+print(parse_phrase(lexer.lex(
+    "x := 1; while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
+print(parse_program(lexer.lex(
+    "x := 1; while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
 print(parse_while(lexer.lex("while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile")))
 print(parse_if_then_else(lexer.lex("if x + 1 then x := 1; y := 2; endif")))
 print(parse_if_then_else(
