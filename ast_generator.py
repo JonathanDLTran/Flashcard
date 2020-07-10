@@ -218,7 +218,7 @@ class Assign(Expr):
 
 class While(Expr):
     """
-    While represents 
+    While represents
     while guard_expr dowhile
         phrases
     endwhile
@@ -237,6 +237,30 @@ class While(Expr):
 
     def __repr__(self):
         return "(while " + str(self.guard) + " endwhile\n\t" + "\n\t".join(list(map(lambda phrase: str(phrase), self.body))) + "\nendwhile)"
+
+
+class IfThenElse(Expr):
+    """
+    IFThenElse represents an if then else erpression
+    """
+
+    def __init__(self, if_guard, if_body, elif_guards=[], elif_bodies=[], else_body=None):
+        super().__init__()
+        self.if_pair = (if_guard, if_body)
+        self.elif_list = (elif_guards, elif_bodies)
+        self.else_body = else_body
+
+    def __repr__(self):
+        (if_guard, if_body) = self.if_pair
+        elif_guards, elif_bodies = self.elif_list
+        else_body = self.else_body
+        return ("(if " + str(if_guard) + " then\n\t" + "\n\t".join(list(map(lambda phrase: str(phrase), if_body))) + "\nendif\n"
+                + ("" if elif_guards == [] else "\n".join(list(map(lambda g, b: "elif " + str(g) + " then\n\t" +
+                                                                   "\n\t".join(list(map(lambda phrase: str(phrase), b))) + "\nendelif\n", elif_guards, elif_bodies))))
+                + ("" if else_body == None else "else\n\t" +
+                   "\n\t".join(list(map(lambda phrase: str(phrase), else_body))) + "\nendelse\n")
+                + ")"
+                )
 
 
 class Apply(Expr):
@@ -396,6 +420,8 @@ PRECENDENCE_MAP = {
     lexer.TIMES: 2,
     lexer.DIV: 2,
     lexer.EXP: 3,
+
+
 }
 
 
@@ -435,6 +461,46 @@ def reduce_stack(precedence, stack):
         new_stack = deepcopy(stack[2:])
         new_stack.insert(0, Unop(unop, val))
         return reduce_stack(precedence, new_stack)
+
+
+def get_function_args(lexbuf, demarcation):
+    def get_function_args_helper(lexbuf, demarcation, stack, arg, args_list):
+        if lexbuf == []:
+            if arg != []:
+                args_list.append(arg)
+            return args_list
+
+        pair = lexbuf[0]
+        _, val = pair
+        rem = lexbuf[1:]
+
+        if stack == [] and val == demarcation:
+            args_list.append(arg)
+            return get_function_args_helper(rem, demarcation, stack, [], args_list)
+
+        if val == lexer.LPAREN:
+            stack.append(val)
+            arg.append(pair)
+            return get_function_args_helper(rem, demarcation, stack, arg, args_list)
+
+        elif val == lexer.RPAREN:
+            if len(stack) >= 1:
+                if stack[0] == lexer.LPAREN:
+                    stack.pop()
+                    arg.append(pair)
+                    return get_function_args_helper(rem, demarcation, stack, arg, args_list)
+                else:
+                    stack.append(val)
+                    arg.append(pair)
+                    return get_function_args_helper(rem, demarcation, stack, arg, args_list)
+            else:
+                raise MissingParens("lexbuf missing left parens")
+
+        else:
+            arg.append(pair)
+            return get_function_args_helper(rem, demarcation, stack, arg, args_list)
+
+    return get_function_args_helper(lexbuf, demarcation, [], [], [])
 
 
 def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
@@ -508,12 +574,14 @@ def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
             raise UnmatchedParenError(
                 "Unmatched right parenthesis %s" % (val_curr))
 
+        # parse function
         elif val_la == lexer.LPAREN:
 
             middle_terms, length = get_between_brackets(lexbuf[2:], 0)
+            split_args = get_function_args(middle_terms, lexer.COMMA)
 
-            args_pairs = list(map(lambda arg: parse_expr(
-                1, 0, 1, [], [arg]), middle_terms))
+            args_pairs = list(map(lambda args_buffer: parse_expr(
+                1, 0, 1, [], args_buffer), split_args))
             args = list(map(lambda pair: pair[1], args_pairs))
             apply_obj = Apply(val_curr, args)
 
@@ -664,36 +732,43 @@ def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
 
         return parse_expr(prev_precedence, count + 1, precedence, stack, lexbuf[1:])
 
+    else:
+        raise ParseError("Unknown Symbol")
+
 
 print(parse_expr(1, 0, 1, [], lexer.lex(
     "((-1 * -1) + 4 * y * z * 3 * 2) * (7 + 4 * 5 *6)")))
 
 print(parse_expr(1, 0, 1, [], lexer.lex(
-    "f (3 4)")))
+    "f (3, 4)")))
 
 print(parse_expr(1, 0, 1, [], lexer.lex(
     "3 + 3*4  + 5*6 + 7*8**9")))
 
-# bug in invariant
 print(parse_expr(1, 0, 1, [], lexer.lex(
     "3 + unitary () ** -156")))
 
-# bug in invariant
 print(parse_expr(1, 0, 1, [], lexer.lex(
     "3 + unitary () * 2 * 3 * 4")))
 
-# bug in invariant
 print(parse_expr(1, 0, 1, [], lexer.lex(
     "3 + 3 * unitary () + 2 * 3 * 4")))
 
-# bug in invariant
 print(parse_expr(1, 0, 1, [], lexer.lex(
     "2 + (3 * 5) * 4 * 3 * 2")))
+
+print(parse_expr(1, 0, 1, [], lexer.lex(
+    "f(g(2, 3), 2)")))
+
+print(parse_expr(1, 0, 1, [], lexer.lex(
+    "f(g(2, 3), h(4), 3, (2 + 3), x, g(x, h(m(d, 100), z)))")))
+
+print(parse_expr(1, 0, 1, [], lexer.lex(
+    "1 - -(3 - (3 + 4) * 2 + 4)")))
 
 
 def parse_phrase(lexbuf):
     split_buffer = split_lexbuf(lexbuf, lexer.SEMI)
-    print(split_buffer)
     return list(map(lambda l: parse_assign(l), split_buffer))
 
 
@@ -733,8 +808,120 @@ def parse_assign(lexbuf):
     return Assign(var, expr_ast)
 
 
+def parse_end(lexbuf, start_loc, start_marker, end_marker):
+    def parse_end_helper(lexbuf, length, i, stack, start_marker, end_marker):
+        if stack == []:
+            return (i)
+        if i == length:
+            raise ParseError("start marker not ended with end marker")
+
+        _, val = lexbuf[i]
+        if val == start_marker:
+            stack.append(val)
+            return parse_end_helper(lexbuf, len(lexbuf), (i + 1), stack, start_marker, end_marker)
+        if val == end_marker:
+            if len(stack) >= 1:
+                top = stack[0]
+                if top == start_marker:
+                    stack.pop()
+                    return parse_end_helper(lexbuf, len(lexbuf), (i + 1),
+                                            stack, start_marker, end_marker)
+
+            stack.append(val)
+            return parse_end_helper(lexbuf, len(lexbuf), (i + 1),
+                                    stack, start_marker, end_marker)
+
+        return parse_end_helper(lexbuf, len(lexbuf), (i + 1),
+                                stack, start_marker, end_marker)
+
+    return parse_end_helper(lexbuf[start_loc:], len(lexbuf[start_loc:]), 0, [start_marker], start_marker, end_marker)
+
+
 def parse_if_then_else(lexbuf):
-    pass
+    """
+    parse_if_then_else(lexbuf) parses
+    if guard1 then
+        body1
+    elseif guard2 then
+        body2
+    elseif guard3 then
+        bod3
+    ...
+    else
+        bodyn
+    endif
+
+    with the possibility of
+    if guard1 then
+        body1
+    endif
+
+    of
+    if guard1 then
+        body1
+    else
+        body2
+    endif
+
+    of
+    if guard1 then
+        body1
+    elseif guard2 then
+        body2
+    ...
+    elseif guardn then
+        bodyn
+    endif
+    """
+    tokens_list = list(map(lambda pair: pair[1], lexbuf))
+    # if is required
+    if_pos = tokens_list.index(lexer.IF)
+    if_then_pos = tokens_list.index(lexer.THEN)
+    endif_pos = parse_end(lexbuf[1:], 0, lexer.IF, lexer.ENDIF)
+
+    if_guard = lexbuf[if_pos + 1: if_then_pos]
+    _, if_guard = parse_expr(1, 0, 1, [], if_guard)
+    if_body = lexbuf[if_then_pos + 1: endif_pos]
+    if_body = parse_phrase(if_body)
+
+    rem_tokens = tokens_list[endif_pos + 1:]
+    rem_lexbuf = lexbuf[endif_pos + 1:]
+
+    if len(rem_tokens) < 1:
+        return IfThenElse(if_guard, if_body, [], [], None)
+
+    elif_guards = []
+    elif_bodies = []
+    while len(rem_tokens) > 0 and rem_tokens[0] == lexer.ELIF:
+        elif_then_pos = rem_tokens.index(lexer.THEN)
+        endelif_pos = parse_end(
+            rem_lexbuf[1:], 0, lexer.ELIF, lexer.ENDELIF)
+
+        guard = rem_lexbuf[1:elif_then_pos]
+        body = rem_lexbuf[elif_then_pos + 1:endelif_pos]
+        _, elif_guard = parse_expr(1, 0, 1, [], guard)
+        elif_body = parse_phrase(body)
+        elif_guards.append(elif_guard)
+        elif_bodies.append(elif_body)
+
+        rem_tokens = rem_tokens[endelif_pos + 1:]
+        rem_lexbuf = rem_lexbuf[endelif_pos + 1:]
+
+    if len(rem_tokens) < 1:
+        return IfThenElse(if_guard, if_body, elif_guards, elif_bodies, None)
+
+    else_body = None
+    if rem_tokens[0] == lexer.ELSE:
+        # parse Else
+        end_else_loc = parse_end(rem_lexbuf[1:], 0, lexer.ELSE, lexer.ENDELSE)
+        else_body = rem_lexbuf[1:end_else_loc]
+
+        if rem_lexbuf[end_else_loc + 1:] != []:
+            raise ParseError("Cannot have code after endelse")
+
+        else_body = parse_phrase(else_body)
+
+    return IfThenElse(if_guard, if_body, elif_guards, elif_bodies, else_body)
 
 
 def parse_while(lexbuf):
@@ -746,7 +933,19 @@ def parse_while(lexbuf):
     as
     While(guard, body)
     """
-    pass
+    tokens_list = list(map(lambda pair: pair[1], lexbuf))
+    dowhile_pos = tokens_list.index(lexer.DO_WHILE)
+    endwhile_post = tokens_list.index(lexer.END_WHILE)
+    while_pos = 0
+
+    guard_list = lexbuf[while_pos + 1:dowhile_pos]
+    body_list = lexbuf[dowhile_pos + 1:endwhile_post]
+
+    _, guard_ast = parse_expr(1, 0, 1, [], guard_list)
+
+    body_list_ast = parse_phrase(body_list)
+
+    return While(guard_ast, body_list_ast)
 
 
 def parse_function(lexbuf):
@@ -758,3 +957,15 @@ def parse_for(lexbuf):
 
 
 print(parse_phrase(lexer.lex("x := 3; y := 2 + (3 * 5) * 4 * 3 * 2;")))
+print(parse_while(lexer.lex("while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile")))
+print(parse_if_then_else(lexer.lex("if x + 1 then x := 1; y := 2; endif")))
+print(parse_if_then_else(
+    lexer.lex("if x + 1 then x := 1; y := 2; endif else y := -4; endelse")))
+print(parse_if_then_else(
+    lexer.lex("if x + 1 then x := 1; endif else y := -4; endelse")))
+print(parse_if_then_else(
+    lexer.lex("if x + 1 then x := 1; endif elif x - 2 then x := 2 ** 2; endelif else y := -4; endelse")))
+print(parse_if_then_else(
+    lexer.lex("if x + 1 then x := 1; endif elif x - 2 then x := 2 ** 2; endelif elif y - -4 then q := -2 ** 2; endelif else y := -4; endelse")))
+print(parse_if_then_else(
+    lexer.lex("if x + 1 then x := 1; endif elif x - 2 then x := 2 ** 2; endelif elif y - -4 then q := -2 ** 2; endelif")))

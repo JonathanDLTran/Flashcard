@@ -8,6 +8,7 @@ SPACES = [" ", "\n", "\t"]
 # Spaces to preprocess out of program string
 ILLEGAL_SPACES = ["\b", "\n", "\t", "\f", "\r"]
 
+COMMA = ","
 SEMI = ";"
 EXP = "**"
 LPAREN = "("
@@ -28,34 +29,51 @@ END_FUN = "endfun"
 TRUE = "True"
 FALSE = "False"
 IF = "if"
+THEN = "then"
+ELIF = "elif"
 ELSE = "else"
+ENDIF = "endif"
+ENDELIF = "endelif"
+ENDELSE = "endelse"
 WHILE = "while"
+DO_WHILE = "dowhile"
+END_WHILE = "endwhile"
 
 # Order matters in keywords
-keywords = [
-    SEMI,
-    EXP,
-    LPAREN,
-    RPAREN,
-    FUN_ARROW,
-    ASSIGN,
-    LTE,
-    GTE,
-    EQ,
-    LT,
-    GT,
-    PLUS,
-    MINUS,
-    TIMES,
-    DIV,
-    TRUE,
-    FALSE,
-    FUN,
-    IF,
-    ELSE,
-    WHILE,
-    END_FUN,
-]
+keywords = sorted(
+    [
+        COMMA,
+        SEMI,
+        EXP,
+        LPAREN,
+        RPAREN,
+        FUN_ARROW,
+        ASSIGN,
+        LTE,
+        GTE,
+        EQ,
+        LT,
+        GT,
+        PLUS,
+        MINUS,
+        TIMES,
+        DIV,
+        TRUE,
+        FALSE,
+        FUN,
+        IF,
+        ELSE,
+        ELIF,
+        THEN,
+        ENDIF,
+        ENDELIF,
+        ENDELSE,
+        WHILE,
+        DO_WHILE,
+        END_WHILE,
+        END_FUN,
+    ],
+    reverse=True)
 
 UNOPS = [
     MINUS,
@@ -84,8 +102,15 @@ add_space_in_lex = [
     TRUE,
     FALSE,
     IF,
+    THEN,
     ELSE,
+    ELIF,
+    ENDIF,
+    ENDELIF,
+    ENDELSE,
     WHILE,
+    DO_WHILE,
+    END_WHILE,
 ]
 
 no_space_in_lex = [kw for kw in keywords if kw not in add_space_in_lex]
