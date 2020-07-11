@@ -12,9 +12,9 @@ def interpret_expr(expr, env):
         return expr.get_value()
     elif type(expr) == ast_generator.VarValue:
         var_value = expr.get_value()
-        if var_value not in env:
+        if ("variable", var_value) not in env:
             raise InterpretError(str(var_value) + " not bound in program")
-        return env[var_value]
+        return env[("variable", var_value)]
     elif type(expr) == ast_generator.Unop:
         unop = expr.get_unop()
         unop_expr = expr.get_expr()
@@ -37,23 +37,50 @@ def interpret_expr(expr, env):
             return left * right
         elif bop == lexer.DIV:
             return left // right  # integer div
+    elif type(expr) == ast_generator.Apply:
+        function = expr.get_fun()
+        args_list = expr.get_args()
+        args = list(map(lambda arg: interpret_expr(arg, env), args_list))
+
+        pass
 
 
 def interpret_phrase(phrase, env):
-    pass
+    if type(phrase) == ast_generator.Assign:
+        variable = phrase.get_var()
+        body_expr = phrase.get_expr()
+        body_value = interpret_expr(body_expr, env)
+        env[("variable", variable)] = body_value
+        return env
+    if type(phrase) == ast_generator.While:
+        guard_expr = phrase.get_guard()
+        body_list = phrase.get_body()
+        guard_value = interpret_expr(guard_expr, env)
+
+        while guard_value:  # using truthy values including non zero ints
+            # one loop
+            for sub_phrase in body_list:
+                env = interpret_phrase(sub_phrase, env)  # update env
+            # recalculate guard at bottom of loop to see if it continues
+            guard_value = interpret_expr(guard_expr, env)
+    if type(phrase) == ast_generator.IfThenElse:
+        pass
 
 
 def interpret_program(program, env):
     pass
 
 
-def interpret(program, env):
-    pass
+def interpret(program):
+    return interpret_program(program, [])
 
 
+print(ast_generator.parse_expr(
+    1, 0, 1, [], lexer.lex("2 + -(3 * 5) * 4 * 3 * 2"))[1], []
+)
 print(
     interpret_expr(
         ast_generator.parse_expr(
-            1, 0, 1, [], lexer.lex("2 + (3 * 5) * 4 * 3 * 2"))[1], []
+            1, 0, 1, [], lexer.lex("2 + -(3 * 5) * 4 * 3 * 2"))[1], []
     )
 )

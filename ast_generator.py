@@ -233,6 +233,12 @@ class Assign(Expr):
     def set_var(self, var):
         self.var = var
 
+    def get_expr(self):
+        return self.expr
+
+    def get_var(self):
+        return self.var
+
     def __repr__(self):
         return "(Assign: " + str(self.var) + " := " + str(self.expr) + ")"
 
@@ -255,6 +261,12 @@ class While(Expr):
 
     def set_body(self, body_list):
         self.body = body_list
+
+    def get_guard(self):
+        return self.guard
+
+    def get_body(self):
+        return self.body
 
     def __repr__(self):
         return "(while " + str(self.guard) + " dowhile\n\t" + "\n\t".join(list(map(lambda phrase: str(phrase), self.body))) + "\nendwhile)"
@@ -335,6 +347,12 @@ class Apply(Expr):
 
     def set_args(self, args_list):
         self.args_list = args_list
+
+    def get_fun(self):
+        return self.fun
+
+    def get_args(self):
+        return self.args_list
 
     def __repr__(self):
         return "(Apply: " + str(self.fun) + "(" + (" ".join(list(map(lambda a: str(a), self.args_list)))) + ")" + ")"
@@ -1305,3 +1323,11 @@ print(parse_phrase(lexer.lex(
     "fun f x y -> x := x + y; return ; endfun")))
 print(parse_phrase(lexer.lex(
     "fun f x y -> x := x + y; if x then return ; endif endfun")))
+
+
+print(parse_expr(1, 0, 1, [], lexer.lex(
+    "f((3 + 3))")))
+print(parse_expr(1, 0, 1, [], lexer.lex(
+    "f(-3)")))
+print(parse_expr(1, 0, 1, [], lexer.lex(
+    "f(3 * 3, 2)")))
