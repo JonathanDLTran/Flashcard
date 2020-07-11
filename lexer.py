@@ -44,6 +44,7 @@ TO = "to"
 BY = "by"
 DOFOR = "dofor"
 ENDFOR = "endfor"
+RETURN = "return"
 
 # Order matters in keywords
 keywords = sorted(
@@ -84,6 +85,7 @@ keywords = sorted(
         BY,
         DOFOR,
         ENDFOR,
+        RETURN,
     ],
     reverse=True)
 
@@ -129,6 +131,7 @@ add_space_in_lex = [
     BY,
     DOFOR,
     ENDFOR,
+    RETURN,
 ]
 
 no_space_in_lex = [kw for kw in keywords if kw not in add_space_in_lex]

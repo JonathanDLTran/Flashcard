@@ -319,6 +319,20 @@ class Apply(Expr):
         return "(Apply: " + str(self.fun) + "(" + (" ".join(list(map(lambda a: str(a), self.args_list)))) + ")" + ")"
 
 
+class Return(Expr):
+    """
+    return represents
+    return expr;
+    """
+
+    def __init__(self, body):
+        super().__init__()
+        self.body = body
+
+    def __repr__(self):
+        return "(Return: " + str(self.body) + ";)"
+
+
 class Program(Expr):
     """
     Program represents a syntacucally valid program
@@ -939,6 +953,16 @@ def parse_phrase(lexbuf):
             acc.append(fun_parsed)
             return parse_phrase_helper(new_lex_buff, new_tokens, acc)
 
+        # return
+        if lexbuf[0][1] == lexer.RETURN:
+            end_ret_loc = tokens.index(lexer.SEMI)
+            ret_statement = lexbuf[0:end_ret_loc + 1]
+            ret_parsed = parse_return(ret_statement)
+            new_lex_buff = lexbuf[end_ret_loc + 1:]
+            new_tokens = tokens[end_ret_loc + 1:]
+            acc.append(ret_parsed)
+            return parse_phrase_helper(new_lex_buff, new_tokens, acc)
+
         # error
         raise ParseError("Unrecognized token")
 
@@ -1132,6 +1156,10 @@ def parse_function(lexbuf):
     if len(args_list) < 1:
         raise ParseError("First Arg must be function name")
 
+    for arg_typ, _ in args_list:
+        if arg_typ != lexer.VARIABLE:
+            raise ParseError("All Args must be variables")
+
     args_ast_list = list(
         map(lambda arg: parse_expr(1, 0, 1, [], [arg])[1], args_list))
     name = args_ast_list[0]
@@ -1140,6 +1168,15 @@ def parse_function(lexbuf):
     body_ast = parse_phrase(body)
 
     return Function(name, args_ast_list, body_ast)
+
+
+def parse_return(lexbuf):
+    tokens_list = list(map(lambda pair: pair[1], lexbuf))
+    return_pos = tokens_list.index(lexer.RETURN)
+    semi_pos = tokens_list.index(lexer.SEMI)
+    return_body = lexbuf[return_pos + 1:semi_pos]
+    _, body_ast = parse_expr(1, 0, 1, [], return_body)
+    return Return(body_ast)
 
 
 def parse_for(lexbuf):
@@ -1236,3 +1273,9 @@ print(parse_phrase(lexer.lex(
     "fun f-> x := x + y; endfun")))
 print(parse_phrase(lexer.lex(
     "fun f-> while x dowhile x := x + 1; endwhile endfun")))
+
+# return
+print(parse_phrase(lexer.lex(
+    "return x * x + 3;")))
+print(parse_phrase(lexer.lex(
+    "fun f x y -> x := x + y; return x; endfun")))
