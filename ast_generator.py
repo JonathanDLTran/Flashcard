@@ -141,6 +141,9 @@ class IntValue(Expr):
         super().__init__()
         self.value = value
 
+    def get_value(self):
+        return self.value
+
     def __repr__(self):
         return "(IntValue: " + str(self.value) + ")"
 
@@ -153,6 +156,9 @@ class VarValue(Expr):
     def __init__(self, value):
         super().__init__()
         self.value = value
+
+    def get_value(self):
+        return self.value
 
     def __repr__(self):
         return "(VarValue: " + str(self.value) + ")"
@@ -175,6 +181,15 @@ class Bop(Expr):
     def set_right(self, right):
         self.right = right
 
+    def get_bop(self):
+        return self.bop
+
+    def get_left(self):
+        return self.left
+
+    def get_right(self):
+        return self.right
+
     def __repr__(self):
         return "(BOP: " + str(self.left) + str(self.bop) + str(self.right) + ")"
 
@@ -191,6 +206,12 @@ class Unop(Expr):
 
     def set_expr(self, expr):
         self.expr = expr
+
+    def get_unop(self):
+        return self.unop
+
+    def get_expr(self):
+        return self.expr
 
     def __repr__(self):
         return "(UNOP: " + str(self.unop) + str(self.expr) + ")"
