@@ -259,6 +259,24 @@ class For(Expr):
         return "(for " + str(self.index) + " from " + str(self.from_int) + " to " + str(self.end_int) + " by " + str(self.by) + " dofor\n\t" + "\n\t".join(list(map(lambda phrase: str(phrase), self.body))) + "\nendfor)"
 
 
+class Function(Expr):
+    """
+    Function represents
+    fun f a b c -> 
+        body
+    endfun
+    """
+
+    def __init__(self, name, args_list, body_list):
+        super().__init__()
+        self.name = name
+        self.args = args_list
+        self.body = body_list
+
+    def __repr__(self):
+        return "(fun " + str(self.name) + " " + " ".join(list(map(lambda arg: str(arg), self.args))) + " ->\n\t" + "\n\t".join(list(map(lambda phrase: str(phrase), self.body))) + "\nendfun)"
+
+
 class IfThenElse(Expr):
     """
     IFThenElse represents an if then else erpression
@@ -911,6 +929,15 @@ def parse_phrase(lexbuf):
             return parse_phrase_helper(new_lex_buff, new_tokens, acc)
 
         # function
+        if lexbuf[0][1] == lexer.FUN:
+            end_fun_loc = parse_end(
+                lexbuf, 1, lexer.FUN, lexer.END_FUN)
+            fun_statement = lexbuf[0:end_fun_loc + 1]
+            fun_parsed = parse_function(fun_statement)
+            new_lex_buff = lexbuf[end_fun_loc + 1:]
+            new_tokens = tokens[end_fun_loc + 1:]
+            acc.append(fun_parsed)
+            return parse_phrase_helper(new_lex_buff, new_tokens, acc)
 
         # error
         raise ParseError("Unrecognized token")
@@ -1096,7 +1123,23 @@ def parse_while(lexbuf):
 
 
 def parse_function(lexbuf):
-    pass
+    tokens_list = list(map(lambda pair: pair[1], lexbuf))
+    fun_pos = tokens_list.index(lexer.FUN)
+    fun_arrow_pos = tokens_list.index(lexer.FUN_ARROW)
+    endfun_pos = parse_end(lexbuf, 1, lexer.FUN, lexer.END_FUN)
+
+    args_list = lexbuf[fun_pos + 1:fun_arrow_pos]
+    if len(args_list) < 1:
+        raise ParseError("First Arg must be function name")
+
+    args_ast_list = list(
+        map(lambda arg: parse_expr(1, 0, 1, [], [arg])[1], args_list))
+    name = args_ast_list[0]
+    args_ast_list = args_ast_list[1:]
+    body = lexbuf[fun_arrow_pos + 1:endfun_pos]
+    body_ast = parse_phrase(body)
+
+    return Function(name, args_ast_list, body_ast)
 
 
 def parse_for(lexbuf):
@@ -1183,3 +1226,13 @@ print(parse_phrase(lexer.lex(
     "for x from 1 to 3 by 1 dofor for i from -100 to 20 by z * z dofor l := -1; endfor k := l + 1;  endfor")))
 print(parse_phrase(lexer.lex(
     "for x from 1 to 3 by 1 dofor if x then y := y + 1; endif k := l + 1;  endfor")))
+
+# functions
+print(parse_phrase(lexer.lex(
+    "fun f x y -> x := x + y; endfun")))
+print(parse_phrase(lexer.lex(
+    "fun f x -> x := x + y; endfun")))
+print(parse_phrase(lexer.lex(
+    "fun f-> x := x + y; endfun")))
+print(parse_phrase(lexer.lex(
+    "fun f-> while x dowhile x := x + 1; endwhile endfun")))
