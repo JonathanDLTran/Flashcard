@@ -823,6 +823,61 @@ def parse_phrase(lexbuf):
             return parse_phrase_helper(new_lex_buff, new_tokens, acc)
 
         # if statement
+        if lexbuf[0][1] == lexer.IF:
+            if_pos = 0
+            endif_pos = parse_end(lexbuf[1:], 0, lexer.IF, lexer.ENDIF)
+
+            rem_tokens = tokens[endif_pos + 1:]
+            rem_lexbuf = lexbuf[endif_pos + 1:]
+
+            if len(rem_tokens) < 1:
+                parsed_if = parse_if_then_else(lexbuf[if_pos:endif_pos + 1])
+                acc.append(parsed_if)
+                return parse_phrase_helper([], [], acc)
+
+            if rem_tokens[0] != lexer.ELIF and rem_tokens[0] != lexer.ELSE:
+                parsed_if = parse_if_then_else(lexbuf[if_pos:endif_pos + 1])
+                acc.append(parsed_if)
+                return parse_phrase_helper(rem_lexbuf, rem_tokens, acc)
+
+            endelif_pos = 0
+            real_endelif_pos = endif_pos
+            while len(rem_tokens) > 0 and rem_tokens[0] == lexer.ELIF:
+                endelif_pos = parse_end(
+                    rem_lexbuf[1:], 0, lexer.ELIF, lexer.ENDELIF)
+
+                rem_tokens = rem_tokens[endelif_pos + 1:]
+                rem_lexbuf = rem_lexbuf[endelif_pos + 1:]
+                real_endelif_pos += endelif_pos + 1
+
+            if len(rem_tokens) < 1:
+                parsed_if = parse_if_then_else(
+                    lexbuf[if_pos:real_endelif_pos + 1])
+                acc.append(parsed_if)
+                return parse_phrase_helper(rem_lexbuf, rem_tokens, acc)
+
+            if rem_tokens[0] != lexer.ELSE:
+                parsed_if = parse_if_then_else(
+                    lexbuf[if_pos:real_endelif_pos + 1])
+                acc.append(parsed_if)
+                return parse_phrase_helper(rem_lexbuf, rem_tokens, acc)
+
+            end_else_loc = 0
+            real_endelse_loc = real_endelif_pos + 1
+            if rem_tokens[0] == lexer.ELSE:
+                # parse Else
+                end_else_loc = parse_end(
+                    rem_lexbuf[1:], 0, lexer.ELSE, lexer.ENDELSE)
+
+                rem_tokens = rem_tokens[end_else_loc + 1:]
+                rem_lexbuf = rem_lexbuf[end_else_loc + 1:]
+
+                real_endelse_loc += end_else_loc
+
+            parsed_if = parse_if_then_else(
+                lexbuf[if_pos:real_endelse_loc + 1])
+            acc.append(parsed_if)
+            return parse_phrase_helper(rem_lexbuf, rem_tokens, acc)
 
         # for loop
 
@@ -1022,6 +1077,8 @@ def parse_for(lexbuf):
 print(parse_phrase(lexer.lex("x := 3; y := 2 + (3 * 5) * 4 * 3 * 2;")))
 print(parse_phrase(lexer.lex(
     "x := 1; while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
+print(parse_phrase(lexer.lex(
+    "x := 1; if x + 1 then x := 3; endif while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
 print(parse_program(lexer.lex(
     "x := 1; while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
 print(parse_while(lexer.lex("while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile")))
@@ -1036,3 +1093,23 @@ print(parse_if_then_else(
     lexer.lex("if x + 1 then x := 1; endif elif x - 2 then x := 2 ** 2; endelif elif y - -4 then q := -2 ** 2; endelif else y := -4; endelse")))
 print(parse_if_then_else(
     lexer.lex("if x + 1 then x := 1; endif elif x - 2 then x := 2 ** 2; endelif elif y - -4 then q := -2 ** 2; endelif")))
+
+print(parse_phrase(lexer.lex(
+    "x := 1; if x + 1 then x := 3; endif elif y -2 then y := 100; endelif while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
+print(parse_phrase(lexer.lex(
+    "x := 1; if x + 1 then x := 3; endif elif y -2 then y := 100; endelif else k := 40; endelse while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
+print(parse_phrase(lexer.lex(
+    "x := 1; if x + 1 then x := 3; endif elif y -2 then y := 100; endelif elif y -2 then y := 100; endelif elif y -2 then y := 100; endelif else k := 40; endelse while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
+print(parse_phrase(lexer.lex(
+    "x := 1; if x + 1 then x := 3; endif else k := 40; endelse while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
+
+
+# embedding
+print(parse_phrase(lexer.lex(
+    "if x + 1 then if x + 1 then x :=4; endif elif x then x :=5; endelif else if z then z := 4; endif endelse endif else k := 40; endelse")))
+print(parse_phrase(lexer.lex(
+    "while x dowhile while y dowhile x := x + y; endwhile while z dowhile z := z + 1;endwhile endwhile")))
+print(parse_phrase(lexer.lex(
+    "while x dowhile if x then x := 4;endif endwhile")))
+print(parse_phrase(lexer.lex(
+    "if x then while x dowhile x := x + 1; endwhile endif")))
