@@ -239,6 +239,26 @@ class While(Expr):
         return "(while " + str(self.guard) + " dowhile\n\t" + "\n\t".join(list(map(lambda phrase: str(phrase), self.body))) + "\nendwhile)"
 
 
+class For(Expr):
+    """
+    For represents
+    For var from int to int by int dofor
+        phrases
+    endfor
+    """
+
+    def __init__(self, index, from_int, end_int, by, body_list):
+        super().__init__()
+        self.index = index
+        self.from_int = from_int
+        self.end_int = end_int
+        self.by = by
+        self.body = body_list
+
+    def __repr__(self):
+        return "(for " + str(self.index) + " from " + str(self.from_int) + " to " + str(self.end_int) + " by " + str(self.by) + " dofor\n\t" + "\n\t".join(list(map(lambda phrase: str(phrase), self.body))) + "\nendfor)"
+
+
 class IfThenElse(Expr):
     """
     IFThenElse represents an if then else erpression
@@ -880,6 +900,15 @@ def parse_phrase(lexbuf):
             return parse_phrase_helper(rem_lexbuf, rem_tokens, acc)
 
         # for loop
+        if lexbuf[0][1] == lexer.FOR:
+            end_for_loc = parse_end(
+                lexbuf, 1, lexer.FOR, lexer.ENDFOR)
+            for_statement = lexbuf[0:end_for_loc + 1]
+            for_parsed = parse_for(for_statement)
+            new_lex_buff = lexbuf[end_for_loc + 1:]
+            new_tokens = tokens[end_for_loc + 1:]
+            acc.append(for_parsed)
+            return parse_phrase_helper(new_lex_buff, new_tokens, acc)
 
         # function
 
@@ -1071,7 +1100,39 @@ def parse_function(lexbuf):
 
 
 def parse_for(lexbuf):
-    pass
+    tokens_list = list(map(lambda pair: pair[1], lexbuf))
+    for_pos = tokens_list.index(lexer.FOR)
+    from_pos = tokens_list.index(lexer.FROM)
+    to_pos = tokens_list.index(lexer.TO)
+    by_pos = tokens_list.index(lexer.BY)
+    dofor_pos = tokens_list.index(lexer.DOFOR)
+    endfor_pos = parse_end(lexbuf, 1, lexer.FOR, lexer.ENDFOR)
+
+    var = lexbuf[for_pos + 1:from_pos]
+    from_int = lexbuf[from_pos + 1:to_pos]
+    to_int = lexbuf[to_pos + 1:by_pos]
+    by_int = lexbuf[by_pos + 1:dofor_pos]
+    body = lexbuf[dofor_pos + 1:endfor_pos]
+
+    if len(var) != 1 or var[0][0] != lexer.VARIABLE:
+        raise ParseError("Var must be a length 1 variable in For Loop")
+    _, var = parse_expr(1, 0, 1, [], var)
+
+    # if len(from_int) != 1 or from_int[0][0] != lexer.INTEGER:
+    #     raise ParseError("From must be a length 1 INTEGER in For Loop")
+    _, from_int = parse_expr(1, 0, 1, [], from_int)
+
+    # if len(to_int) != 1 or to_int[0][0] != lexer.INTEGER:
+    #     raise ParseError("To must be a length 1 INTEGER in For Loop")
+    _, to_int = parse_expr(1, 0, 1, [], to_int)
+
+    # if len(by_int) != 1 or by_int[0][0] != lexer.INTEGER:
+    #     raise ParseError("By must be a length 1 INTEGER in For Loop")
+    _, by_int = parse_expr(1, 0, 1, [], by_int)
+
+    body_list_ast = parse_phrase(body)
+
+    return For(var, from_int, to_int, by_int, body_list_ast)
 
 
 print(parse_phrase(lexer.lex("x := 3; y := 2 + (3 * 5) * 4 * 3 * 2;")))
@@ -1113,3 +1174,12 @@ print(parse_phrase(lexer.lex(
     "while x dowhile if x then x := 4;endif endwhile")))
 print(parse_phrase(lexer.lex(
     "if x then while x dowhile x := x + 1; endwhile endif")))
+
+
+# for loops
+print(parse_phrase(lexer.lex(
+    "for x from 1 to 3 by 1 dofor x := 4; endfor")))
+print(parse_phrase(lexer.lex(
+    "for x from 1 to 3 by 1 dofor for i from -100 to 20 by z * z dofor l := -1; endfor k := l + 1;  endfor")))
+print(parse_phrase(lexer.lex(
+    "for x from 1 to 3 by 1 dofor if x then y := y + 1; endif k := l + 1;  endfor")))

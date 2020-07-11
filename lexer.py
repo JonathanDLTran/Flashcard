@@ -38,6 +38,12 @@ ENDELSE = "endelse"
 WHILE = "while"
 DO_WHILE = "dowhile"
 END_WHILE = "endwhile"
+FOR = "for"
+FROM = "from"
+TO = "to"
+BY = "by"
+DOFOR = "dofor"
+ENDFOR = "endfor"
 
 # Order matters in keywords
 keywords = sorted(
@@ -72,6 +78,12 @@ keywords = sorted(
         DO_WHILE,
         END_WHILE,
         END_FUN,
+        FOR,
+        FROM,
+        TO,
+        BY,
+        DOFOR,
+        ENDFOR,
     ],
     reverse=True)
 
@@ -111,6 +123,12 @@ add_space_in_lex = [
     WHILE,
     DO_WHILE,
     END_WHILE,
+    FOR,
+    FROM,
+    TO,
+    BY,
+    DOFOR,
+    ENDFOR,
 ]
 
 no_space_in_lex = [kw for kw in keywords if kw not in add_space_in_lex]
