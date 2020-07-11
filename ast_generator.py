@@ -505,7 +505,8 @@ def reduce_stack(precedence, stack):
     MUST BE A VALUE OR VARIABLE!
     If the stack has one element, returns that element
     """
-    assert stack != []
+    if stack == []:
+        return stack
 
     l = len(stack)
     if l == 1:
@@ -1279,3 +1280,7 @@ print(parse_phrase(lexer.lex(
     "return x * x + 3;")))
 print(parse_phrase(lexer.lex(
     "fun f x y -> x := x + y; return x; endfun")))
+print(parse_phrase(lexer.lex(
+    "fun f x y -> x := x + y; return ; endfun")))
+print(parse_phrase(lexer.lex(
+    "fun f x y -> x := x + y; if x then return ; endif endfun")))
