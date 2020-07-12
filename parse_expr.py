@@ -1,4 +1,5 @@
 import lexer
+from copy import deepcopy
 
 UNOP_PRECEDENCE = 4
 START_PRECEDENCE = 1
@@ -599,21 +600,45 @@ def is_op(pair):
     # add to new higher precedence level stack
     # parse at that new level
 
-def parse_op(held_ast, precedence, stack, lexbuf):
-    if lexbuf == []:
-        return reduce_super_stack(stack)
 
-    _, sym_precedence = lookahead(lexbuf, 0)
+def reduce_super_stack(stack):
+    i = len(stack) - 1
+    while i >= 0:
+        substack = stack[i]
+        if substack != []:
+            reduced_substack = reduce_stack(i + 1, substack)
+            stack[i] = []
+            if i != 0 and reduced_substack != []:
+                substack[i - 1].append(reduced_substack)
+        i -= 1
+    return stack[0][0]
+
+
+def parse_op(count, held_ast, precedence, stack, lexbuf):
+    assert lexbuf != []
+
+    op, sym_precedence = lookahead(lexbuf, 0)
     rem = lexbuf[1:]
     if sym_precedence == precedence:
-        pass
+        stack[sym_precedence - 1].append(held_ast)
+        stack[sym_precedence - 1].append(op)
+        return parse_expr_helper(count + 1, None, sym_precedence, stack, rem)
     elif sym_precedence > precedence:
-        pass
+        stack[sym_precedence - 1].append(held_ast)
+        stack[sym_precedence - 1].append(op)
+        ast_length, higher_precedence_ast = parse_expr_helper(
+            0, None, sym_precedence, stack, rem)
+        return parse_op(count + ast_length + 1, higher_precedence_ast, precedence, stack, rem[ast_length:])
     else:
-        pass
+        finished_stack = stack[precedence - 1]
+        reduced_ast = reduce_stack(sym_precedence, finished_stack)
+        stack[precedence - 1] = []
+        stack[sym_precedence - 1].append(reduced_ast)
+        stack[sym_precedence - 1].append(op)
+        return parse_expr_helper(count + 1, None, sym_precedence, stack, rem)
 
 
-def parse_expr_helper(held_ast, precedence, stack, lexbuf):
+def parse_expr_helper(count, held_ast, precedence, stack, lexbuf):
     if lexbuf == []:
         return reduce_super_stack(stack)
 
@@ -621,8 +646,10 @@ def parse_expr_helper(held_ast, precedence, stack, lexbuf):
     if is_elt(pair):
         elt_length, elt_ast = match_elt(lexbuf)
         rem = lexbuf[elt_length:]
-        return parse_op(elt_ast, precedence, stack, rem)
-
+        if rem != []:
+            return (count + elt_length), parse_op((count + elt_length), elt_ast, precedence, stack, rem)
+        stack[precedence - 1].append(elt_ast)
+        return reduce_super_stack(stack)
 
 # driving code
 # starting stack list is [[] for _ in range(N_PRECEDENCE_LEVELS)]
