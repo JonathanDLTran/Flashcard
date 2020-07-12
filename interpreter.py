@@ -76,7 +76,10 @@ def interpret(program):
 
 
 print(ast_generator.parse_expr(
-    1, 0, 1, [], lexer.lex("2 + -(3 * 5) * 4 * 3 * 2"))[1], []
+    1, 0, 1, [], lexer.lex("2 + -1 * (3 * 5) * 4 * 3 * 2 * 1 * 0 * -1"))[1]
+)
+print(ast_generator.parse_expr(
+    1, 0, 1, [], lexer.lex("2 + -1 * 3 * 5 * 4 * 3 * 2"))[1]
 )
 print(
     interpret_expr(

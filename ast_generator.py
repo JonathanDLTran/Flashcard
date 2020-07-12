@@ -34,10 +34,16 @@ Sentence ::=
 
 """
 
+from copy import deepcopy
 import lexer
 
+# ------- CONSTANTS ------------
 
-# ------- GRAMMAR PRODUCTION RULES ------------fds
+UNOP_PRECEDENCE = 4
+START_PRECEDENCE = 1
+
+
+# ------- GRAMMAR PRODUCTION RULES ------------
 
 # VALUE = 'value'
 # INTEGER = 'integer'
@@ -64,7 +70,6 @@ import lexer
 
 # ]
 
-from copy import deepcopy
 
 # ------ EXCEPTIONS ---------
 
@@ -658,13 +663,13 @@ def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
             res_ast = reduce_stack(precedence, stack)
 
             # ------- when invariant is correct, not needed ---------
-            next_precedence = get_precedence(
-                lexbuf[1][1], PRECENDENCE_MAP) if len(lexbuf) >= 2 else -1
-            if prev_precedence < next_precedence:
-                next_stack = []
-                next_stack.append(res_ast)
+            # next_precedence = get_precedence(
+            #     lexbuf[1][1], PRECENDENCE_MAP) if len(lexbuf) >= 2 else -1
+            # if prev_precedence < next_precedence:
+            #     next_stack = []
+            #     next_stack.append(res_ast)
 
-                return parse_expr(precedence, count + 1, next_precedence, next_stack, lexbuf[1:])
+            #     return parse_expr(precedence, count + 1, next_precedence, next_stack, lexbuf[1:])
             # ------- when invariant is correct, not needed ---------
 
             return count + 1, res_ast
@@ -713,14 +718,14 @@ def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
                     res_ast = reduce_stack(precedence, stack)
 
                     # ------- when invariant is correct, not needed ---------
-                    next_precedence = get_precedence(
-                        lexbuf[(length + 2)][1], PRECENDENCE_MAP) if len(lexbuf) >= 2 else -1
+                    # next_precedence = get_precedence(
+                    #     lexbuf[(length + 2)][1], PRECENDENCE_MAP) if len(lexbuf) >= 2 else -1
 
-                    if prev_precedence < next_precedence:
+                    # if prev_precedence < next_precedence:
 
-                        next_stack = []
-                        next_stack.append(res_ast)
-                        return parse_expr(precedence, count + 1, next_precedence, next_stack, lexbuf[(length + 2):])
+                    #     next_stack = []
+                    #     next_stack.append(res_ast)
+                    #     return parse_expr(precedence, count + 1, next_precedence, next_stack, lexbuf[(length + 2):])
                     # ------- when invariant is correct, not needed ---------
 
                     return count + length + 2, res_ast
@@ -748,12 +753,15 @@ def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
             else:
                 stack.append(IntValue(val_curr))
                 res_ast = reduce_stack(precedence, stack)
-                next_precedence = get_precedence(
-                    lexbuf[1][1], PRECENDENCE_MAP) if len(lexbuf) >= 2 else -1
-                if prev_precedence < next_precedence:
-                    next_stack = []
-                    next_stack.append(res_ast)
-                    return parse_expr(precedence, count + 1, next_precedence, next_stack, lexbuf[1:])
+
+                # ------- when invariant is correct, not needed ---------
+                # next_precedence = get_precedence(
+                #     lexbuf[1][1], PRECENDENCE_MAP) if len(lexbuf) >= 2 else -1
+                # if prev_precedence < next_precedence:
+                #     next_stack = []
+                #     next_stack.append(res_ast)
+                #     return parse_expr(precedence, count + 1, next_precedence, next_stack, lexbuf[1:])
+                # ------- when invariant is correct, not needed ---------
 
                 return count + 1, res_ast
 
@@ -784,14 +792,14 @@ def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
                 res_ast = reduce_stack(precedence, stack)
 
                 # ------- when invariant is correct, not needed ---------
-                next_precedence = get_precedence(
-                    lexbuf[(length + 1)][1], PRECENDENCE_MAP) if len(lexbuf) >= 2 else -1
+                # next_precedence = get_precedence(
+                #     lexbuf[(length + 1)][1], PRECENDENCE_MAP) if len(lexbuf) >= 2 else -1
 
-                if prev_precedence < next_precedence:
+                # if prev_precedence < next_precedence:
 
-                    next_stack = []
-                    next_stack.append(res_ast)
-                    return parse_expr(precedence, count + 1, next_precedence, next_stack, lexbuf[(length + 1):])
+                #     next_stack = []
+                #     next_stack.append(res_ast)
+                #     return parse_expr(precedence, count + 1, next_precedence, next_stack, lexbuf[(length + 1):])
                 # ------- when invariant is correct, not needed ---------
 
                 return count + length + 1, res_ast
@@ -828,48 +836,20 @@ def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
             return parse_expr(prev_precedence, count + shift + 1, precedence, stack, lexbuf[1 + shift:])
 
         stack.append(lexbuf[0])
+
+        # ------- when invariant is correct, not needed ---------
         if precedence != get_precedence(val_curr, PRECENDENCE_MAP):
             # issue here
             shift, ast = parse_expr(
                 precedence, 0, get_precedence(val_curr, PRECENDENCE_MAP), [], lexbuf[1:])
             stack.append(ast)
             return parse_expr(prev_precedence, count + shift + 1, precedence, stack, lexbuf[1 + shift:])
+        # ------- when invariant is correct, not needed ---------
 
         return parse_expr(prev_precedence, count + 1, precedence, stack, lexbuf[1:])
 
     else:
         raise ParseError("Unknown Symbol")
-
-
-print(parse_expr(1, 0, 1, [], lexer.lex(
-    "((-1 * -1) + 4 * y * z * 3 * 2) * (7 + 4 * 5 *6)")))
-
-print(parse_expr(1, 0, 1, [], lexer.lex(
-    "f (3, 4)")))
-
-print(parse_expr(1, 0, 1, [], lexer.lex(
-    "3 + 3*4  + 5*6 + 7*8**9")))
-
-print(parse_expr(1, 0, 1, [], lexer.lex(
-    "3 + unitary () ** -156")))
-
-print(parse_expr(1, 0, 1, [], lexer.lex(
-    "3 + unitary () * 2 * 3 * 4")))
-
-print(parse_expr(1, 0, 1, [], lexer.lex(
-    "3 + 3 * unitary () + 2 * 3 * 4")))
-
-print(parse_expr(1, 0, 1, [], lexer.lex(
-    "2 + (3 * 5) * 4 * 3 * 2")))
-
-print(parse_expr(1, 0, 1, [], lexer.lex(
-    "f(g(2, 3), 2)")))
-
-print(parse_expr(1, 0, 1, [], lexer.lex(
-    "f(g(2, 3), h(4), 3, (2 + 3), x, g(x, h(m(d, 100), z)))")))
-
-print(parse_expr(1, 0, 1, [], lexer.lex(
-    "1 - -(3 - (3 + 4) * 2 + 4)")))
 
 
 def parse_program(lexbuf):
@@ -1255,79 +1235,111 @@ def parse_for(lexbuf):
     return For(var, from_int, to_int, by_int, body_list_ast)
 
 
-print(parse_phrase(lexer.lex("x := 3; y := 2 + (3 * 5) * 4 * 3 * 2;")))
-print(parse_phrase(lexer.lex(
-    "x := 1; while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
-print(parse_phrase(lexer.lex(
-    "x := 1; if x + 1 then x := 3; endif while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
-print(parse_program(lexer.lex(
-    "x := 1; while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
-print(parse_while(lexer.lex("while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile")))
-print(parse_if_then_else(lexer.lex("if x + 1 then x := 1; y := 2; endif")))
-print(parse_if_then_else(
-    lexer.lex("if x + 1 then x := 1; y := 2; endif else y := -4; endelse")))
-print(parse_if_then_else(
-    lexer.lex("if x + 1 then x := 1; endif else y := -4; endelse")))
-print(parse_if_then_else(
-    lexer.lex("if x + 1 then x := 1; endif elif x - 2 then x := 2 ** 2; endelif else y := -4; endelse")))
-print(parse_if_then_else(
-    lexer.lex("if x + 1 then x := 1; endif elif x - 2 then x := 2 ** 2; endelif elif y - -4 then q := -2 ** 2; endelif else y := -4; endelse")))
-print(parse_if_then_else(
-    lexer.lex("if x + 1 then x := 1; endif elif x - 2 then x := 2 ** 2; endelif elif y - -4 then q := -2 ** 2; endelif")))
+if __name__ == "__main__":
 
-print(parse_phrase(lexer.lex(
-    "x := 1; if x + 1 then x := 3; endif elif y -2 then y := 100; endelif while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
-print(parse_phrase(lexer.lex(
-    "x := 1; if x + 1 then x := 3; endif elif y -2 then y := 100; endelif else k := 40; endelse while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
-print(parse_phrase(lexer.lex(
-    "x := 1; if x + 1 then x := 3; endif elif y -2 then y := 100; endelif elif y -2 then y := 100; endelif elif y -2 then y := 100; endelif else k := 40; endelse while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
-print(parse_phrase(lexer.lex(
-    "x := 1; if x + 1 then x := 3; endif else k := 40; endelse while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
+    print(parse_expr(1, 0, 1, [], lexer.lex(
+        "((-1 * -1) + 4 * y * z * 3 * 2) * (7 + 4 * 5 *6)")))
 
+    print(parse_expr(1, 0, 1, [], lexer.lex(
+        "f (3, 4)")))
 
-# embedding
-print(parse_phrase(lexer.lex(
-    "if x + 1 then if x + 1 then x :=4; endif elif x then x :=5; endelif else if z then z := 4; endif endelse endif else k := 40; endelse")))
-print(parse_phrase(lexer.lex(
-    "while x dowhile while y dowhile x := x + y; endwhile while z dowhile z := z + 1;endwhile endwhile")))
-print(parse_phrase(lexer.lex(
-    "while x dowhile if x then x := 4;endif endwhile")))
-print(parse_phrase(lexer.lex(
-    "if x then while x dowhile x := x + 1; endwhile endif")))
+    print(parse_expr(1, 0, 1, [], lexer.lex(
+        "3 + 3*4  + 5*6 + 7*8**9")))
 
+    print(parse_expr(1, 0, 1, [], lexer.lex(
+        "3 + unitary () ** -156")))
 
-# for loops
-print(parse_phrase(lexer.lex(
-    "for x from 1 to 3 by 1 dofor x := 4; endfor")))
-print(parse_phrase(lexer.lex(
-    "for x from 1 to 3 by 1 dofor for i from -100 to 20 by z * z dofor l := -1; endfor k := l + 1;  endfor")))
-print(parse_phrase(lexer.lex(
-    "for x from 1 to 3 by 1 dofor if x then y := y + 1; endif k := l + 1;  endfor")))
+    print(parse_expr(1, 0, 1, [], lexer.lex(
+        "3 + unitary () * 2 * 3 * 4")))
 
-# functions
-print(parse_phrase(lexer.lex(
-    "fun f x y -> x := x + y; endfun")))
-print(parse_phrase(lexer.lex(
-    "fun f x -> x := x + y; endfun")))
-print(parse_phrase(lexer.lex(
-    "fun f-> x := x + y; endfun")))
-print(parse_phrase(lexer.lex(
-    "fun f-> while x dowhile x := x + 1; endwhile endfun")))
+    print(parse_expr(1, 0, 1, [], lexer.lex(
+        "3 + 3 * unitary () + 2 * 3 * 4")))
 
-# return
-print(parse_phrase(lexer.lex(
-    "return x * x + 3;")))
-print(parse_phrase(lexer.lex(
-    "fun f x y -> x := x + y; return x; endfun")))
-print(parse_phrase(lexer.lex(
-    "fun f x y -> x := x + y; return ; endfun")))
-print(parse_phrase(lexer.lex(
-    "fun f x y -> x := x + y; if x then return ; endif endfun")))
+    print(parse_expr(1, 0, 1, [], lexer.lex(
+        "2 + (3 * 5) * 4 * 3 * 2")))
 
+    print(parse_expr(1, 0, 1, [], lexer.lex(
+        "f(g(2, 3), 2)")))
 
-print(parse_expr(1, 0, 1, [], lexer.lex(
-    "f((3 + 3))")))
-print(parse_expr(1, 0, 1, [], lexer.lex(
-    "f(-3)")))
-print(parse_expr(1, 0, 1, [], lexer.lex(
-    "f(3 * 3, 2)")))
+    print(parse_expr(1, 0, 1, [], lexer.lex(
+        "f(g(2, 3), h(4), 3, (2 + 3), x, g(x, h(m(d, 100), z)))")))
+
+    print(parse_expr(1, 0, 1, [], lexer.lex(
+        "1 - -(3 - (3 + 4) * 2 + 4)")))
+
+    # print(parse_expr(1, 0, 1, [], lexer.lex(
+    #     "3 -1 * (2 * 3) * 4")))
+
+    print(parse_phrase(lexer.lex("x := 3; y := 2 + (3 * 5) * 4 * 3 * 2;")))
+    print(parse_phrase(lexer.lex(
+        "x := 1; while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
+    print(parse_phrase(lexer.lex(
+        "x := 1; if x + 1 then x := 3; endif while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
+    print(parse_program(lexer.lex(
+        "x := 1; while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
+    print(parse_while(lexer.lex("while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile")))
+    print(parse_if_then_else(lexer.lex("if x + 1 then x := 1; y := 2; endif")))
+    print(parse_if_then_else(
+        lexer.lex("if x + 1 then x := 1; y := 2; endif else y := -4; endelse")))
+    print(parse_if_then_else(
+        lexer.lex("if x + 1 then x := 1; endif else y := -4; endelse")))
+    print(parse_if_then_else(
+        lexer.lex("if x + 1 then x := 1; endif elif x - 2 then x := 2 ** 2; endelif else y := -4; endelse")))
+    print(parse_if_then_else(
+        lexer.lex("if x + 1 then x := 1; endif elif x - 2 then x := 2 ** 2; endelif elif y - -4 then q := -2 ** 2; endelif else y := -4; endelse")))
+    print(parse_if_then_else(
+        lexer.lex("if x + 1 then x := 1; endif elif x - 2 then x := 2 ** 2; endelif elif y - -4 then q := -2 ** 2; endelif")))
+
+    print(parse_phrase(lexer.lex(
+        "x := 1; if x + 1 then x := 3; endif elif y -2 then y := 100; endelif while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
+    print(parse_phrase(lexer.lex(
+        "x := 1; if x + 1 then x := 3; endif elif y -2 then y := 100; endelif else k := 40; endelse while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
+    print(parse_phrase(lexer.lex(
+        "x := 1; if x + 1 then x := 3; endif elif y -2 then y := 100; endelif elif y -2 then y := 100; endelif elif y -2 then y := 100; endelif else k := 40; endelse while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
+    print(parse_phrase(lexer.lex(
+        "x := 1; if x + 1 then x := 3; endif else k := 40; endelse while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
+
+    # embedding
+    print(parse_phrase(lexer.lex(
+        "if x + 1 then if x + 1 then x :=4; endif elif x then x :=5; endelif else if z then z := 4; endif endelse endif else k := 40; endelse")))
+    print(parse_phrase(lexer.lex(
+        "while x dowhile while y dowhile x := x + y; endwhile while z dowhile z := z + 1;endwhile endwhile")))
+    print(parse_phrase(lexer.lex(
+        "while x dowhile if x then x := 4;endif endwhile")))
+    print(parse_phrase(lexer.lex(
+        "if x then while x dowhile x := x + 1; endwhile endif")))
+
+    # for loops
+    print(parse_phrase(lexer.lex(
+        "for x from 1 to 3 by 1 dofor x := 4; endfor")))
+    print(parse_phrase(lexer.lex(
+        "for x from 1 to 3 by 1 dofor for i from -100 to 20 by z * z dofor l := -1; endfor k := l + 1;  endfor")))
+    print(parse_phrase(lexer.lex(
+        "for x from 1 to 3 by 1 dofor if x then y := y + 1; endif k := l + 1;  endfor")))
+
+    # functions
+    print(parse_phrase(lexer.lex(
+        "fun f x y -> x := x + y; endfun")))
+    print(parse_phrase(lexer.lex(
+        "fun f x -> x := x + y; endfun")))
+    print(parse_phrase(lexer.lex(
+        "fun f-> x := x + y; endfun")))
+    print(parse_phrase(lexer.lex(
+        "fun f-> while x dowhile x := x + 1; endwhile endfun")))
+
+    # return
+    print(parse_phrase(lexer.lex(
+        "return x * x + 3;")))
+    print(parse_phrase(lexer.lex(
+        "fun f x y -> x := x + y; return x; endfun")))
+    print(parse_phrase(lexer.lex(
+        "fun f x y -> x := x + y; return ; endfun")))
+    print(parse_phrase(lexer.lex(
+        "fun f x y -> x := x + y; if x then return ; endif endfun")))
+
+    print(parse_expr(1, 0, 1, [], lexer.lex(
+        "f((3 + 3))")))
+    print(parse_expr(1, 0, 1, [], lexer.lex(
+        "f(-3)")))
+    print(parse_expr(1, 0, 1, [], lexer.lex(
+        "f(3 * 3, 2)")))
