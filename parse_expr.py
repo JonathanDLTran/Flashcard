@@ -3,6 +3,7 @@ from copy import deepcopy
 
 UNOP_PRECEDENCE = 4
 START_PRECEDENCE = 1
+N_PRECEDENCE_LEVELS = 4
 
 PRECENDENCE_MAP = {
     lexer.PLUS: 1,
@@ -237,7 +238,7 @@ class For(Expr):
 class Function(Expr):
     """
     Function represents
-    fun f a b c -> 
+    fun f a b c ->
         body
     endfun
     """
@@ -367,7 +368,7 @@ def reduce_stack(precedence, stack):
 
 def get_precedence(symbol, precendence_map=PRECENDENCE_MAP):
     """
-    get_precedence(symbol, precendence_map=PRECENDENCE_MAP) is the 
+    get_precedence(symbol, precendence_map=PRECENDENCE_MAP) is the
     precendence of a symbol
 
     REQUIRES: precendence_map is a correct PRECENDENCE_MAP
@@ -500,17 +501,19 @@ def match_elt(lexbuf):
                 length, middle_terms = get_between_brackets(lexbuf, 2)
                 split_args = get_function_args(middle_terms, lexer.COMMA)
                 args_pairs = list(map(lambda args_buffer: parse_expr(
-                    False, 0, 1, [], args_buffer), split_args))
+                    args_buffer), split_args))
                 args = list(map(lambda pair: pair[1], args_pairs))
                 return 1 + length, Apply(elt_val, args)
         return 1, VarValue(elt_val)
     elif elt_typ == lexer.KEYWORD and elt_val in lexer.UNOPS:
-        length, unop_val_ast = parse_expr(
-            False, 0, UNOP_PRECEDENCE, [], lexbuf[1:])
+        # length, unop_val_ast = parse_expr(
+        #     lexbuf[1:])
+        # add in later provisions for parens to follow
+        length, unop_val_ast = 1, lexbuf[1]
         return (1 + length), Unop(elt_val, unop_val_ast)
     elif elt_val == lexer.LPAREN:
         length, middle_terms = get_between_brackets(lexbuf, 1)
-        _, parens_ast = parse_expr(False, 0, 1, [], middle_terms)
+        parens_ast = parse_expr(middle_terms)
         return (1 + length), parens_ast
     elif elt_val == lexer.RPAREN:
         raise UnmatchedParenError(
@@ -607,11 +610,11 @@ def reduce_super_stack(stack):
         substack = stack[i]
         if substack != []:
             reduced_substack = reduce_stack(i + 1, substack)
-            stack[i] = []
             if i != 0 and reduced_substack != []:
-                substack[i - 1].append(reduced_substack)
+                stack[i - 1].append(reduced_substack)
+                stack[i] = []
         i -= 1
-    return stack[0][0]
+    return reduce_stack(1, stack[0])
 
 
 def parse_op(count, held_ast, precedence, stack, lexbuf):
@@ -628,28 +631,109 @@ def parse_op(count, held_ast, precedence, stack, lexbuf):
         stack[sym_precedence - 1].append(op)
         ast_length, higher_precedence_ast = parse_expr_helper(
             0, None, sym_precedence, stack, rem)
-        return parse_op(count + ast_length + 1, higher_precedence_ast, precedence, stack, rem[ast_length:])
+        rem = rem[ast_length:]
+        if rem != []:
+            return parse_op(count + ast_length + 1, higher_precedence_ast, precedence, stack, rem)
+        # stack[precedence - 1].append(higher_precedence_ast)
+        # stack[sym_precedence - 1] = []
+        return (count + 1), reduce_super_stack(stack)
     else:
         finished_stack = stack[precedence - 1]
-        reduced_ast = reduce_stack(sym_precedence, finished_stack)
+        finished_stack.append(held_ast)
+        reduced_ast = reduce_stack(precedence, finished_stack)
         stack[precedence - 1] = []
         stack[sym_precedence - 1].append(reduced_ast)
         stack[sym_precedence - 1].append(op)
+
         return parse_expr_helper(count + 1, None, sym_precedence, stack, rem)
 
 
-def parse_expr_helper(count, held_ast, precedence, stack, lexbuf):
+def parse_expr_helper_2(count, held_ast, precedence, stack, lexbuf):
     if lexbuf == []:
         return reduce_super_stack(stack)
 
     pair = lexbuf[0]
+
     if is_elt(pair):
         elt_length, elt_ast = match_elt(lexbuf)
         rem = lexbuf[elt_length:]
         if rem != []:
             return (count + elt_length), parse_op((count + elt_length), elt_ast, precedence, stack, rem)
         stack[precedence - 1].append(elt_ast)
-        return reduce_super_stack(stack)
+        # substack = stack[precedence - 1]
+        return (count + elt_length), reduce_super_stack(stack)
+        # return (count + elt_length), reduce_stack(precedence, substack)
+
+
+def fold_stack_helper(stack, fold_item):
+    if len(stack) == 0:
+        return stack
+    l = len(stack)
+    stack.append(fold_item)
+    reduced_ast = reduce_stack(l, stack)
+    new_stack = deepcopy(stack[:(l-1)])
+    return fold_stack_helper(new_stack, reduced_ast)
+
+
+def parse_expr_helper(lexbuf):
+    stack = [[] for _ in range(N_PRECEDENCE_LEVELS)]
+    precendence = 1
+    l = len(lexbuf)
+    carry_ast = None
+    i = 0
+    while (i < l):
+        elt = carry_ast
+        if carry_ast != None:
+            elt = carry_ast
+            rem = lexbuf[i:]
+            elt_length = 0
+        else:
+            elt_length, elt = match_elt(lexbuf[i:])
+            rem = lexbuf[i + elt_length:]
+
+        if rem == []:
+            stack[precendence - 1].append(elt)
+            reduced_ast = reduce_stack(precendence, stack[precendence - 1])
+            i += elt_length
+            stack[precendence - 1] = [reduced_ast]
+        else:
+            op = rem[0]  # if it exists
+            _, op_val = op
+
+            op_prec = get_precedence(op_val, PRECENDENCE_MAP)
+
+            if op_prec == precendence:
+                stack[op_prec - 1].append(elt)
+                stack[op_prec - 1].append(op)
+                i += elt_length + 1
+
+            elif op_prec > precendence:
+                stack[op_prec - 1].append(elt)
+                stack[op_prec - 1].append(op)
+                i += elt_length + 1
+                precendence = op_prec
+
+            else:  # op_prec < precendence:
+                stack[precendence - 1].append(elt)
+                lower_ast = reduce_stack(precendence, stack[precendence - 1])
+                stack[precendence - 1] = []
+                stack[op_prec - 1].append(lower_ast)
+                stack[op_prec - 1].append(op)
+                i += elt_length + 1  # skip operator and redo on next run
+                precendence = op_prec
+
+    # get first non-empty substack
+    for substack in stack:
+        if substack != []:
+            return substack
+    # otherwise just return empty stack
+    return stack[0]
+
+
+def parse_expr(lexbuf):
+    return parse_expr_helper(lexbuf)
+    # start_stack = [[] for _ in range(N_PRECEDENCE_LEVELS)]
+    # return parse_expr_helper(0, None, START_PRECEDENCE, start_stack, lexbuf)
 
 # driving code
 # starting stack list is [[] for _ in range(N_PRECEDENCE_LEVELS)]
@@ -657,3 +741,86 @@ def parse_expr_helper(count, held_ast, precedence, stack, lexbuf):
 # starting buffer is lexbuf
 # not tracking count anymore, just track releative position in each buffer
 # held_ast is None
+# count is 0
+
+
+if __name__ == "__main__":
+    print(parse_expr(lexer.lex("3")))
+    print(parse_expr(lexer.lex("3 + 4")))
+    print(parse_expr(lexer.lex("3 + 4 + 6")))
+    print(parse_expr(lexer.lex("3 + 4 + 5 + 6")))
+
+    print(parse_expr(lexer.lex("-3")))
+    print(parse_expr(lexer.lex("-3 + 4")))
+    print(parse_expr(lexer.lex("-3 + -4")))
+    print(parse_expr(lexer.lex("3 + -4")))
+    print(parse_expr(lexer.lex("-3 + 4 + 6")))
+    print(parse_expr(lexer.lex("3 + -4 + 6")))
+    print(parse_expr(lexer.lex("3 + 4 + -6")))
+    print(parse_expr(lexer.lex("3 + -4 + -6")))
+    print(parse_expr(lexer.lex("-3 + -4 + 6")))
+    print(parse_expr(lexer.lex("-3 + 4 + -6")))
+    print(parse_expr(lexer.lex("-3 + -4 + -6")))
+    print(parse_expr(lexer.lex("-3 + 4 + 5 + 6")))
+    print(parse_expr(lexer.lex("3 + -4 + 5 + 6")))
+    print(parse_expr(lexer.lex("3 + 4 + -5 + 6")))
+    print(parse_expr(lexer.lex("3 + 4 + 5 + -6")))
+    print(parse_expr(lexer.lex("-3 + -4 + 5 + 6")))
+    print(parse_expr(lexer.lex("3 + -4 + -5 + 6")))
+    print(parse_expr(lexer.lex("3 + 4 + -5 + -6")))
+    print(parse_expr(lexer.lex("-3 + 4 + 5 + -6")))
+    print(parse_expr(lexer.lex("3 + -4 + 5 + -6")))
+    print(parse_expr(lexer.lex("3 + -4 + -5 + 6")))
+
+    print(parse_expr(lexer.lex("(3)")))
+    print(parse_expr(lexer.lex("(((3)))")))
+    print(parse_expr(lexer.lex("(3 + 4)")))
+    print(parse_expr(lexer.lex("3 + (4 + 6)")))
+    print(parse_expr(lexer.lex("(3 + 4 + 6)")))
+    print(parse_expr(lexer.lex("(3 + 4) + 6")))
+    print(parse_expr(lexer.lex("(3) + 4 + 5 + 6")))
+    print(parse_expr(lexer.lex("(3) + (4 + 5) + 6")))
+    print(parse_expr(lexer.lex("((3) + (4 + 5)) + 6")))
+    print(parse_expr(lexer.lex("(3) + ((4 + 5) + 6)")))
+
+    print(parse_expr(lexer.lex("(-3)")))
+    print(parse_expr(lexer.lex("(((-3)))")))
+    print(parse_expr(lexer.lex("(3 + -4)")))
+    print(parse_expr(lexer.lex("(-3 + -4)")))
+    print(parse_expr(lexer.lex("-3 + (4 + 6)")))
+    print(parse_expr(lexer.lex("-3 + (-4 + 6)")))
+    print(parse_expr(lexer.lex("-3 + (-4 + -6)")))
+    print(parse_expr(lexer.lex("3 + (-4 + 6)")))
+    print(parse_expr(lexer.lex("3 + (4 + -6)")))
+    print(parse_expr(lexer.lex("3 + (-4 + -6)")))
+    print(parse_expr(lexer.lex("(3 + 4 + 6)")))
+    print(parse_expr(lexer.lex("(3 + 4) + 6")))
+    print(parse_expr(lexer.lex("(-3 + 4 + 6)")))
+    print(parse_expr(lexer.lex("(-3 + -4) + -6")))
+    print(parse_expr(lexer.lex("(3) + 4 + 5 + 6")))
+    print(parse_expr(lexer.lex("(3) + (4 + 5) + 6")))
+    print(parse_expr(lexer.lex("((3) + (4 + 5)) + 6")))
+    print(parse_expr(lexer.lex("(3) + ((-4 + 5) + 6)")))
+    print(parse_expr(lexer.lex("(3) + ((-4 + -5) + 6)")))
+    print(parse_expr(lexer.lex("(3) + ((4 + -5) + 6)")))
+    print(parse_expr(lexer.lex("(3) + ((-4 + -5) + -6)")))
+
+    print(parse_expr(lexer.lex("3 * 4")))
+    print(parse_expr(lexer.lex("3 * 4 + 6")))
+    print(parse_expr(lexer.lex("3 + 4 * 6")))
+    print(parse_expr(lexer.lex("3 * 4 * 6")))
+    print(parse_expr(lexer.lex("3 * 4 + 5 + 6")))
+    print(parse_expr(lexer.lex("3 + 4 * 5 + 6")))
+    print(parse_expr(lexer.lex("3 + 4 + 5 * 6")))
+    print(parse_expr(lexer.lex("3 + 4 * 5 * 6")))
+    print(parse_expr(lexer.lex("3 * 4 * 5 + 6")))
+    print(parse_expr(lexer.lex("3 * 4 + 5 * 6")))
+    print(parse_expr(lexer.lex("3 * 4 * 5 * 6")))
+
+    # print(parse_expr(lexer.lex("3 * 4")))
+    # print(parse_expr(lexer.lex("-3")))
+    # print(parse_expr(lexer.lex("-3 * -4")))
+    # print(parse_expr(lexer.lex("3 + 4 * 2")))
+    # print(parse_expr(lexer.lex("3 * 4 + 2")))
+    # print(parse_expr(lexer.lex("3 * 4 * 2")))
+    # print(parse_expr(lexer.lex("3 * 4 * 2 + 2 * 3 + 1 * 2 * 3")))
