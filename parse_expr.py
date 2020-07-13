@@ -502,8 +502,8 @@ def match_elt(lexbuf):
                 split_args = get_function_args(middle_terms, lexer.COMMA)
                 args_pairs = list(map(lambda args_buffer: parse_expr(
                     args_buffer), split_args))
-                args = list(map(lambda pair: pair[1], args_pairs))
-                return 1 + length, Apply(elt_val, args)
+                args = list(map(lambda pair: pair, args_pairs))
+                return 2 + length, Apply(elt_val, args)
         return 1, VarValue(elt_val)
     elif elt_typ == lexer.KEYWORD and elt_val in lexer.UNOPS:
         # length, unop_val_ast = parse_expr(
@@ -848,6 +848,24 @@ if __name__ == "__main__":
     print(parse_expr(lexer.lex("-3 * -4 * -5 + -6")))
     print(parse_expr(lexer.lex("-3 * -4 + -5 ** -6")))
     print(parse_expr(lexer.lex("3 ** -4 ** -5 * -6")))
+
+    print(parse_expr(lexer.lex("unary()")))
+    print(parse_expr(lexer.lex("f(1, 2 + 3)")))
+    print(parse_expr(lexer.lex("f(g(3, 4), h(g(9), 8))")))
+
+    print(parse_expr(lexer.lex("-x * 4")))
+    print(parse_expr(lexer.lex("-3 ** -y")))
+    print(parse_expr(lexer.lex("3 * -4")))
+    print(parse_expr(lexer.lex("-3 * -4 + 6")))
+    print(parse_expr(lexer.lex("-3 + 4 * 6")))
+    print(parse_expr(lexer.lex("3 * -4 * 6")))
+    print(parse_expr(lexer.lex("3 * -4 + 5 + 6")))
+    print(parse_expr(lexer.lex("3 + -4 * -5 + 6")))
+    print(parse_expr(lexer.lex("x + -4 + 5 * -6")))
+    print(parse_expr(lexer.lex("-3 + -4 * -5 * -6")))
+    print(parse_expr(lexer.lex("-3 * -y * -z + -6")))
+    print(parse_expr(lexer.lex("-3 * -4 + -5 ** -6")))
+    print(parse_expr(lexer.lex("3 ** -4 ** -k * -6")))
 
     # print(parse_expr(lexer.lex("3 * 4")))
     # print(parse_expr(lexer.lex("-3")))
