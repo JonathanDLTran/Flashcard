@@ -464,89 +464,49 @@ def get_function_args(lexbuf, demarcation):
     return get_function_args_helper(lexbuf, demarcation, [], [], [])
 
 
-def lookahead(lexbuf, pos):
-    """
-    lookahead(lexbuf, pos) tells the precendence of the OPERATOR! at the lookeahad
-    position [pos] in [lexbuf]
+# def lookahead(lexbuf, pos):
+#     """
+#     lookahead(lexbuf, pos) tells the precendence of the OPERATOR! at the lookeahad
+#     position [pos] in [lexbuf]
 
-    Returns pair of op and precedence
+#     Returns pair of op and precedence
 
-    REQUIRES: lexbuf[pos] is an operator
-    REQUIRES: pos in lexbuf!
-    """
-    op = lexbuf[pos]
-    symbol = op[1]
-    assert symbol in lexer.OPERATIONS
-    return op, get_precedence(symbol, PRECENDENCE_MAP)
-
-
-def match_elt(lexbuf):
-    """
-    match_elt(lexbuf) is the length of the element and the element object
-    e.g. 1, Integer(1)
-    or 3, Bop(...)
-
-    if RPAREN is first character, will raise unmatched parentheses erro
-
-    REQUIRES: 0th element is in lexbuf: len(lexbuf )> 1
-    REQUIRES: elt is 0th element in lexbuf
-    """
-    elt_typ, elt_val = lexbuf[0]
-    if elt_typ == lexer.INTEGER:
-        return 1, IntValue(elt_val)
-    elif elt_typ == lexer.VARIABLE:
-        if len(lexbuf) > 1:
-            _, la_val = lexbuf[1]
-            if la_val == lexer.LPAREN:
-                length, middle_terms = get_between_brackets(lexbuf, 2)
-                split_args = get_function_args(middle_terms, lexer.COMMA)
-                args_pairs = list(map(lambda args_buffer: parse_expr(
-                    args_buffer), split_args))
-                args = list(map(lambda pair: pair, args_pairs))
-                return 2 + length, Apply(elt_val, args)
-        return 1, VarValue(elt_val)
-    elif elt_typ == lexer.KEYWORD and elt_val in lexer.UNOPS:
-        # length, unop_val_ast = parse_expr(
-        #     lexbuf[1:])
-        # add in later provisions for parens to follow
-        length, unop_val_ast = 1, lexbuf[1]
-        return (1 + length), Unop(elt_val, unop_val_ast)
-    elif elt_val == lexer.LPAREN:
-        length, middle_terms = get_between_brackets(lexbuf, 1)
-        parens_ast = parse_expr(middle_terms)
-        return (1 + length), parens_ast
-    elif elt_val == lexer.RPAREN:
-        raise UnmatchedParenError(
-            "Unmatched right parenthesis %s" % (elt_val))
+#     REQUIRES: lexbuf[pos] is an operator
+#     REQUIRES: pos in lexbuf!
+#     """
+#     op = lexbuf[pos]
+#     symbol = op[1]
+#     assert symbol in lexer.OPERATIONS
+#     return op, get_precedence(symbol, PRECENDENCE_MAP)
 
 
-def is_elt(pair):
-    """
-    is_elt(pair) is True iff pair is a elxer.Integer, Variabl;e, Keyword, Lparen
-    rParen
+# def is_elt(pair):
+#     """
+#     is_elt(pair) is True iff pair is a elxer.Integer, Variabl;e, Keyword, Lparen
+#     rParen
 
-    pair si 2 tuple from the lexer lexbuf list
-    """
-    elt_typ, elt_val = pair
-    if elt_typ == lexer.INTEGER:
-        return True
-    elif elt_typ == lexer.VARIABLE:
-        return True
-    elif elt_typ == lexer.KEYWORD and elt_val in lexer.UNOPS:
-        return True
-    elif elt_val == lexer.LPAREN:
-        return True
-    elif elt_val == lexer.RPAREN:
-        return True
-    return False
+#     pair si 2 tuple from the lexer lexbuf list
+#     """
+#     elt_typ, elt_val = pair
+#     if elt_typ == lexer.INTEGER:
+#         return True
+#     elif elt_typ == lexer.VARIABLE:
+#         return True
+#     elif elt_typ == lexer.KEYWORD and elt_val in lexer.UNOPS:
+#         return True
+#     elif elt_val == lexer.LPAREN:
+#         return True
+#     elif elt_val == lexer.RPAREN:
+#         return True
+#     return False
 
 
-def is_op(pair):
-    """
-    is_op(pair) is True iff pair is a lexer Operation, incljuing binop or unops
-    """
-    _, elt_val = pair
-    return elt_val in lexer.OPERATIONS
+# def is_op(pair):
+#     """
+#     is_op(pair) is True iff pair is a lexer Operation, incljuing binop or unops
+#     """
+#     _, elt_val = pair
+#     return elt_val in lexer.OPERATIONS
 
 
 # def parse_expr(is_parse_op, count, precedence, stack, lexbuf):
@@ -604,65 +564,115 @@ def is_op(pair):
     # parse at that new level
 
 
-def reduce_super_stack(stack):
-    i = len(stack) - 1
-    while i >= 0:
-        substack = stack[i]
-        if substack != []:
-            reduced_substack = reduce_stack(i + 1, substack)
-            if i != 0 and reduced_substack != []:
-                stack[i - 1].append(reduced_substack)
-                stack[i] = []
-        i -= 1
-    return reduce_stack(1, stack[0])
+# def reduce_super_stack(stack):
+#     i = len(stack) - 1
+#     while i >= 0:
+#         substack = stack[i]
+#         if substack != []:
+#             reduced_substack = reduce_stack(i + 1, substack)
+#             if i != 0 and reduced_substack != []:
+#                 stack[i - 1].append(reduced_substack)
+#                 stack[i] = []
+#         i -= 1
+#     return reduce_stack(1, stack[0])
 
 
-def parse_op(count, held_ast, precedence, stack, lexbuf):
-    assert lexbuf != []
+# def parse_op(count, held_ast, precedence, stack, lexbuf):
+#     assert lexbuf != []
 
-    op, sym_precedence = lookahead(lexbuf, 0)
-    rem = lexbuf[1:]
-    if sym_precedence == precedence:
-        stack[sym_precedence - 1].append(held_ast)
-        stack[sym_precedence - 1].append(op)
-        return parse_expr_helper(count + 1, None, sym_precedence, stack, rem)
-    elif sym_precedence > precedence:
-        stack[sym_precedence - 1].append(held_ast)
-        stack[sym_precedence - 1].append(op)
-        ast_length, higher_precedence_ast = parse_expr_helper(
-            0, None, sym_precedence, stack, rem)
-        rem = rem[ast_length:]
-        if rem != []:
-            return parse_op(count + ast_length + 1, higher_precedence_ast, precedence, stack, rem)
-        # stack[precedence - 1].append(higher_precedence_ast)
-        # stack[sym_precedence - 1] = []
-        return (count + 1), reduce_super_stack(stack)
-    else:
-        finished_stack = stack[precedence - 1]
-        finished_stack.append(held_ast)
-        reduced_ast = reduce_stack(precedence, finished_stack)
-        stack[precedence - 1] = []
-        stack[sym_precedence - 1].append(reduced_ast)
-        stack[sym_precedence - 1].append(op)
+#     op, sym_precedence = lookahead(lexbuf, 0)
+#     rem = lexbuf[1:]
+#     if sym_precedence == precedence:
+#         stack[sym_precedence - 1].append(held_ast)
+#         stack[sym_precedence - 1].append(op)
+#         return parse_expr_helper(count + 1, None, sym_precedence, stack, rem)
+#     elif sym_precedence > precedence:
+#         stack[sym_precedence - 1].append(held_ast)
+#         stack[sym_precedence - 1].append(op)
+#         ast_length, higher_precedence_ast = parse_expr_helper(
+#             0, None, sym_precedence, stack, rem)
+#         rem = rem[ast_length:]
+#         if rem != []:
+#             return parse_op(count + ast_length + 1, higher_precedence_ast, precedence, stack, rem)
+#         # stack[precedence - 1].append(higher_precedence_ast)
+#         # stack[sym_precedence - 1] = []
+#         return (count + 1), reduce_super_stack(stack)
+#     else:
+#         finished_stack = stack[precedence - 1]
+#         finished_stack.append(held_ast)
+#         reduced_ast = reduce_stack(precedence, finished_stack)
+#         stack[precedence - 1] = []
+#         stack[sym_precedence - 1].append(reduced_ast)
+#         stack[sym_precedence - 1].append(op)
 
-        return parse_expr_helper(count + 1, None, sym_precedence, stack, rem)
+#         return parse_expr_helper(count + 1, None, sym_precedence, stack, rem)
 
 
-def parse_expr_helper_2(count, held_ast, precedence, stack, lexbuf):
-    if lexbuf == []:
-        return reduce_super_stack(stack)
+# def parse_expr_helper_2(count, held_ast, precedence, stack, lexbuf):
+#     if lexbuf == []:
+#         return reduce_super_stack(stack)
 
-    pair = lexbuf[0]
+#     pair = lexbuf[0]
 
-    if is_elt(pair):
-        elt_length, elt_ast = match_elt(lexbuf)
-        rem = lexbuf[elt_length:]
-        if rem != []:
-            return (count + elt_length), parse_op((count + elt_length), elt_ast, precedence, stack, rem)
-        stack[precedence - 1].append(elt_ast)
-        # substack = stack[precedence - 1]
-        return (count + elt_length), reduce_super_stack(stack)
-        # return (count + elt_length), reduce_stack(precedence, substack)
+#     if is_elt(pair):
+#         elt_length, elt_ast = match_elt(lexbuf)
+#         rem = lexbuf[elt_length:]
+#         if rem != []:
+#             return (count + elt_length), parse_op((count + elt_length), elt_ast, precedence, stack, rem)
+#         stack[precedence - 1].append(elt_ast)
+#         # substack = stack[precedence - 1]
+#         return (count + elt_length), reduce_super_stack(stack)
+#         # return (count + elt_length), reduce_stack(precedence, substack)
+
+
+def match_elt(lexbuf):
+    """
+    match_elt(lexbuf) is the length of the element and the element object
+    e.g. 1, Integer(1)
+    or 3, Bop(...)
+
+    if RPAREN is first character, will raise unmatched parentheses erro
+
+    REQUIRES: 0th element is in lexbuf: len(lexbuf )> 1
+    REQUIRES: elt is 0th element in lexbuf
+    """
+    elt_typ, elt_val = lexbuf[0]
+    if elt_typ == lexer.INTEGER:
+        return 1, IntValue(elt_val)
+    elif elt_typ == lexer.VARIABLE:
+        if len(lexbuf) > 1:
+            _, la_val = lexbuf[1]
+            if la_val == lexer.LPAREN:
+                length, middle_terms = get_between_brackets(lexbuf, 2)
+                split_args = get_function_args(middle_terms, lexer.COMMA)
+                args_pairs = list(map(lambda args_buffer: parse_expr(
+                    args_buffer), split_args))
+                args = list(map(lambda pair: pair, args_pairs))
+                return 2 + length, Apply(elt_val, args)
+        return 1, VarValue(elt_val)
+    elif elt_typ == lexer.KEYWORD and elt_val in lexer.UNOPS:
+        _, next_pair = lexbuf[1]
+        if next_pair == lexer.LPAREN:
+            length, middle_terms = get_between_brackets(lexbuf, 2)
+            parsed_middle_ast = parse_expr(middle_terms)
+            return 2 + length, Unop(elt_val, parsed_middle_ast)
+        elif next_pair == lexer.RPAREN:
+            raise UnmatchedParenError(
+                "Unmatched right parenthesis %s" % (next_pair))
+        length = 1
+        unop_typ, unop_val_ast = lexbuf[1]
+        if unop_typ == lexer.INTEGER:
+            unop_val_ast = IntValue(unop_val_ast)
+        elif unop_typ == lexer.VARIABLE:
+            unop_val_ast = VarValue(unop_val_ast)
+        return (1 + length), Unop(elt_val, unop_val_ast)
+    elif elt_val == lexer.LPAREN:
+        length, middle_terms = get_between_brackets(lexbuf, 1)
+        parens_ast = parse_expr(middle_terms)
+        return (1 + length), parens_ast
+    elif elt_val == lexer.RPAREN:
+        raise UnmatchedParenError(
+            "Unmatched right parenthesis %s" % (elt_val))
 
 
 def fold_stack(stack):
@@ -736,16 +746,6 @@ def parse_expr_helper(lexbuf):
 
 def parse_expr(lexbuf):
     return parse_expr_helper(lexbuf)
-    # start_stack = [[] for _ in range(N_PRECEDENCE_LEVELS)]
-    # return parse_expr_helper(0, None, START_PRECEDENCE, start_stack, lexbuf)
-
-# driving code
-# starting stack list is [[] for _ in range(N_PRECEDENCE_LEVELS)]
-# starting precedence is 1
-# starting buffer is lexbuf
-# not tracking count anymore, just track releative position in each buffer
-# held_ast is None
-# count is 0
 
 
 if __name__ == "__main__":
@@ -866,6 +866,32 @@ if __name__ == "__main__":
     print(parse_expr(lexer.lex("-3 * -y * -z + -6")))
     print(parse_expr(lexer.lex("-3 * -4 + -5 ** -6")))
     print(parse_expr(lexer.lex("3 ** -4 ** -k * -6")))
+
+    print(parse_expr(lexer.lex("-(3 + 4) * 4")))
+    print(parse_expr(lexer.lex("-(-3 + 4) * 4")))
+    print(parse_expr(lexer.lex("-(3 + -4) * 4")))
+    print(parse_expr(lexer.lex("-(-3 + -4) * 4")))
+    print(parse_expr(lexer.lex("-3 ** -(2 * 3)")))
+    print(parse_expr(lexer.lex("-3 ** -(-2 * 3)")))
+    print(parse_expr(lexer.lex("-3 ** -(2 * -3)")))
+    print(parse_expr(lexer.lex("-3 ** -(-2 * -3)")))
+    print(parse_expr(lexer.lex("3 * -(1 + 2)")))
+    print(parse_expr(lexer.lex("3 * -(1 + -2)")))
+    print(parse_expr(lexer.lex("3 * -(-1 + 2)")))
+    print(parse_expr(lexer.lex("3 * -(-1 + -2)")))
+
+    print(parse_expr(lexer.lex("-(3 + 4) * -2 + 4")))
+    print(parse_expr(lexer.lex("-(-3 + 4) * -2 + 4")))
+    print(parse_expr(lexer.lex("-(3 + -4) * -2 + 4")))
+    print(parse_expr(lexer.lex("-(-3 + -4) * -2 + 4")))
+    print(parse_expr(lexer.lex("-3 ** -(2 * 3) * 2 + 1")))
+    print(parse_expr(lexer.lex("-3 ** -(-2 * 3) * -2 + 1")))
+    print(parse_expr(lexer.lex("-3 ** -(2 * -3) * -2 + 1")))
+    print(parse_expr(lexer.lex("-3 ** -(-2 * -3) * -2 + 1 ")))
+    print(parse_expr(lexer.lex("3 * -(1 + 2) * -4 + 1")))
+    print(parse_expr(lexer.lex("3 * -(1 + -2) * -4 + 1")))
+    print(parse_expr(lexer.lex("3 * -(-1 + 2) * -10 + 0")))
+    print(parse_expr(lexer.lex("3 * -(-1 + -2) * -10 + 0")))
 
     # print(parse_expr(lexer.lex("3 * 4")))
     # print(parse_expr(lexer.lex("-3")))

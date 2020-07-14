@@ -39,8 +39,18 @@ import lexer
 
 # ------- CONSTANTS ------------
 
+
 UNOP_PRECEDENCE = 4
 START_PRECEDENCE = 1
+N_PRECEDENCE_LEVELS = 4
+
+PRECENDENCE_MAP = {
+    lexer.PLUS: 1,
+    lexer.MINUS: 1,
+    lexer.TIMES: 2,
+    lexer.DIV: 2,
+    lexer.EXP: 3,
+}
 
 
 # ------- GRAMMAR PRODUCTION RULES ------------
@@ -311,6 +321,15 @@ class Function(Expr):
         self.args = args_list
         self.body = body_list
 
+    def get_name(self):
+        return self.name
+
+    def get_args(self):
+        return self.args
+
+    def get_body(self):
+        return self.body
+
     def __repr__(self):
         return "(fun " + str(self.name) + " " + " ".join(list(map(lambda arg: str(arg), self.args))) + " ->\n\t" + "\n\t".join(list(map(lambda phrase: str(phrase), self.body))) + "\nendfun)"
 
@@ -373,6 +392,9 @@ class Return(Expr):
         super().__init__()
         self.body = body
 
+    def get_body(self):
+        return self.body
+
     def __repr__(self):
         return "(Return: " + str(self.body) + ";)"
 
@@ -420,7 +442,7 @@ def get_between_brackets(lex_buff, idx):
         raise MissingParens("Missing or Misplaced Parentheses")
     l = len(expr_terms)
     expr_terms.pop()  # removd last parentheses
-    return (expr_terms, l)
+    return (l, expr_terms)
 
 
 # def match_open_paren(ast, lex_buff):
@@ -613,243 +635,243 @@ def get_function_args(lexbuf, demarcation):
     return get_function_args_helper(lexbuf, demarcation, [], [], [])
 
 
-def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
+# def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
 
-    # ----------- 0 tokens remaining = nothing more to parse ----------
-    # ----------- Used to escape if start call has 0 tokens  ----------
-    if lexbuf == []:
-        return (count, reduce_stack(precedence, stack))
+#     # ----------- 0 tokens remaining = nothing more to parse ----------
+#     # ----------- Used to escape if start call has 0 tokens  ----------
+#     if lexbuf == []:
+#         return (count, reduce_stack(precedence, stack))
 
-    typ_curr, val_curr = lexbuf[0]
+#     typ_curr, val_curr = lexbuf[0]
 
-    # --------- One Token REMANING ------------
-    if len(lexbuf) <= 1:
-        new_stack = deepcopy(stack)
-        if typ_curr == lexer.INTEGER:
-            new_stack.append(IntValue(val_curr))
-        elif typ_curr == lexer.VARIABLE:
-            new_stack.append(VarValue(val_curr))
-        else:
-            raise EndWithOperatorError(val_curr)
-        return (count + 1, reduce_stack(precedence, new_stack))
+#     # --------- One Token REMANING ------------
+#     if len(lexbuf) <= 1:
+#         new_stack = deepcopy(stack)
+#         if typ_curr == lexer.INTEGER:
+#             new_stack.append(IntValue(val_curr))
+#         elif typ_curr == lexer.VARIABLE:
+#             new_stack.append(VarValue(val_curr))
+#         else:
+#             raise EndWithOperatorError(val_curr)
+#         return (count + 1, reduce_stack(precedence, new_stack))
 
-    # --------- TWO OR MORE Tokens REMANING ------------
-    type_la, val_la = lexbuf[1]
+#     # --------- TWO OR MORE Tokens REMANING ------------
+#     type_la, val_la = lexbuf[1]
 
-    # --------- INT AND LOOKAHEAD ------------
-    if typ_curr == lexer.INTEGER:
-        if type_la == lexer.INTEGER or type_la == lexer.VARIABLE:
-            raise ParseError(
-                "Integer cannot be followed by a variable or integer")
+#     # --------- INT AND LOOKAHEAD ------------
+#     if typ_curr == lexer.INTEGER:
+#         if type_la == lexer.INTEGER or type_la == lexer.VARIABLE:
+#             raise ParseError(
+#                 "Integer cannot be followed by a variable or integer")
 
-        new_precedence = get_precedence(val_la, PRECENDENCE_MAP)
+#         new_precedence = get_precedence(val_la, PRECENDENCE_MAP)
 
-        if new_precedence > precedence:
-            new_stack = []
-            new_stack.append(IntValue(val_curr))
-            new_idx, res_ast = parse_expr(precedence,
-                                          0, new_precedence, new_stack, lexbuf[1:])
-            stack.append(res_ast)
-            return parse_expr(prev_precedence, count + new_idx + 1, precedence, stack, lexbuf[1 + new_idx:])
+#         if new_precedence > precedence:
+#             new_stack = []
+#             new_stack.append(IntValue(val_curr))
+#             new_idx, res_ast = parse_expr(precedence,
+#                                           0, new_precedence, new_stack, lexbuf[1:])
+#             stack.append(res_ast)
+#             return parse_expr(prev_precedence, count + new_idx + 1, precedence, stack, lexbuf[1 + new_idx:])
 
-        elif new_precedence == precedence:
-            stack.append(IntValue(val_curr))
-            # reduced_stack = reduce_stack(precedence, stack)
-            return parse_expr(prev_precedence, count + 1, precedence, stack, lexbuf[1:])
+#         elif new_precedence == precedence:
+#             stack.append(IntValue(val_curr))
+#             # reduced_stack = reduce_stack(precedence, stack)
+#             return parse_expr(prev_precedence, count + 1, precedence, stack, lexbuf[1:])
 
-        else:
+#         else:
 
-            stack.append(IntValue(val_curr))
-            res_ast = reduce_stack(precedence, stack)
+#             stack.append(IntValue(val_curr))
+#             res_ast = reduce_stack(precedence, stack)
 
-            # ------- when invariant is correct, not needed ---------
-            # next_precedence = get_precedence(
-            #     lexbuf[1][1], PRECENDENCE_MAP) if len(lexbuf) >= 2 else -1
-            # if prev_precedence < next_precedence:
-            #     next_stack = []
-            #     next_stack.append(res_ast)
+#             # ------- when invariant is correct, not needed ---------
+#             # next_precedence = get_precedence(
+#             #     lexbuf[1][1], PRECENDENCE_MAP) if len(lexbuf) >= 2 else -1
+#             # if prev_precedence < next_precedence:
+#             #     next_stack = []
+#             #     next_stack.append(res_ast)
 
-            #     return parse_expr(precedence, count + 1, next_precedence, next_stack, lexbuf[1:])
-            # ------- when invariant is correct, not needed ---------
+#             #     return parse_expr(precedence, count + 1, next_precedence, next_stack, lexbuf[1:])
+#             # ------- when invariant is correct, not needed ---------
 
-            return count + 1, res_ast
+#             return count + 1, res_ast
 
-    # parse variables
-    elif typ_curr == lexer.VARIABLE:
+#     # parse variables
+#     elif typ_curr == lexer.VARIABLE:
 
-        if type_la == lexer.INTEGER or type_la == lexer.VARIABLE:
-            raise ParseError(
-                "Variable cannot be followed by a variable or integer")
-        elif val_la == lexer.RPAREN:
-            raise UnmatchedParenError(
-                "Unmatched right parenthesis %s" % (val_curr))
+#         if type_la == lexer.INTEGER or type_la == lexer.VARIABLE:
+#             raise ParseError(
+#                 "Variable cannot be followed by a variable or integer")
+#         elif val_la == lexer.RPAREN:
+#             raise UnmatchedParenError(
+#                 "Unmatched right parenthesis %s" % (val_curr))
 
-        # parse function
-        elif val_la == lexer.LPAREN:
+#         # parse function
+#         elif val_la == lexer.LPAREN:
 
-            middle_terms, length = get_between_brackets(lexbuf[2:], 0)
-            split_args = get_function_args(middle_terms, lexer.COMMA)
+#             middle_terms, length = get_between_brackets(lexbuf[2:], 0)
+#             split_args = get_function_args(middle_terms, lexer.COMMA)
 
-            args_pairs = list(map(lambda args_buffer: parse_expr(
-                1, 0, 1, [], args_buffer), split_args))
-            args = list(map(lambda pair: pair[1], args_pairs))
-            apply_obj = Apply(val_curr, args)
+#             args_pairs = list(map(lambda args_buffer: parse_expr(
+#                 1, 0, 1, [], args_buffer), split_args))
+#             args = list(map(lambda pair: pair[1], args_pairs))
+#             apply_obj = Apply(val_curr, args)
 
-            # do the lookahead
-            if len(lexbuf) > length + 2:
-                _, val_la2 = lexbuf[(length + 2)]
-                new_precedence_2 = get_precedence(val_la2, PRECENDENCE_MAP)
-                if new_precedence_2 > precedence:
+#             # do the lookahead
+#             if len(lexbuf) > length + 2:
+#                 _, val_la2 = lexbuf[(length + 2)]
+#                 new_precedence_2 = get_precedence(val_la2, PRECENDENCE_MAP)
+#                 if new_precedence_2 > precedence:
 
-                    new_stack = []
-                    new_stack.append(apply_obj)
-                    new_idx, res_ast = parse_expr(precedence,
-                                                  0, new_precedence_2, new_stack, lexbuf[(length + 2):])
-                    stack.append(res_ast)
-                    return parse_expr(prev_precedence, count + new_idx + length + 2, precedence, stack, lexbuf[2 + length + new_idx:])
+#                     new_stack = []
+#                     new_stack.append(apply_obj)
+#                     new_idx, res_ast = parse_expr(precedence,
+#                                                   0, new_precedence_2, new_stack, lexbuf[(length + 2):])
+#                     stack.append(res_ast)
+#                     return parse_expr(prev_precedence, count + new_idx + length + 2, precedence, stack, lexbuf[2 + length + new_idx:])
 
-                elif new_precedence_2 == precedence:
-                    stack.append(apply_obj)
-                    # reduced_stack = reduce_stack(precedence, stack)
-                    return parse_expr(prev_precedence, count + 1, precedence, stack, lexbuf[(length + 2):])
+#                 elif new_precedence_2 == precedence:
+#                     stack.append(apply_obj)
+#                     # reduced_stack = reduce_stack(precedence, stack)
+#                     return parse_expr(prev_precedence, count + 1, precedence, stack, lexbuf[(length + 2):])
 
-                else:
-                    stack.append(apply_obj)
-                    res_ast = reduce_stack(precedence, stack)
+#                 else:
+#                     stack.append(apply_obj)
+#                     res_ast = reduce_stack(precedence, stack)
 
-                    # ------- when invariant is correct, not needed ---------
-                    # next_precedence = get_precedence(
-                    #     lexbuf[(length + 2)][1], PRECENDENCE_MAP) if len(lexbuf) >= 2 else -1
+#                     # ------- when invariant is correct, not needed ---------
+#                     # next_precedence = get_precedence(
+#                     #     lexbuf[(length + 2)][1], PRECENDENCE_MAP) if len(lexbuf) >= 2 else -1
 
-                    # if prev_precedence < next_precedence:
+#                     # if prev_precedence < next_precedence:
 
-                    #     next_stack = []
-                    #     next_stack.append(res_ast)
-                    #     return parse_expr(precedence, count + 1, next_precedence, next_stack, lexbuf[(length + 2):])
-                    # ------- when invariant is correct, not needed ---------
+#                     #     next_stack = []
+#                     #     next_stack.append(res_ast)
+#                     #     return parse_expr(precedence, count + 1, next_precedence, next_stack, lexbuf[(length + 2):])
+#                     # ------- when invariant is correct, not needed ---------
 
-                    return count + length + 2, res_ast
+#                     return count + length + 2, res_ast
 
-            stack.append(apply_obj)
-            return parse_expr(prev_precedence, count + length + 2, precedence, stack, lexbuf[2 + length:])
+#             stack.append(apply_obj)
+#             return parse_expr(prev_precedence, count + length + 2, precedence, stack, lexbuf[2 + length:])
 
-        # just a variable
-        else:
-            new_precedence = get_precedence(val_la, PRECENDENCE_MAP)
+#         # just a variable
+#         else:
+#             new_precedence = get_precedence(val_la, PRECENDENCE_MAP)
 
-            if new_precedence > precedence:
-                new_stack = []
-                new_stack.append(VarValue(val_curr))
-                new_idx, res_ast = parse_expr(precedence,
-                                              0, new_precedence, new_stack, lexbuf[1:])
-                stack.append(res_ast)
-                return parse_expr(prev_precedence, count + new_idx + 1, precedence, stack, lexbuf[1 + new_idx:])
+#             if new_precedence > precedence:
+#                 new_stack = []
+#                 new_stack.append(VarValue(val_curr))
+#                 new_idx, res_ast = parse_expr(precedence,
+#                                               0, new_precedence, new_stack, lexbuf[1:])
+#                 stack.append(res_ast)
+#                 return parse_expr(prev_precedence, count + new_idx + 1, precedence, stack, lexbuf[1 + new_idx:])
 
-            elif new_precedence == precedence:
-                stack.append(VarValue(val_curr))
-                # reduced_stack = reduce_stack(precedence, stack)
-                return parse_expr(prev_precedence, count + 1, precedence, stack, lexbuf[1:])
+#             elif new_precedence == precedence:
+#                 stack.append(VarValue(val_curr))
+#                 # reduced_stack = reduce_stack(precedence, stack)
+#                 return parse_expr(prev_precedence, count + 1, precedence, stack, lexbuf[1:])
 
-            else:
-                stack.append(IntValue(val_curr))
-                res_ast = reduce_stack(precedence, stack)
+#             else:
+#                 stack.append(IntValue(val_curr))
+#                 res_ast = reduce_stack(precedence, stack)
 
-                # ------- when invariant is correct, not needed ---------
-                # next_precedence = get_precedence(
-                #     lexbuf[1][1], PRECENDENCE_MAP) if len(lexbuf) >= 2 else -1
-                # if prev_precedence < next_precedence:
-                #     next_stack = []
-                #     next_stack.append(res_ast)
-                #     return parse_expr(precedence, count + 1, next_precedence, next_stack, lexbuf[1:])
-                # ------- when invariant is correct, not needed ---------
+#                 # ------- when invariant is correct, not needed ---------
+#                 # next_precedence = get_precedence(
+#                 #     lexbuf[1][1], PRECENDENCE_MAP) if len(lexbuf) >= 2 else -1
+#                 # if prev_precedence < next_precedence:
+#                 #     next_stack = []
+#                 #     next_stack.append(res_ast)
+#                 #     return parse_expr(precedence, count + 1, next_precedence, next_stack, lexbuf[1:])
+#                 # ------- when invariant is correct, not needed ---------
 
-                return count + 1, res_ast
+#                 return count + 1, res_ast
 
-    elif val_curr == lexer.LPAREN:
-        middle_terms, length = get_between_brackets(lexbuf[1:], 0)
-        _, parens_ast = parse_expr(1, 0, 1, [], middle_terms)
+#     elif val_curr == lexer.LPAREN:
+#         middle_terms, length = get_between_brackets(lexbuf[1:], 0)
+#         _, parens_ast = parse_expr(1, 0, 1, [], middle_terms)
 
-        # need to do a lookahead
-        if len(lexbuf) > 1 + length:
-            _, val_la2 = lexbuf[(length + 1)]
-            new_precedence_2 = get_precedence(val_la2, PRECENDENCE_MAP)
-            if new_precedence_2 > precedence:
+#         # need to do a lookahead
+#         if len(lexbuf) > 1 + length:
+#             _, val_la2 = lexbuf[(length + 1)]
+#             new_precedence_2 = get_precedence(val_la2, PRECENDENCE_MAP)
+#             if new_precedence_2 > precedence:
 
-                new_stack = []
-                new_stack.append(parens_ast)
-                new_idx, res_ast = parse_expr(precedence,
-                                              0, new_precedence_2, new_stack, lexbuf[(length + 1):])
-                stack.append(res_ast)
-                return parse_expr(prev_precedence, count + new_idx + length + 1, precedence, stack, lexbuf[1 + length + new_idx:])
+#                 new_stack = []
+#                 new_stack.append(parens_ast)
+#                 new_idx, res_ast = parse_expr(precedence,
+#                                               0, new_precedence_2, new_stack, lexbuf[(length + 1):])
+#                 stack.append(res_ast)
+#                 return parse_expr(prev_precedence, count + new_idx + length + 1, precedence, stack, lexbuf[1 + length + new_idx:])
 
-            elif new_precedence_2 == precedence:
-                stack.append(parens_ast)
-                # reduced_stack = reduce_stack(precedence, stack)
-                return parse_expr(prev_precedence, count + 1, precedence, stack, lexbuf[(length + 1):])
+#             elif new_precedence_2 == precedence:
+#                 stack.append(parens_ast)
+#                 # reduced_stack = reduce_stack(precedence, stack)
+#                 return parse_expr(prev_precedence, count + 1, precedence, stack, lexbuf[(length + 1):])
 
-            else:
-                stack.append(parens_ast)
-                res_ast = reduce_stack(precedence, stack)
+#             else:
+#                 stack.append(parens_ast)
+#                 res_ast = reduce_stack(precedence, stack)
 
-                # ------- when invariant is correct, not needed ---------
-                # next_precedence = get_precedence(
-                #     lexbuf[(length + 1)][1], PRECENDENCE_MAP) if len(lexbuf) >= 2 else -1
+#                 # ------- when invariant is correct, not needed ---------
+#                 # next_precedence = get_precedence(
+#                 #     lexbuf[(length + 1)][1], PRECENDENCE_MAP) if len(lexbuf) >= 2 else -1
 
-                # if prev_precedence < next_precedence:
+#                 # if prev_precedence < next_precedence:
 
-                #     next_stack = []
-                #     next_stack.append(res_ast)
-                #     return parse_expr(precedence, count + 1, next_precedence, next_stack, lexbuf[(length + 1):])
-                # ------- when invariant is correct, not needed ---------
+#                 #     next_stack = []
+#                 #     next_stack.append(res_ast)
+#                 #     return parse_expr(precedence, count + 1, next_precedence, next_stack, lexbuf[(length + 1):])
+#                 # ------- when invariant is correct, not needed ---------
 
-                return count + length + 1, res_ast
+#                 return count + length + 1, res_ast
 
-        stack.append(parens_ast)
-        return parse_expr(prev_precedence, count + length + 1, precedence, stack, lexbuf[1 + length:])
+#         stack.append(parens_ast)
+#         return parse_expr(prev_precedence, count + length + 1, precedence, stack, lexbuf[1 + length:])
 
-    elif val_curr == lexer.RPAREN:
-        raise UnmatchedParenError(
-            "Unmatched right parenthesis %s" % (val_curr))
+#     elif val_curr == lexer.RPAREN:
+#         raise UnmatchedParenError(
+#             "Unmatched right parenthesis %s" % (val_curr))
 
-    elif val_curr in lexer.OPERATIONS:
+#     elif val_curr in lexer.OPERATIONS:
 
-        if stack == []:
-            # unop case (Negation)
-            new_stack = []
-            new_stack.append(lexbuf[0])
-            unop_precedence = 4
-            shift, res_ast = parse_expr(
-                precedence, 0, unop_precedence, new_stack, lexbuf[1:])
-            stack.append(res_ast)
+#         if stack == []:
+#             # unop case (Negation)
+#             new_stack = []
+#             new_stack.append(lexbuf[0])
+#             unop_precedence = 4
+#             shift, res_ast = parse_expr(
+#                 precedence, 0, unop_precedence, new_stack, lexbuf[1:])
+#             stack.append(res_ast)
 
-            return parse_expr(prev_precedence, count + shift + 1, precedence, stack, lexbuf[1 + shift:])
-        elif val_la in lexer.UNOPS:
-            # unop case (Negation)
-            new_stack = []
-            stack.append(lexbuf[0])
-            new_stack.append(lexbuf[1])
-            unop_precedence = 4
-            shift, res_ast = parse_expr(
-                precedence, 1, unop_precedence, new_stack, lexbuf[2:])
-            stack.append(res_ast)
+#             return parse_expr(prev_precedence, count + shift + 1, precedence, stack, lexbuf[1 + shift:])
+#         elif val_la in lexer.UNOPS:
+#             # unop case (Negation)
+#             new_stack = []
+#             stack.append(lexbuf[0])
+#             new_stack.append(lexbuf[1])
+#             unop_precedence = 4
+#             shift, res_ast = parse_expr(
+#                 precedence, 1, unop_precedence, new_stack, lexbuf[2:])
+#             stack.append(res_ast)
 
-            return parse_expr(prev_precedence, count + shift + 1, precedence, stack, lexbuf[1 + shift:])
+#             return parse_expr(prev_precedence, count + shift + 1, precedence, stack, lexbuf[1 + shift:])
 
-        stack.append(lexbuf[0])
+#         stack.append(lexbuf[0])
 
-        # ------- when invariant is correct, not needed ---------
-        if precedence != get_precedence(val_curr, PRECENDENCE_MAP):
-            # issue here
-            shift, ast = parse_expr(
-                precedence, 0, get_precedence(val_curr, PRECENDENCE_MAP), [], lexbuf[1:])
-            stack.append(ast)
-            return parse_expr(prev_precedence, count + shift + 1, precedence, stack, lexbuf[1 + shift:])
-        # ------- when invariant is correct, not needed ---------
+#         # ------- when invariant is correct, not needed ---------
+#         if precedence != get_precedence(val_curr, PRECENDENCE_MAP):
+#             # issue here
+#             shift, ast = parse_expr(
+#                 precedence, 0, get_precedence(val_curr, PRECENDENCE_MAP), [], lexbuf[1:])
+#             stack.append(ast)
+#             return parse_expr(prev_precedence, count + shift + 1, precedence, stack, lexbuf[1 + shift:])
+#         # ------- when invariant is correct, not needed ---------
 
-        return parse_expr(prev_precedence, count + 1, precedence, stack, lexbuf[1:])
+#         return parse_expr(prev_precedence, count + 1, precedence, stack, lexbuf[1:])
 
-    else:
-        raise ParseError("Unknown Symbol")
+#     else:
+#         raise ParseError("Unknown Symbol")
 
 
 def parse_program(lexbuf):
@@ -989,6 +1011,129 @@ def parse_phrase(lexbuf):
     return parse_phrase_helper(lexbuf, list(map(lambda pair: pair[1], lexbuf)), [])
 
 
+def match_elt(lexbuf):
+    """
+    match_elt(lexbuf) is the length of the element and the element object
+    e.g. 1, Integer(1)
+    or 3, Bop(...)
+
+    if RPAREN is first character, will raise unmatched parentheses erro
+
+    REQUIRES: 0th element is in lexbuf: len(lexbuf )> 1
+    REQUIRES: elt is 0th element in lexbuf
+    """
+    elt_typ, elt_val = lexbuf[0]
+    if elt_typ == lexer.INTEGER:
+        return 1, IntValue(elt_val)
+    elif elt_typ == lexer.VARIABLE:
+        if len(lexbuf) > 1:
+            _, la_val = lexbuf[1]
+            if la_val == lexer.LPAREN:
+                length, middle_terms = get_between_brackets(lexbuf, 2)
+                split_args = get_function_args(middle_terms, lexer.COMMA)
+                args_pairs = list(map(lambda args_buffer: parse_expr(
+                    args_buffer), split_args))
+                args = list(map(lambda pair: pair, args_pairs))
+                return 2 + length, Apply(elt_val, args)
+        return 1, VarValue(elt_val)
+    elif elt_typ == lexer.KEYWORD and elt_val in lexer.UNOPS:
+        _, next_pair = lexbuf[1]
+        if next_pair == lexer.LPAREN:
+            length, middle_terms = get_between_brackets(lexbuf, 2)
+            parsed_middle_ast = parse_expr(middle_terms)
+            return 2 + length, Unop(elt_val, parsed_middle_ast)
+        elif next_pair == lexer.RPAREN:
+            raise UnmatchedParenError(
+                "Unmatched right parenthesis %s" % (next_pair))
+        length = 1
+        unop_typ, unop_val_ast = lexbuf[1]
+        if unop_typ == lexer.INTEGER:
+            unop_val_ast = IntValue(unop_val_ast)
+        elif unop_typ == lexer.VARIABLE:
+            unop_val_ast = VarValue(unop_val_ast)
+        return (1 + length), Unop(elt_val, unop_val_ast)
+    elif elt_val == lexer.LPAREN:
+        length, middle_terms = get_between_brackets(lexbuf, 1)
+        parens_ast = parse_expr(middle_terms)
+        return (1 + length), parens_ast
+    elif elt_val == lexer.RPAREN:
+        raise UnmatchedParenError(
+            "Unmatched right parenthesis %s" % (elt_val))
+
+
+def fold_stack(stack):
+    def fold_stack_helper(stack, fold_item):
+        if len(stack) == 0:
+            return stack
+        if len(stack) == 1:
+            l = len(stack)
+            if fold_item != []:
+                stack[l - 1].append(fold_item)
+            reduced_ast = reduce_stack(l, stack[l - 1])
+            return reduced_ast
+        l = len(stack)
+        if fold_item != []:
+            stack[l - 1].append(fold_item)
+        reduced_ast = reduce_stack(l, stack[l - 1])
+        new_stack = deepcopy(stack[:(l-1)])
+        return fold_stack_helper(new_stack, reduced_ast)
+    return fold_stack_helper(stack, [])
+
+
+def parse_expr_helper(lexbuf):
+    stack = [[] for _ in range(N_PRECEDENCE_LEVELS)]
+    precendence = 1
+    l = len(lexbuf)
+    carry_ast = None
+    i = 0
+    while (i < l):
+        elt = carry_ast
+        if carry_ast != None:
+            elt = carry_ast
+            rem = lexbuf[i:]
+            elt_length = 0
+        else:
+            elt_length, elt = match_elt(lexbuf[i:])
+            rem = lexbuf[i + elt_length:]
+
+        if rem == []:
+            stack[precendence - 1].append(elt)
+            reduced_ast = reduce_stack(precendence, stack[precendence - 1])
+            i += elt_length
+            stack[precendence - 1] = [reduced_ast]
+            stack = fold_stack(stack)
+        else:
+            op = rem[0]  # if it exists
+            _, op_val = op
+
+            op_prec = get_precedence(op_val, PRECENDENCE_MAP)
+
+            if op_prec == precendence:
+                stack[op_prec - 1].append(elt)
+                stack[op_prec - 1].append(op)
+                i += elt_length + 1
+
+            elif op_prec > precendence:
+                stack[op_prec - 1].append(elt)
+                stack[op_prec - 1].append(op)
+                i += elt_length + 1
+                precendence = op_prec
+
+            else:  # op_prec < precendence:
+                stack[precendence - 1].append(elt)
+                lower_ast = reduce_stack(precendence, stack[precendence - 1])
+                stack[precendence - 1] = []
+                stack[op_prec - 1].append(lower_ast)
+                stack[op_prec - 1].append(op)
+                i += elt_length + 1  # skip operator and redo on next run
+                precendence = op_prec
+    return stack
+
+
+def parse_expr(lexbuf):
+    return parse_expr_helper(lexbuf)
+
+
 def split_lexbuf(lexbuf, demarcation):
     def split_lexbuf_helper(lexbuf, demarcation, gather, acc):
         if lexbuf == []:
@@ -1021,7 +1166,7 @@ def parse_assign(lexbuf):
         raise AssignVariableException(str(var) + " is not a variable.")
 
     expr_list = lexbuf[(assign_pos + 1):]
-    _, expr_ast = parse_expr(1, 0, 1, [], expr_list)
+    expr_ast = parse_expr(expr_list)
     return Assign(var[1], expr_ast)
 
 
@@ -1097,7 +1242,7 @@ def parse_if_then_else(lexbuf):
     endif_pos = parse_end(lexbuf[1:], 0, lexer.IF, lexer.ENDIF)
 
     if_guard = lexbuf[if_pos + 1: if_then_pos]
-    _, if_guard = parse_expr(1, 0, 1, [], if_guard)
+    if_guard = parse_expr(if_guard)
     if_body = lexbuf[if_then_pos + 1: endif_pos]
     if_body = parse_phrase(if_body)
 
@@ -1116,7 +1261,7 @@ def parse_if_then_else(lexbuf):
 
         guard = rem_lexbuf[1:elif_then_pos]
         body = rem_lexbuf[elif_then_pos + 1:endelif_pos]
-        _, elif_guard = parse_expr(1, 0, 1, [], guard)
+        elif_guard = parse_expr(guard)
         elif_body = parse_phrase(body)
         elif_guards.append(elif_guard)
         elif_bodies.append(elif_body)
@@ -1159,7 +1304,7 @@ def parse_while(lexbuf):
     guard_list = lexbuf[while_pos + 1:dowhile_pos]
     body_list = lexbuf[dowhile_pos + 1:endwhile_post]
 
-    _, guard_ast = parse_expr(1, 0, 1, [], guard_list)
+    guard_ast = parse_expr(guard_list)
 
     body_list_ast = parse_phrase(body_list)
 
@@ -1181,7 +1326,7 @@ def parse_function(lexbuf):
             raise ParseError("All Args must be variables")
 
     args_ast_list = list(
-        map(lambda arg: parse_expr(1, 0, 1, [], [arg])[1], args_list))
+        map(lambda arg: parse_expr([arg]), args_list))
     name = args_ast_list[0]
     args_ast_list = args_ast_list[1:]
     body = lexbuf[fun_arrow_pos + 1:endfun_pos]
@@ -1195,7 +1340,7 @@ def parse_return(lexbuf):
     return_pos = tokens_list.index(lexer.RETURN)
     semi_pos = tokens_list.index(lexer.SEMI)
     return_body = lexbuf[return_pos + 1:semi_pos]
-    _, body_ast = parse_expr(1, 0, 1, [], return_body)
+    body_ast = parse_expr(return_body)
     return Return(body_ast)
 
 
@@ -1216,19 +1361,19 @@ def parse_for(lexbuf):
 
     if len(var) != 1 or var[0][0] != lexer.VARIABLE:
         raise ParseError("Var must be a length 1 variable in For Loop")
-    _, var = parse_expr(1, 0, 1, [], var)
+    var = parse_expr(var)
 
     # if len(from_int) != 1 or from_int[0][0] != lexer.INTEGER:
     #     raise ParseError("From must be a length 1 INTEGER in For Loop")
-    _, from_int = parse_expr(1, 0, 1, [], from_int)
+    from_int = parse_expr(from_int)
 
     # if len(to_int) != 1 or to_int[0][0] != lexer.INTEGER:
     #     raise ParseError("To must be a length 1 INTEGER in For Loop")
-    _, to_int = parse_expr(1, 0, 1, [], to_int)
+    to_int = parse_expr(to_int)
 
     # if len(by_int) != 1 or by_int[0][0] != lexer.INTEGER:
     #     raise ParseError("By must be a length 1 INTEGER in For Loop")
-    _, by_int = parse_expr(1, 0, 1, [], by_int)
+    by_int = parse_expr(by_int)
 
     body_list_ast = parse_phrase(body)
 
@@ -1236,110 +1381,111 @@ def parse_for(lexbuf):
 
 
 if __name__ == "__main__":
-
-    print(parse_expr(1, 0, 1, [], lexer.lex(
-        "((-1 * -1) + 4 * y * z * 3 * 2) * (7 + 4 * 5 *6)")))
-
-    print(parse_expr(1, 0, 1, [], lexer.lex(
-        "f (3, 4)")))
-
-    print(parse_expr(1, 0, 1, [], lexer.lex(
-        "3 + 3*4  + 5*6 + 7*8**9")))
-
-    print(parse_expr(1, 0, 1, [], lexer.lex(
-        "3 + unitary () ** -156")))
-
-    print(parse_expr(1, 0, 1, [], lexer.lex(
-        "3 + unitary () * 2 * 3 * 4")))
-
-    print(parse_expr(1, 0, 1, [], lexer.lex(
-        "3 + 3 * unitary () + 2 * 3 * 4")))
-
-    print(parse_expr(1, 0, 1, [], lexer.lex(
-        "2 + (3 * 5) * 4 * 3 * 2")))
-
-    print(parse_expr(1, 0, 1, [], lexer.lex(
-        "f(g(2, 3), 2)")))
-
-    print(parse_expr(1, 0, 1, [], lexer.lex(
-        "f(g(2, 3), h(4), 3, (2 + 3), x, g(x, h(m(d, 100), z)))")))
-
-    print(parse_expr(1, 0, 1, [], lexer.lex(
-        "1 - -(3 - (3 + 4) * 2 + 4)")))
+    pass
 
     # print(parse_expr(1, 0, 1, [], lexer.lex(
-    #     "3 -1 * (2 * 3) * 4")))
+    #     "((-1 * -1) + 4 * y * z * 3 * 2) * (7 + 4 * 5 *6)")))
 
-    print(parse_phrase(lexer.lex("x := 3; y := 2 + (3 * 5) * 4 * 3 * 2;")))
-    print(parse_phrase(lexer.lex(
-        "x := 1; while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
-    print(parse_phrase(lexer.lex(
-        "x := 1; if x + 1 then x := 3; endif while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
-    print(parse_program(lexer.lex(
-        "x := 1; while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
-    print(parse_while(lexer.lex("while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile")))
-    print(parse_if_then_else(lexer.lex("if x + 1 then x := 1; y := 2; endif")))
-    print(parse_if_then_else(
-        lexer.lex("if x + 1 then x := 1; y := 2; endif else y := -4; endelse")))
-    print(parse_if_then_else(
-        lexer.lex("if x + 1 then x := 1; endif else y := -4; endelse")))
-    print(parse_if_then_else(
-        lexer.lex("if x + 1 then x := 1; endif elif x - 2 then x := 2 ** 2; endelif else y := -4; endelse")))
-    print(parse_if_then_else(
-        lexer.lex("if x + 1 then x := 1; endif elif x - 2 then x := 2 ** 2; endelif elif y - -4 then q := -2 ** 2; endelif else y := -4; endelse")))
-    print(parse_if_then_else(
-        lexer.lex("if x + 1 then x := 1; endif elif x - 2 then x := 2 ** 2; endelif elif y - -4 then q := -2 ** 2; endelif")))
+    # print(parse_expr(1, 0, 1, [], lexer.lex(
+    #     "f (3, 4)")))
 
-    print(parse_phrase(lexer.lex(
-        "x := 1; if x + 1 then x := 3; endif elif y -2 then y := 100; endelif while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
-    print(parse_phrase(lexer.lex(
-        "x := 1; if x + 1 then x := 3; endif elif y -2 then y := 100; endelif else k := 40; endelse while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
-    print(parse_phrase(lexer.lex(
-        "x := 1; if x + 1 then x := 3; endif elif y -2 then y := 100; endelif elif y -2 then y := 100; endelif elif y -2 then y := 100; endelif else k := 40; endelse while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
-    print(parse_phrase(lexer.lex(
-        "x := 1; if x + 1 then x := 3; endif else k := 40; endelse while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
+    # print(parse_expr(1, 0, 1, [], lexer.lex(
+    #     "3 + 3*4  + 5*6 + 7*8**9")))
 
-    # embedding
-    print(parse_phrase(lexer.lex(
-        "if x + 1 then if x + 1 then x :=4; endif elif x then x :=5; endelif else if z then z := 4; endif endelse endif else k := 40; endelse")))
-    print(parse_phrase(lexer.lex(
-        "while x dowhile while y dowhile x := x + y; endwhile while z dowhile z := z + 1;endwhile endwhile")))
-    print(parse_phrase(lexer.lex(
-        "while x dowhile if x then x := 4;endif endwhile")))
-    print(parse_phrase(lexer.lex(
-        "if x then while x dowhile x := x + 1; endwhile endif")))
+    # print(parse_expr(1, 0, 1, [], lexer.lex(
+    #     "3 + unitary () ** -156")))
 
-    # for loops
-    print(parse_phrase(lexer.lex(
-        "for x from 1 to 3 by 1 dofor x := 4; endfor")))
-    print(parse_phrase(lexer.lex(
-        "for x from 1 to 3 by 1 dofor for i from -100 to 20 by z * z dofor l := -1; endfor k := l + 1;  endfor")))
-    print(parse_phrase(lexer.lex(
-        "for x from 1 to 3 by 1 dofor if x then y := y + 1; endif k := l + 1;  endfor")))
+    # print(parse_expr(1, 0, 1, [], lexer.lex(
+    #     "3 + unitary () * 2 * 3 * 4")))
 
-    # functions
-    print(parse_phrase(lexer.lex(
-        "fun f x y -> x := x + y; endfun")))
-    print(parse_phrase(lexer.lex(
-        "fun f x -> x := x + y; endfun")))
-    print(parse_phrase(lexer.lex(
-        "fun f-> x := x + y; endfun")))
-    print(parse_phrase(lexer.lex(
-        "fun f-> while x dowhile x := x + 1; endwhile endfun")))
+    # print(parse_expr(1, 0, 1, [], lexer.lex(
+    #     "3 + 3 * unitary () + 2 * 3 * 4")))
 
-    # return
-    print(parse_phrase(lexer.lex(
-        "return x * x + 3;")))
-    print(parse_phrase(lexer.lex(
-        "fun f x y -> x := x + y; return x; endfun")))
-    print(parse_phrase(lexer.lex(
-        "fun f x y -> x := x + y; return ; endfun")))
-    print(parse_phrase(lexer.lex(
-        "fun f x y -> x := x + y; if x then return ; endif endfun")))
+    # print(parse_expr(1, 0, 1, [], lexer.lex(
+    #     "2 + (3 * 5) * 4 * 3 * 2")))
 
-    print(parse_expr(1, 0, 1, [], lexer.lex(
-        "f((3 + 3))")))
-    print(parse_expr(1, 0, 1, [], lexer.lex(
-        "f(-3)")))
-    print(parse_expr(1, 0, 1, [], lexer.lex(
-        "f(3 * 3, 2)")))
+    # print(parse_expr(1, 0, 1, [], lexer.lex(
+    #     "f(g(2, 3), 2)")))
+
+    # print(parse_expr(1, 0, 1, [], lexer.lex(
+    #     "f(g(2, 3), h(4), 3, (2 + 3), x, g(x, h(m(d, 100), z)))")))
+
+    # print(parse_expr(1, 0, 1, [], lexer.lex(
+    #     "1 - -(3 - (3 + 4) * 2 + 4)")))
+
+    # # print(parse_expr(1, 0, 1, [], lexer.lex(
+    # #     "3 -1 * (2 * 3) * 4")))
+
+    # print(parse_phrase(lexer.lex("x := 3; y := 2 + (3 * 5) * 4 * 3 * 2;")))
+    # print(parse_phrase(lexer.lex(
+    #     "x := 1; while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
+    # print(parse_phrase(lexer.lex(
+    #     "x := 1; if x + 1 then x := 3; endif while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
+    # print(parse_program(lexer.lex(
+    #     "x := 1; while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
+    # print(parse_while(lexer.lex("while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile")))
+    # print(parse_if_then_else(lexer.lex("if x + 1 then x := 1; y := 2; endif")))
+    # print(parse_if_then_else(
+    #     lexer.lex("if x + 1 then x := 1; y := 2; endif else y := -4; endelse")))
+    # print(parse_if_then_else(
+    #     lexer.lex("if x + 1 then x := 1; endif else y := -4; endelse")))
+    # print(parse_if_then_else(
+    #     lexer.lex("if x + 1 then x := 1; endif elif x - 2 then x := 2 ** 2; endelif else y := -4; endelse")))
+    # print(parse_if_then_else(
+    #     lexer.lex("if x + 1 then x := 1; endif elif x - 2 then x := 2 ** 2; endelif elif y - -4 then q := -2 ** 2; endelif else y := -4; endelse")))
+    # print(parse_if_then_else(
+    #     lexer.lex("if x + 1 then x := 1; endif elif x - 2 then x := 2 ** 2; endelif elif y - -4 then q := -2 ** 2; endelif")))
+
+    # print(parse_phrase(lexer.lex(
+    #     "x := 1; if x + 1 then x := 3; endif elif y -2 then y := 100; endelif while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
+    # print(parse_phrase(lexer.lex(
+    #     "x := 1; if x + 1 then x := 3; endif elif y -2 then y := 100; endelif else k := 40; endelse while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
+    # print(parse_phrase(lexer.lex(
+    #     "x := 1; if x + 1 then x := 3; endif elif y -2 then y := 100; endelif elif y -2 then y := 100; endelif elif y -2 then y := 100; endelif else k := 40; endelse while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
+    # print(parse_phrase(lexer.lex(
+    #     "x := 1; if x + 1 then x := 3; endif else k := 40; endelse while x + 1 dowhile y := 3; z := 4; x := x - 1;endwhile x := 2;")))
+
+    # # embedding
+    # print(parse_phrase(lexer.lex(
+    #     "if x + 1 then if x + 1 then x :=4; endif elif x then x :=5; endelif else if z then z := 4; endif endelse endif else k := 40; endelse")))
+    # print(parse_phrase(lexer.lex(
+    #     "while x dowhile while y dowhile x := x + y; endwhile while z dowhile z := z + 1;endwhile endwhile")))
+    # print(parse_phrase(lexer.lex(
+    #     "while x dowhile if x then x := 4;endif endwhile")))
+    # print(parse_phrase(lexer.lex(
+    #     "if x then while x dowhile x := x + 1; endwhile endif")))
+
+    # # for loops
+    # print(parse_phrase(lexer.lex(
+    #     "for x from 1 to 3 by 1 dofor x := 4; endfor")))
+    # print(parse_phrase(lexer.lex(
+    #     "for x from 1 to 3 by 1 dofor for i from -100 to 20 by z * z dofor l := -1; endfor k := l + 1;  endfor")))
+    # print(parse_phrase(lexer.lex(
+    #     "for x from 1 to 3 by 1 dofor if x then y := y + 1; endif k := l + 1;  endfor")))
+
+    # # functions
+    # print(parse_phrase(lexer.lex(
+    #     "fun f x y -> x := x + y; endfun")))
+    # print(parse_phrase(lexer.lex(
+    #     "fun f x -> x := x + y; endfun")))
+    # print(parse_phrase(lexer.lex(
+    #     "fun f-> x := x + y; endfun")))
+    # print(parse_phrase(lexer.lex(
+    #     "fun f-> while x dowhile x := x + 1; endwhile endfun")))
+
+    # # return
+    # print(parse_phrase(lexer.lex(
+    #     "return x * x + 3;")))
+    # print(parse_phrase(lexer.lex(
+    #     "fun f x y -> x := x + y; return x; endfun")))
+    # print(parse_phrase(lexer.lex(
+    #     "fun f x y -> x := x + y; return ; endfun")))
+    # print(parse_phrase(lexer.lex(
+    #     "fun f x y -> x := x + y; if x then return ; endif endfun")))
+
+    # print(parse_expr(1, 0, 1, [], lexer.lex(
+    #     "f((3 + 3))")))
+    # print(parse_expr(1, 0, 1, [], lexer.lex(
+    #     "f(-3)")))
+    # print(parse_expr(1, 0, 1, [], lexer.lex(
+    #     "f(3 * 3, 2)")))
