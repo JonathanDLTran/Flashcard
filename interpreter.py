@@ -68,13 +68,12 @@ def interpret_expr(expr, env):
         func_env = deepcopy(defenv)
         _ = list(map(lambda arg, param: assign_param(
             param, arg, func_env), args, params))
-
-        try:
-            for phrase in function_body:
+        for phrase in function_body:
+            try:
                 func_env = interpret_phrase(phrase, func_env)
-        except ReturnException as e:
-            # return captured
-            return e.get_ret_value()
+            except ReturnException as e:
+                # return captured
+                return e.get_ret_value()
 
         return 0  # return 0 if successful and no return
 
@@ -163,7 +162,9 @@ def interpret_phrase(phrase, env):
 
     elif type(phrase) == ast_generator.Return:
         # leave current env and do not save it
-        raise ReturnException(phrase.get_body())
+        body_expr = phrase.get_body()
+        value = interpret_expr(body_expr, env)
+        raise ReturnException(value)
     elif type(phrase) == ast_generator.Ignore:
         expr = phrase.get_expr()
         _ = interpret_expr(expr, env)
@@ -172,7 +173,10 @@ def interpret_phrase(phrase, env):
     elif type(phrase) == ast_generator.Function:
         function_name = phrase.get_name()
         function_name = function_name.get_value()
-        env[("function", function_name)] = (phrase, deepcopy(env))
+        defenv = deepcopy(env)
+        defenv[("function", function_name)] = (
+            phrase, defenv)  # allowed in python but NOT OCAML, because RHS evaluates before LHS because RHS refers to variable value while LHS refers to variable memory location
+        env[("function", function_name)] = (phrase, defenv)
         # closure at time of creation
         return env
 
@@ -193,79 +197,85 @@ def interpret(program):
             "You used a return statement when you were not in a function call")
 
 
-print(ast_generator.parse_expr(
-    lexer.lex("2 + -1 * (3 * 5) * 4 * 3 * 2 * 1 * 0 * -1"))
-)
-print(ast_generator.parse_expr(
-    lexer.lex("2 + -1 * 3 * 5 * 4 * 3 * 2"))
-)
-print(
-    interpret_expr(
-        ast_generator.parse_expr(
-            lexer.lex("2 + -(3 * 5) * 4 * 3 * 2")), {}
+def main(program):
+    return interpret(ast_generator.parse_program(lexer.lex(program)))
+
+
+if __name__ == "__main__":
+    print(main("fun f x -> if x then x := x - 1; ~ print(x); return f(x); endif else return x; endelse endfun ~ f(10) ;"))
+
+    print(ast_generator.parse_expr(
+        lexer.lex("2 + -1 * (3 * 5) * 4 * 3 * 2 * 1 * 0 * -1"))
     )
-)
-
-
-print(
-    interpret_phrase(
-        ast_generator.parse_phrase(
-            lexer.lex("~print(2, 3, 4);"))[0], {}
+    print(ast_generator.parse_expr(
+        lexer.lex("2 + -1 * 3 * 5 * 4 * 3 * 2"))
     )
-)
-
-print(ast_generator.parse_program(
-    lexer.lex("~print(2, 3, 4); ~print(2, 3);"))
-)
-
-print(ast_generator.parse_program(
-    lexer.lex("i := 0; ~print(3);")), {}
-)
-print(
-    interpret_program(
-        ast_generator.parse_program(
-            lexer.lex("~print(2, 3, 4); i := 0; ~print(i);~i;")), {}
+    print(
+        interpret_expr(
+            ast_generator.parse_expr(
+                lexer.lex("2 + -(3 * 5) * 4 * 3 * 2")), {}
+        )
     )
-)
 
-print(
-    interpret_program(
-        ast_generator.parse_program(
-            lexer.lex("for i from 1 to 9 by 3 dofor ~print(i);endfor")), {}
+    print(
+        interpret_phrase(
+            ast_generator.parse_phrase(
+                lexer.lex("~print(2, 3, 4);"))[0], {}
+        )
     )
-)
 
-print(
-    interpret_program(
-        ast_generator.parse_program(
-            lexer.lex("i := 10; while i dowhile ~print(i); i := i - 1; endwhile")), {}
+    print(ast_generator.parse_program(
+        lexer.lex("~print(2, 3, 4); ~print(2, 3);"))
     )
-)
 
-print(
-    interpret_program(
-        ast_generator.parse_program(
-            lexer.lex("if 1 then ~print(1); endif")), {}
+    print(ast_generator.parse_program(
+        lexer.lex("i := 0; ~print(3);")), {}
     )
-)
+    print(
+        interpret_program(
+            ast_generator.parse_program(
+                lexer.lex("~print(2, 3, 4); i := 0; ~print(i);~i;")), {}
+        )
+    )
 
-print(
-    interpret_program(
-        ast_generator.parse_program(
-            lexer.lex("if 0 then ~print(1); endif else x := -22; ~print(x); endelse")), {}
+    print(
+        interpret_program(
+            ast_generator.parse_program(
+                lexer.lex("for i from 1 to 9 by 3 dofor ~print(i);endfor")), {}
+        )
     )
-)
 
-print(
-    interpret_program(
-        ast_generator.parse_program(
-            lexer.lex("if 0 then ~print(1); endif elif 1 then ~print(3); endelif else x := -22; ~print(x); endelse")), {}
+    print(
+        interpret_program(
+            ast_generator.parse_program(
+                lexer.lex("i := 10; while i dowhile ~print(i); i := i - 1; endwhile")), {}
+        )
     )
-)
 
-print(
-    interpret_program(
-        ast_generator.parse_program(
-            lexer.lex("fun f x -> x := x + 1; ~print(x); endfun ~ f(3) ;")), {}
+    print(
+        interpret_program(
+            ast_generator.parse_program(
+                lexer.lex("if 1 then ~print(1); endif")), {}
+        )
     )
-)
+
+    print(
+        interpret_program(
+            ast_generator.parse_program(
+                lexer.lex("if 0 then ~print(1); endif else x := -22; ~print(x); endelse")), {}
+        )
+    )
+
+    print(
+        interpret_program(
+            ast_generator.parse_program(
+                lexer.lex("if 0 then ~print(1); endif elif 1 then ~print(3); endelif else x := -22; ~print(x); endelse")), {}
+        )
+    )
+
+    print(
+        interpret_program(
+            ast_generator.parse_program(
+                lexer.lex("fun f x -> x := x + 1; ~print(x); endfun ~ f(3) ;")), {}
+        )
+    )
