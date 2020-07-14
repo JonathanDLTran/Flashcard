@@ -53,7 +53,7 @@ def interpret_expr(expr, env):
         args_list = expr.get_args()
         args = list(map(lambda arg: interpret_expr(arg, env), args_list))
 
-        function = env[("function", function_name)]
+        function, defenv = env[("function", function_name)]
         function_body = function.get_body()
         function_params = function.get_args()
         params = list(map(lambda p: p.get_value(), function_params))
@@ -63,18 +63,20 @@ def interpret_expr(expr, env):
                                  str(len(args)) + "!= length of params is " + str(len(function_params)))
 
         def assign_param(param, arg, env):
-            env[param] = arg
-        func_closure = deepcopy(env)
+            env[("variable", param)] = arg
+
+        func_env = deepcopy(defenv)
         _ = list(map(lambda arg, param: assign_param(
-            param, arg, func_closure), args, params))
+            param, arg, func_env), args, params))
 
         try:
-            pass
-            # need to handle closures
-            # return interpret_program(function_body, func_closure)
+            for phrase in function_body:
+                func_env = interpret_phrase(phrase, func_env)
         except ReturnException as e:
             # return captured
             return e.get_ret_value()
+
+        return 0  # return 0 if successful and no return
 
 
 def interpret_extern(expr, env):
@@ -168,13 +170,11 @@ def interpret_phrase(phrase, env):
         # do not bind as this is an ignore
         return env
     elif type(phrase) == ast_generator.Function:
-        pass
-        # TODO
-        # function_name = phrase.get_name()
-        # env[("function", function_name)] = phrase
-        # return env
-
-        # need to get closures
+        function_name = phrase.get_name()
+        function_name = function_name.get_value()
+        env[("function", function_name)] = (phrase, deepcopy(env))
+        # closure at time of creation
+        return env
 
 
 def interpret_program(program, env):
@@ -186,7 +186,11 @@ def interpret_program(program, env):
 
 def interpret(program):
     assert type(program) == ast_generator.Program
-    return interpret_program(program, {})
+    try:
+        return interpret_program(program, {})
+    except ReturnException as _:
+        raise InterpretError(
+            "You used a return statement when you were not in a function call")
 
 
 print(ast_generator.parse_expr(
@@ -256,5 +260,12 @@ print(
     interpret_program(
         ast_generator.parse_program(
             lexer.lex("if 0 then ~print(1); endif elif 1 then ~print(3); endelif else x := -22; ~print(x); endelse")), {}
+    )
+)
+
+print(
+    interpret_program(
+        ast_generator.parse_program(
+            lexer.lex("fun f x -> x := x + 1; ~print(x); endfun ~ f(3) ;")), {}
     )
 )

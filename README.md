@@ -94,7 +94,7 @@ Undo: Ctrl-T to undo up to undo limit number of undos (can set undo limit)
 - if - elif - else statements
 - For Loops
 - While Loops
-- Functions
+- Functions with Closures defined at time of definition
 - Function application
 - Return statements
 
