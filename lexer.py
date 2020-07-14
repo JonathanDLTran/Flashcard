@@ -45,10 +45,12 @@ BY = "by"
 DOFOR = "dofor"
 ENDFOR = "endfor"
 RETURN = "return"
+IGNORE = "~"
 
 # Order matters in keywords
 keywords = sorted(
     [
+        IGNORE,
         COMMA,
         SEMI,
         EXP,

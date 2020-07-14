@@ -34,6 +34,9 @@ Sentence ::=
 
 """
 
+# ------- IMPORTS ------------
+
+
 from copy import deepcopy
 import lexer
 
@@ -52,6 +55,9 @@ PRECENDENCE_MAP = {
     lexer.EXP: 3,
 }
 
+# ------- EXTERNS ------------
+PRINT = "print"
+EXTERNS_LIST = [PRINT, ]
 
 # ------- GRAMMAR PRODUCTION RULES ------------
 
@@ -358,6 +364,30 @@ class IfThenElse(Expr):
                 )
 
 
+class Extern(Expr):
+    """
+    Extern represents fun extern (arg1 arg2...) with possibly no args as in
+    extern () , with only open and close brackets.
+    """
+
+    def __init__(self, fun, args_list=[]):
+        super().__init__()
+        self.fun = fun
+        self.args_list = args_list
+
+    def set_args(self, args_list):
+        self.args_list = args_list
+
+    def get_fun(self):
+        return self.fun
+
+    def get_args(self):
+        return self.args_list
+
+    def __repr__(self):
+        return "(Extern: " + str(self.fun) + "(" + (" ".join(list(map(lambda a: str(a), self.args_list)))) + ")" + ")"
+
+
 class Apply(Expr):
     """
     Apply represents fun (arg1 arg2...) with possibly no args as in
@@ -399,6 +429,23 @@ class Return(Expr):
         return "(Return: " + str(self.body) + ";)"
 
 
+class Ignore(Expr):
+    """
+    ignore represents
+    expr;
+    """
+
+    def __init__(self, expr):
+        super().__init__()
+        self.expr = expr
+
+    def get_expr(self):
+        return self.expr
+
+    def __repr__(self):
+        return "(Ignore: " + str(self.expr) + ";)"
+
+
 class Program(Expr):
     """
     Program represents a syntacucally valid program
@@ -407,6 +454,9 @@ class Program(Expr):
     def __init__(self, phrase_list=[]):
         super().__init__()
         self.phrases = phrase_list
+
+    def get_phrases(self):
+        return self.phrases
 
     def __repr__(self):
         return "(Program:\n" + "\n".join(list(map(lambda phrase: str(phrase), self.phrases))) + "\n)"
@@ -889,7 +939,19 @@ def parse_phrase(lexbuf):
         if lexbuf == []:
             return acc
 
-        # assignment
+        # ignore
+        # ignore must go first in parsing as it begins with a special amrker
+        # that interrupts var parsing
+        if lexbuf[0][1] == lexer.IGNORE:
+            semi_loc = tokens.index(lexer.SEMI)
+            ignore_statement = lexbuf[0:semi_loc + 1]
+            ignore_parsed = parse_ignore(ignore_statement)
+            new_lex_buff = lexbuf[semi_loc + 1:]
+            new_tokens = tokens[semi_loc + 1:]
+            acc.append(ignore_parsed)
+            return parse_phrase_helper(new_lex_buff, new_tokens, acc)
+
+        # assignment must have assign character
         if lexbuf[0][0] == lexer.VARIABLE:
             assign_list = []
             new_lex_buff = lexbuf
@@ -1034,6 +1096,8 @@ def match_elt(lexbuf):
                 args_pairs = list(map(lambda args_buffer: parse_expr(
                     args_buffer), split_args))
                 args = list(map(lambda pair: pair, args_pairs))
+                if elt_val in EXTERNS_LIST:
+                    return 2 + length, Extern(elt_val, args)
                 return 2 + length, Apply(elt_val, args)
         return 1, VarValue(elt_val)
     elif elt_typ == lexer.KEYWORD and elt_val in lexer.UNOPS:
@@ -1380,7 +1444,20 @@ def parse_for(lexbuf):
     return For(var, from_int, to_int, by_int, body_list_ast)
 
 
+def parse_ignore(lexbuf):
+    tokens_list = list(map(lambda pair: pair[1], lexbuf))
+    ignore_pos = tokens_list.index(lexer.IGNORE)
+    semi_pos = tokens_list.index(lexer.SEMI)
+    expr = lexbuf[ignore_pos + 1:semi_pos]
+    expr_ast = parse_expr(expr)
+    return Ignore(expr_ast)
+
+
 if __name__ == "__main__":
+    print(parse_phrase(lexer.lex(
+        "3;")))
+    print(parse_phrase(lexer.lex(
+        "print();")))
     pass
 
     # print(parse_expr(1, 0, 1, [], lexer.lex(

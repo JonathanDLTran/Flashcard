@@ -46,6 +46,8 @@ def interpret_expr(expr, env):
             return left * right
         elif bop == lexer.DIV:
             return left // right  # integer div
+    elif type(expr) == ast_generator.Extern:
+        return interpret_extern(expr, env)
     elif type(expr) == ast_generator.Apply:
         function_name = expr.get_fun()
         args_list = expr.get_args()
@@ -75,6 +77,20 @@ def interpret_expr(expr, env):
             return e.get_ret_value()
 
 
+def interpret_extern(expr, env):
+    function_name = expr.get_fun()
+    args_list = expr.get_args()
+    args = list(map(lambda arg: interpret_expr(arg, env), args_list))
+
+    if function_name == ast_generator.PRINT:
+        print(*args)
+        return 1  # print extern returns 1 if it occurred
+
+    # other externs as needed, checking arg length
+    # for example, len(), range(), is_int(), is_bool(), int(), str(),..
+    pass
+
+
 def interpret_phrase(phrase, env):
     if type(phrase) == ast_generator.Assign:
         variable = phrase.get_var()
@@ -101,24 +117,35 @@ def interpret_phrase(phrase, env):
     elif type(phrase) == ast_generator.Return:
         # leave current env and do not save it
         raise ReturnException(phrase.get_body())
-    elif type(phrase) == ast_generator.Function:
-        function_name = phrase.get_name()
-        env[("function", function_name)] = phrase
+    elif type(phrase) == ast_generator.Ignore:
+        expr = phrase.get_expr()
+        _ = interpret_expr(expr, env)
+        # do not bind as this is an ignore
         return env
+    elif type(phrase) == ast_generator.Function:
+        pass
+        # TODO
+        # function_name = phrase.get_name()
+        # env[("function", function_name)] = phrase
+        # return env
+
+        # need to get closures
 
 
 def interpret_program(program, env):
-    pass
+    phrase_list = program.get_phrases()
+    for phrase in phrase_list:
+        env = interpret_phrase(phrase, env)
+    return env
 
 
 def interpret(program):
-    return interpret_program(program, [])
+    assert type(program) == ast_generator.Program
+    return interpret_program(program, {})
 
 
 print(ast_generator.parse_expr(
     lexer.lex("2 + -1 * (3 * 5) * 4 * 3 * 2 * 1 * 0 * -1"))
-
-
 )
 print(ast_generator.parse_expr(
     lexer.lex("2 + -1 * 3 * 5 * 4 * 3 * 2"))
@@ -126,6 +153,28 @@ print(ast_generator.parse_expr(
 print(
     interpret_expr(
         ast_generator.parse_expr(
-            lexer.lex("2 + -(3 * 5) * 4 * 3 * 2")), []
+            lexer.lex("2 + -(3 * 5) * 4 * 3 * 2")), {}
+    )
+)
+
+
+print(
+    interpret_phrase(
+        ast_generator.parse_phrase(
+            lexer.lex("~print(2, 3, 4);"))[0], {}
+    )
+)
+
+print(ast_generator.parse_program(
+    lexer.lex("~print(2, 3, 4); ~print(2, 3);"))
+)
+
+print(ast_generator.parse_program(
+    lexer.lex("i := 0; ~print(3);")), {}
+)
+print(
+    interpret_program(
+        ast_generator.parse_program(
+            lexer.lex("~print(2, 3, 4); i := 0; ~print(i);~i;")), {}
     )
 )
