@@ -1,7 +1,7 @@
 # Flashcard
 Adaptable flash card system with search indexing
 
-## Editor
+# Editor
 Inside the flash card system is a text editor to add notes and change cards. The system was built from scratch using
 curses as a base foundation. No curses textpads were used as that's like cheating; also, the textpad doesn't support
 any of the operations I implemented anyways, and so I had to build my own data structures and operations instead.
@@ -81,5 +81,21 @@ Undo: Ctrl-T to undo up to undo limit number of undos (can set undo limit)
 - other Ctrl + keys where no ascii code is given
 - Overwrite mode 
 - Syntax Highlighting (another project perhaps?, build a language?) [[Next Planned Project is to construct a language, build an front end to lex and parse, and add intepreter, plus add syntax color]]
+
+# Language
+
+## Lexer
+## Parser
+## Interpreter
+
+## Support
+- Assignment
+- Ignore
+- if - elif - else statements
+- For Loops
+- While Loops
+- Functions
+- Function application
+- Return statements
 
 
