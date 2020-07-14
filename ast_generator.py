@@ -309,6 +309,21 @@ class For(Expr):
         self.by = by
         self.body = body_list
 
+    def get_index(self):
+        return self.index
+
+    def get_from(self):
+        return self.from_int
+
+    def get_end(self):
+        return self.end_int
+
+    def get_by(self):
+        return self.by
+
+    def get_body(self):
+        return self.body
+
     def __repr__(self):
         return "(for " + str(self.index) + " from " + str(self.from_int) + " to " + str(self.end_int) + " by " + str(self.by) + " dofor\n\t" + "\n\t".join(list(map(lambda phrase: str(phrase), self.body))) + "\nendfor)"
 
@@ -350,6 +365,15 @@ class IfThenElse(Expr):
         self.if_pair = (if_guard, if_body)
         self.elif_list = (elif_guards, elif_bodies)
         self.else_body = else_body
+
+    def get_if_pair(self):
+        return self.if_pair
+
+    def get_elif_pair_list(self):
+        return self.elif_list
+
+    def get_else(self):
+        return self.else_body
 
     def __repr__(self):
         (if_guard, if_body) = self.if_pair

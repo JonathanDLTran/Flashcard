@@ -103,17 +103,62 @@ def interpret_phrase(phrase, env):
         body_list = phrase.get_body()
         guard_value = interpret_expr(guard_expr, env)
 
+        new_env = deepcopy(env)
         while guard_value:  # using truthy values including non zero ints
             # one loop
             for sub_phrase in body_list:
-                env = interpret_phrase(sub_phrase, env)  # update env
+                new_env = interpret_phrase(sub_phrase, new_env)  # update env
             # recalculate guard at bottom of loop to see if it continues
-            guard_value = interpret_expr(guard_expr, env)
+            guard_value = interpret_expr(guard_expr, new_env)
         return env
     elif type(phrase) == ast_generator.IfThenElse:
-        pass
+        (if_guard, if_body) = phrase.get_if_pair()
+        (elif_guards, elif_bodies) = phrase.get_elif_pair_list()
+        else_body = phrase.get_else()
+        if_guard_value = interpret_expr(if_guard, env)
+        if if_guard_value:
+            new_env = deepcopy(env)
+            for sub_phrase in if_body:
+                new_env = interpret_phrase(sub_phrase, new_env)  # update env
+            return env
+
+        for i in range(len(elif_guards)):
+            elif_guard = elif_guards[i]
+            elif_guard_value = interpret_expr(elif_guard, env)
+            if elif_guard_value:
+                elif_body = elif_bodies[i]
+                new_env = deepcopy(env)
+                for sub_phrase in elif_body:
+                    new_env = interpret_phrase(
+                        sub_phrase, new_env)  # update env
+                return env
+
+        if else_body != None:
+            new_env = deepcopy(env)
+            for sub_phrase in else_body:
+                new_env = interpret_phrase(
+                    sub_phrase, new_env)  # update env
+            return env
+
     elif type(phrase) == ast_generator.For:
-        pass
+        index = phrase.get_index()
+        var_name = index.get_value()
+
+        from_int = phrase.get_from()
+        from_int = from_int.get_value()
+        end_int = phrase.get_end()
+        end_int = end_int.get_value()
+        by = phrase.get_by()
+        by = by.get_value()
+        body_list = phrase.get_body()
+
+        new_env = deepcopy(env)
+        for idx in range(from_int, end_int + 1, by):
+            new_env[("variable", var_name)] = idx
+            for sub_phrase in body_list:
+                new_env = interpret_phrase(sub_phrase, new_env)  # update env
+        return env
+
     elif type(phrase) == ast_generator.Return:
         # leave current env and do not save it
         raise ReturnException(phrase.get_body())
@@ -176,5 +221,40 @@ print(
     interpret_program(
         ast_generator.parse_program(
             lexer.lex("~print(2, 3, 4); i := 0; ~print(i);~i;")), {}
+    )
+)
+
+print(
+    interpret_program(
+        ast_generator.parse_program(
+            lexer.lex("for i from 1 to 9 by 3 dofor ~print(i);endfor")), {}
+    )
+)
+
+print(
+    interpret_program(
+        ast_generator.parse_program(
+            lexer.lex("i := 10; while i dowhile ~print(i); i := i - 1; endwhile")), {}
+    )
+)
+
+print(
+    interpret_program(
+        ast_generator.parse_program(
+            lexer.lex("if 1 then ~print(1); endif")), {}
+    )
+)
+
+print(
+    interpret_program(
+        ast_generator.parse_program(
+            lexer.lex("if 0 then ~print(1); endif else x := -22; ~print(x); endelse")), {}
+    )
+)
+
+print(
+    interpret_program(
+        ast_generator.parse_program(
+            lexer.lex("if 0 then ~print(1); endif elif 1 then ~print(3); endelif else x := -22; ~print(x); endelse")), {}
     )
 )
