@@ -19,6 +19,8 @@ class ReturnException(Exception):
 def interpret_expr(expr, env):
     if type(expr) == ast_generator.IntValue:
         return expr.get_value()
+    if type(expr) == ast_generator.FloatValue:
+        return expr.get_value()
     elif type(expr) == ast_generator.StrValue:
         return expr.get_value()
     elif type(expr) == ast_generator.Tuple:
@@ -55,7 +57,7 @@ def interpret_expr(expr, env):
         elif bop == lexer.TIMES:
             return left * right
         elif bop == lexer.DIV:
-            return left // right  # integer div
+            return left / right
     elif type(expr) == ast_generator.Extern:
         return interpret_extern(expr, env)
     elif type(expr) == ast_generator.Apply:
@@ -340,3 +342,5 @@ if __name__ == "__main__":
         'x := "hello world!"; ~ print([x, x, x]); lst := [x, x]; ~ print(mem(x, lst)); ~print(len(lst)); ~print(get(0, lst));~print(get(1, lst));'))
     print(main(
         'x := "hello world!"; ~ print([x, x, x]); lst := [x, x]; ~ print(mem(x, lst)); ~print(len(lst)); ~set(0, "lol", lst);~print(get(0, lst)); ~print(lst);'))
+
+    print(main('x := -1.00 - -2.01; ~print(x);'))

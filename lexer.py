@@ -51,6 +51,7 @@ OPEN_TUP = "(|"
 CLOSE_TUP = "|)"
 OPEN_BRACKET = "["
 CLOSE_BRACKET = "]"
+DOT = "."
 
 
 # Order matters in keywords
@@ -98,6 +99,7 @@ keywords = sorted(
         CLOSE_TUP,
         OPEN_BRACKET,
         CLOSE_BRACKET,
+        DOT,
 
     ],
     reverse=True)
@@ -166,6 +168,7 @@ VARIABLE_NOT_START_NUMERIC = True
 
 VARIABLE = "variable"
 INTEGER = "integer"
+FLOAT = "float"
 STRING = "string"
 KEYWORD = "keyword"
 
@@ -238,18 +241,25 @@ def match_int(string, idx):
     Returns (NOne, 0) if string does not begin with an int
     Requires: idx does not start at alocation not corresponding to an int
     """
-    def match_int_helper(string, string_len, idx, num, length):
+    def match_int_helper(string, string_len, idx, num, length, dot_occurred):
         # check is there remaining string to process
         if idx >= string_len:
             return (num, length)
 
         first = string[idx]
 
+        # if first is a dot, could be a float
+        if first == DOT and not dot_occurred:
+            return match_int_helper(string, string_len, idx + 1, num + first, length + 1, True)
+
+        if first == DOT and dot_occurred:
+            return (num, length)
+
         # check var_chars
         if first not in NUMERICAL:
             return (num, length)
 
-        return match_int_helper(string, string_len, idx + 1, num + first, length + 1)
+        return match_int_helper(string, string_len, idx + 1, num + first, length + 1, dot_occurred)
 
     # check it begins with an int
     if string[idx] not in NUMERICAL:
@@ -260,7 +270,12 @@ def match_int(string, idx):
     if string[idx] == '0' and idx + 1 < l and string[idx + 1] == '0':
         return (None, 0)
 
-    i, l = match_int_helper(string, l, idx, "", 0)
+    i, l = match_int_helper(string, l, idx, "", 0, False)
+
+    # check if decimal point dot in i in which case it is a float
+    if DOT in i:
+        return ((FLOAT, float(i)), l)
+
     return ((INTEGER, int(i)), l)
 
 

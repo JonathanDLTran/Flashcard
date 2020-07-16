@@ -143,6 +143,18 @@ def test_match_int():
     m = match_int(program, 0)
     assert (m == (None, 0))
 
+    program = "3.01"
+    m = match_int(program, 0)
+    assert (m == (FLOAT, 3.01), 4)
+
+    program = "0.01"
+    m = match_int(program, 0)
+    assert (m == (FLOAT, 3.01), 4)
+
+    program = "12100.0"
+    m = match_int(program, 0)
+    assert (m == (FLOAT, 12100.0), 7)
+
     print("Tested Match Var")
 
 

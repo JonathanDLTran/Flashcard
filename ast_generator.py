@@ -173,6 +173,22 @@ class IntValue(Expr):
         return "(IntValue: " + str(self.value) + ")"
 
 
+class FloatValue(Expr):
+    """
+    FloatValue represents an float Value
+    """
+
+    def __init__(self, value):
+        super().__init__()
+        self.value = value
+
+    def get_value(self):
+        return self.value
+
+    def __repr__(self):
+        return "(FloatValue: " + str(self.value) + ")"
+
+
 class StrValue(Expr):
     """
     StrValue represents an String 
@@ -1312,6 +1328,8 @@ def match_elt(lexbuf):
         return 1, IntValue(elt_val)
     elif elt_typ == lexer.STRING:
         return 1, StrValue(elt_val)
+    elif elt_typ == lexer.FLOAT:
+        return 1, FloatValue(elt_val)
     elif elt_typ == lexer.VARIABLE:
         if len(lexbuf) > 1:
             _, la_val = lexbuf[1]
@@ -1367,6 +1385,8 @@ def match_elt(lexbuf):
             unop_val_ast = IntValue(unop_val_ast)
         elif unop_typ == lexer.VARIABLE:
             unop_val_ast = VarValue(unop_val_ast)
+        elif unop_typ == lexer.FLOAT:
+            unop_val_ast = FloatValue(unop_val_ast)
         return (1 + length), Unop(elt_val, unop_val_ast)
     elif elt_val == lexer.LPAREN:
         # length, middle_terms = get_between_brackets(lexbuf, 1)

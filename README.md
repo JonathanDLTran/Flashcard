@@ -97,9 +97,11 @@ Undo: Ctrl-T to undo up to undo limit number of undos (can set undo limit)
 - Functions with Closures defined at time of definition
 - Function application
 - Return statements
+- External functions: len(), get(), set(), mem(), print()
 
 ## TYPES
 - Ints
+- Floats
 - String
 - List
 - Tuple
