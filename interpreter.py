@@ -19,6 +19,12 @@ class ReturnException(Exception):
 def interpret_expr(expr, env):
     if type(expr) == ast_generator.IntValue:
         return expr.get_value()
+    elif type(expr) == ast_generator.StrValue:
+        return expr.get_value()
+    elif type(expr) == ast_generator.Tuple:
+        expr_list = expr.get_exprs()
+        evaled_exprs = list(map(lambda e: interpret_expr(e, env), expr_list))
+        return tuple(evaled_exprs)
     elif type(expr) == ast_generator.VarValue:
         var_name = expr.get_value()
         if ("variable", var_name) not in env:
@@ -279,3 +285,8 @@ if __name__ == "__main__":
                 lexer.lex("fun f x -> x := x + 1; ~print(x); endfun ~ f(3) ;")), {}
         )
     )
+
+    print(main('x := "hello world!"; ~ print(x * 3);'))
+    print(main('x := "hello world!"; y := (|(3 + 3)|);'))
+    print(main('x := "hello world!"; t:= (|x, x|);~ print(t); ~print((|x, x|));'))
+    print(main('x := "hello world!"; t:= (|x, x|);~ print(t); ~print((|x, (|x, x, x|), (x + x)|), x);'))

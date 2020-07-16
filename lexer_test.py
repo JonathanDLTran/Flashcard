@@ -240,12 +240,53 @@ def test_match_keywords():
     print("Tested Match Keywords")
 
 
+def test_str():
+    print("Testing Match String")
+
+    program = '"hello world!"'
+    m = match_string(program, 0)
+    assert (m == ((STRING, "hello world!"), len(program)))
+
+    program = '""'
+    m = match_string(program, 0)
+    assert (m == ((STRING, ""), len(program)))
+
+    program = '"h"'
+    m = match_string(program, 0)
+    assert (m == ((STRING, "h"), len(program)))
+
+    print("Tested Match String")
+
+
 def test_lex():
     print("Testing Lex")
 
     program = "if else"
     m = lex(program)
     assert (m == [(KEYWORD, "if"), (KEYWORD, "else")])
+
+    program = 'if else "hello"'
+    m = lex(program)
+    assert (m == [(KEYWORD, "if"), (KEYWORD, "else"), (STRING, "hello")])
+
+    program = 'if else  "hello"  '
+    m = lex(program)
+    assert (m == [(KEYWORD, "if"), (KEYWORD, "else"), (STRING, "hello")])
+
+    program = '"lol" if else  "hello"  '
+    m = lex(program)
+    assert (m == [(STRING, "lol"), (KEYWORD, "if"),
+                  (KEYWORD, "else"), (STRING, "hello")])
+
+    program = ' "lol"if else  "hello"  '
+    m = lex(program)
+    assert (m == [(STRING, "lol"), (KEYWORD, "if"),
+                  (KEYWORD, "else"), (STRING, "hello")])
+
+    program = ' if "lol"else  "hello"  '  # if needs a space after!
+    m = lex(program)
+    assert (m == [(KEYWORD, "if"), (STRING, "lol"),
+                  (KEYWORD, "else"), (STRING, "hello")])
 
     program = "x:=3"
     m = lex(program)
@@ -298,4 +339,5 @@ if __name__ == "__main__":
     test_lex()
     test_match_var()
     test_match_int()
+    test_str()
     test_match_keywords()

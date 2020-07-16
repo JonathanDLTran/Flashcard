@@ -169,6 +169,22 @@ class IntValue(Expr):
         return "(IntValue: " + str(self.value) + ")"
 
 
+class StrValue(Expr):
+    """
+    StrValue represents an String 
+    """
+
+    def __init__(self, value):
+        super().__init__()
+        self.value = value
+
+    def get_value(self):
+        return self.value
+
+    def __repr__(self):
+        return "(StrValue: " + str(self.value) + ")"
+
+
 class VarValue(Expr):
     """
     IntValue represents an Variable Value
@@ -183,6 +199,26 @@ class VarValue(Expr):
 
     def __repr__(self):
         return "(VarValue: " + str(self.value) + ")"
+
+
+class Tuple(Expr):
+    """
+    Tuple represents an Tuple
+    """
+
+    def __init__(self, exprs_list):
+        super().__init__()
+        self.exprs = exprs_list
+        self.length = len(exprs_list)
+
+    def get_exprs(self):
+        return self.exprs
+
+    def get_length(self):
+        return self.length
+
+    def __repr__(self):
+        return "(Tuple: " + ", ".join(list(map(lambda e: str(e), self.exprs))) + ")"
 
 
 class Bop(Expr):
@@ -519,6 +555,43 @@ def get_between_brackets(lex_buff, idx):
     return (l, expr_terms)
 
 
+def get_between_brackets_general(lex_buff, idx, start_sym, end_sym):
+    # assume start after idx
+    stack = []
+    stack.append(start_sym)
+    expr_terms = []
+    i = idx
+
+    while (i < len(lex_buff) and stack != []):
+
+        typ, val = lex_buff[i]
+        # if val == start_sym:
+        #     stack.append(val)
+        # elif val == end_sym:
+        #     if stack != [] and stack[-1] == start_sym:
+        #         stack.pop()
+        if val == lexer.LPAREN:
+            stack.append(val)
+        elif val == lexer.RPAREN:
+            if stack != [] and stack[-1] == lexer.LPAREN:
+                stack.pop()
+        if val == lexer.OPEN_TUP:
+            stack.append(val)
+        elif val == lexer.CLOSE_TUP:
+            if stack != [] and stack[-1] == lexer.OPEN_TUP:
+                stack.pop()
+        expr_terms.append((typ, val))
+        i += 1
+
+    if i > len(lex_buff):
+        raise MissingParens("Missing or Misplaced End Symbol")
+    if stack != []:
+        raise MissingParens("Missing or Misplaced End Symbol")
+    l = len(expr_terms)
+    expr_terms.pop()  # removed last parentheses
+    return (l, expr_terms)
+
+
 # def match_open_paren(ast, lex_buff):
 
 #     lex_typ, val = lex_buff[0]
@@ -691,7 +764,7 @@ def get_function_args(lexbuf, demarcation):
 
         elif val == lexer.RPAREN:
             if len(stack) >= 1:
-                if stack[0] == lexer.LPAREN:
+                if stack[-1] == lexer.LPAREN:
                     stack.pop()
                     arg.append(pair)
                     return get_function_args_helper(rem, demarcation, stack, arg, args_list)
@@ -702,11 +775,87 @@ def get_function_args(lexbuf, demarcation):
             else:
                 raise MissingParens("lexbuf missing left parens")
 
+        if val == lexer.OPEN_TUP:
+            stack.append(val)
+            arg.append(pair)
+            return get_function_args_helper(rem, demarcation, stack, arg, args_list)
+
+        elif val == lexer.CLOSE_TUP:
+            if len(stack) >= 1:
+                if stack[-1] == lexer.OPEN_TUP:
+                    stack.pop()
+                    arg.append(pair)
+                    return get_function_args_helper(rem, demarcation, stack, arg, args_list)
+                else:
+                    stack.append(val)
+                    arg.append(pair)
+                    return get_function_args_helper(rem, demarcation, stack, arg, args_list)
+            else:
+                raise MissingParens("lexbuf missing open tup parens")
+
         else:
             arg.append(pair)
             return get_function_args_helper(rem, demarcation, stack, arg, args_list)
 
     return get_function_args_helper(lexbuf, demarcation, [], [], [])
+
+
+# def get_data_structure_args(lexbuf, demarcation, start_char, end_char):
+#     def get_data_structure_args_helper(lexbuf, demarcation, stack, arg, args_list):
+#         if lexbuf == []:
+#             if arg != []:
+#                 args_list.append(arg)
+#             return args_list
+
+#         pair = lexbuf[0]
+#         _, val = pair
+#         rem = lexbuf[1:]
+
+#         if stack == [] and val == demarcation:
+#             args_list.append(arg)
+#             return get_data_structure_args_helper(rem, demarcation, stack, [], args_list)
+
+#         if val == lexer.LPAREN:
+#             stack.append(val)
+#             arg.append(pair)
+#             return get_data_structure_args_helper(rem, demarcation, stack, arg, args_list)
+
+#         elif val == lexer.RPAREN:
+#             if len(stack) >= 1:
+#                 if stack[-1] == lexer.LPAREN:
+#                     stack.pop()
+#                     arg.append(pair)
+#                     return get_data_structure_args_helper(rem, demarcation, stack, arg, args_list)
+#                 else:
+#                     stack.append(val)
+#                     arg.append(pair)
+#                     return get_data_structure_args_helper(rem, demarcation, stack, arg, args_list)
+#             else:
+#                 raise MissingParens("lexbuf missing left parens")
+
+#         if val == start_char:
+#             stack.append(val)
+#             arg.append(pair)
+#             return get_data_structure_args_helper(rem, demarcation, stack, arg, args_list)
+
+#         elif val == end_char:
+#             if len(stack) >= 1:
+#                 if stack[-1] == start_char:
+#                     stack.pop()
+#                     arg.append(pair)
+#                     return get_data_structure_args_helper(rem, demarcation, stack, arg, args_list)
+#                 else:
+#                     stack.append(val)
+#                     arg.append(pair)
+#                     return get_data_structure_args_helper(rem, demarcation, stack, arg, args_list)
+#             else:
+#                 raise MissingParens("lexbuf missing end char " + str(end_char))
+
+#         else:
+#             arg.append(pair)
+#             return get_data_structure_args_helper(rem, demarcation, stack, arg, args_list)
+
+#     return get_data_structure_args_helper(lexbuf, demarcation, [], [], [])
 
 
 # def parse_expr(prev_precedence, count, precedence, stack, lexbuf):
@@ -1111,11 +1260,15 @@ def match_elt(lexbuf):
     elt_typ, elt_val = lexbuf[0]
     if elt_typ == lexer.INTEGER:
         return 1, IntValue(elt_val)
+    elif elt_typ == lexer.STRING:
+        return 1, StrValue(elt_val)
     elif elt_typ == lexer.VARIABLE:
         if len(lexbuf) > 1:
             _, la_val = lexbuf[1]
             if la_val == lexer.LPAREN:
-                length, middle_terms = get_between_brackets(lexbuf, 2)
+                # length, middle_terms = get_between_brackets(lexbuf, 2)
+                length, middle_terms = get_between_brackets_general(
+                    lexbuf, 2, lexer.LPAREN, lexer.RPAREN)
                 split_args = get_function_args(middle_terms, lexer.COMMA)
                 args_pairs = list(map(lambda args_buffer: parse_expr(
                     args_buffer), split_args))
@@ -1124,10 +1277,24 @@ def match_elt(lexbuf):
                     return 2 + length, Extern(elt_val, args)
                 return 2 + length, Apply(elt_val, args)
         return 1, VarValue(elt_val)
+
+    elif elt_val == lexer.OPEN_TUP:
+        length, middle_terms = get_between_brackets_general(
+            lexbuf, 1, lexer.OPEN_TUP, lexer.CLOSE_TUP)
+        split_args = get_function_args(
+            middle_terms, lexer.COMMA)
+        args_pairs = list(map(lambda args_buffer: parse_expr(
+            args_buffer), split_args))
+        return 1 + length, Tuple(args_pairs)
+    elif elt_val == lexer.CLOSE_TUP:
+        raise ParseError("Unmatched closing tuple symbol")
+
     elif elt_typ == lexer.KEYWORD and elt_val in lexer.UNOPS:
         _, next_pair = lexbuf[1]
         if next_pair == lexer.LPAREN:
-            length, middle_terms = get_between_brackets(lexbuf, 2)
+            # length, middle_terms = get_between_brackets(lexbuf, 2)
+            length, middle_terms = get_between_brackets_general(
+                lexbuf, 2, lexer.LPAREN, lexer.RPAREN)
             parsed_middle_ast = parse_expr(middle_terms)
             return 2 + length, Unop(elt_val, parsed_middle_ast)
         elif next_pair == lexer.RPAREN:
@@ -1141,7 +1308,9 @@ def match_elt(lexbuf):
             unop_val_ast = VarValue(unop_val_ast)
         return (1 + length), Unop(elt_val, unop_val_ast)
     elif elt_val == lexer.LPAREN:
-        length, middle_terms = get_between_brackets(lexbuf, 1)
+        # length, middle_terms = get_between_brackets(lexbuf, 1)
+        length, middle_terms = get_between_brackets_general(
+            lexbuf, 1, lexer.LPAREN, lexer.RPAREN)
         parens_ast = parse_expr(middle_terms)
         return (1 + length), parens_ast
     elif elt_val == lexer.RPAREN:
@@ -1479,9 +1648,12 @@ def parse_ignore(lexbuf):
 
 if __name__ == "__main__":
     print(parse_phrase(lexer.lex(
-        "3;")))
+        "~3;")))
     print(parse_phrase(lexer.lex(
-        "print();")))
+        "~print();")))
+
+    print(parse_phrase(lexer.lex(
+        '~(|(|(3 + 4), x, y|), 3,(4 + 5), unit((|("hi")|))|);')))
     pass
 
     # print(parse_expr(1, 0, 1, [], lexer.lex(

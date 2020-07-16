@@ -46,6 +46,10 @@ DOFOR = "dofor"
 ENDFOR = "endfor"
 RETURN = "return"
 IGNORE = "~"
+DOUBLE_QUOTE = '"'
+OPEN_TUP = "(|"
+CLOSE_TUP = "|)"
+
 
 # Order matters in keywords
 keywords = sorted(
@@ -88,6 +92,9 @@ keywords = sorted(
         DOFOR,
         ENDFOR,
         RETURN,
+        OPEN_TUP,
+        CLOSE_TUP,
+
     ],
     reverse=True)
 
@@ -155,6 +162,7 @@ VARIABLE_NOT_START_NUMERIC = True
 
 VARIABLE = "variable"
 INTEGER = "integer"
+STRING = "string"
 KEYWORD = "keyword"
 
 
@@ -250,6 +258,26 @@ def match_int(string, idx):
 
     i, l = match_int_helper(string, l, idx, "", 0)
     return ((INTEGER, int(i)), l)
+
+
+def match_string(string, idx):
+    """
+    match_string(string, idx) matches a string and the length of the string
+    and returns (String, str), length
+
+    REQUIRES: stirng begins at a string location, e.g. with an open double quote
+    so tht idx is the location of a double quote, and idx + 1is the first locaiton
+    after that double quote
+    """
+    l = len(string)
+    collect_string = ""
+    for i in range(idx + 1, l):
+        c = string[i]
+        if c != DOUBLE_QUOTE:
+            collect_string += c
+        else:
+            # add 2 for start and end quotes
+            return ((STRING, str(collect_string)), len(collect_string) + 2)
 
 
 def match_keyword(string, idx, keyword, keywords_lens):
@@ -363,8 +391,9 @@ def lex(program_str):
             ii. a non alphabetical isreached
             III. When a () parentheses is reached
     3. Numbers are numerics and are pulled out, only iotegers
-    4. Spaces are eliminated
-    5. If not all consumed, terminate by raising 
+    4. Strings begin double quote and end with double quote
+    5. Spaces are eliminated
+    6. If not all consumed, terminate by raising 
     """
     def lex_helper(program_str, acc):
         if program_str == "":
@@ -380,6 +409,10 @@ def lex(program_str):
 
         token, length = match_int(program_str, 0)
         if token != None:
+            return lex_helper(program_str[length:], acc + [token])
+
+        if program_str[0] == DOUBLE_QUOTE:
+            token, length = match_string(program_str, 0)
             return lex_helper(program_str[length:], acc + [token])
 
         if program_str[0] == SPACE:
