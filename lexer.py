@@ -49,6 +49,8 @@ IGNORE = "~"
 DOUBLE_QUOTE = '"'
 OPEN_TUP = "(|"
 CLOSE_TUP = "|)"
+OPEN_BRACKET = "["
+CLOSE_BRACKET = "]"
 
 
 # Order matters in keywords
@@ -94,6 +96,8 @@ keywords = sorted(
         RETURN,
         OPEN_TUP,
         CLOSE_TUP,
+        OPEN_BRACKET,
+        CLOSE_BRACKET,
 
     ],
     reverse=True)

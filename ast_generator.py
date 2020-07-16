@@ -57,7 +57,11 @@ PRECENDENCE_MAP = {
 
 # ------- EXTERNS ------------
 PRINT = "print"
-EXTERNS_LIST = [PRINT, ]
+MEM = "mem"
+GET = "get"
+LEN = "len"
+SET = "set"
+EXTERNS_LIST = [PRINT, MEM, GET, LEN, SET, ]
 
 # ------- GRAMMAR PRODUCTION RULES ------------
 
@@ -218,7 +222,27 @@ class Tuple(Expr):
         return self.length
 
     def __repr__(self):
-        return "(Tuple: " + ", ".join(list(map(lambda e: str(e), self.exprs))) + ")"
+        return "(Tuple: (" + ", ".join(list(map(lambda e: str(e), self.exprs))) + "))"
+
+
+class List(Expr):
+    """
+    List represents an list
+    """
+
+    def __init__(self, exprs_list):
+        super().__init__()
+        self.exprs = exprs_list
+        self.length = len(exprs_list)
+
+    def get_exprs(self):
+        return self.exprs
+
+    def get_length(self):
+        return self.length
+
+    def __repr__(self):
+        return "(List: [" + ", ".join(list(map(lambda e: str(e), self.exprs))) + "])"
 
 
 class Bop(Expr):
@@ -575,11 +599,19 @@ def get_between_brackets_general(lex_buff, idx, start_sym, end_sym):
         elif val == lexer.RPAREN:
             if stack != [] and stack[-1] == lexer.LPAREN:
                 stack.pop()
+
         if val == lexer.OPEN_TUP:
             stack.append(val)
         elif val == lexer.CLOSE_TUP:
             if stack != [] and stack[-1] == lexer.OPEN_TUP:
                 stack.pop()
+
+        if val == lexer.OPEN_BRACKET:
+            stack.append(val)
+        elif val == lexer.CLOSE_BRACKET:
+            if stack != [] and stack[-1] == lexer.OPEN_BRACKET:
+                stack.pop()
+
         expr_terms.append((typ, val))
         i += 1
 
@@ -792,6 +824,24 @@ def get_function_args(lexbuf, demarcation):
                     return get_function_args_helper(rem, demarcation, stack, arg, args_list)
             else:
                 raise MissingParens("lexbuf missing open tup parens")
+
+        if val == lexer.OPEN_BRACKET:
+            stack.append(val)
+            arg.append(pair)
+            return get_function_args_helper(rem, demarcation, stack, arg, args_list)
+
+        elif val == lexer.CLOSE_BRACKET:
+            if len(stack) >= 1:
+                if stack[-1] == lexer.OPEN_BRACKET:
+                    stack.pop()
+                    arg.append(pair)
+                    return get_function_args_helper(rem, demarcation, stack, arg, args_list)
+                else:
+                    stack.append(val)
+                    arg.append(pair)
+                    return get_function_args_helper(rem, demarcation, stack, arg, args_list)
+            else:
+                raise MissingParens("lexbuf missing open bracket")
 
         else:
             arg.append(pair)
@@ -1288,6 +1338,17 @@ def match_elt(lexbuf):
         return 1 + length, Tuple(args_pairs)
     elif elt_val == lexer.CLOSE_TUP:
         raise ParseError("Unmatched closing tuple symbol")
+
+    elif elt_val == lexer.OPEN_BRACKET:
+        length, middle_terms = get_between_brackets_general(
+            lexbuf, 1, lexer.OPEN_BRACKET, lexer.CLOSE_BRACKET)
+        split_args = get_function_args(
+            middle_terms, lexer.COMMA)
+        args_pairs = list(map(lambda args_buffer: parse_expr(
+            args_buffer), split_args))
+        return 1 + length, List(args_pairs)
+    elif elt_val == lexer.CLOSE_BRACKET:
+        raise ParseError("Unmatched closing list symbol")
 
     elif elt_typ == lexer.KEYWORD and elt_val in lexer.UNOPS:
         _, next_pair = lexbuf[1]

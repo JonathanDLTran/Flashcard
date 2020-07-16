@@ -25,6 +25,10 @@ def interpret_expr(expr, env):
         expr_list = expr.get_exprs()
         evaled_exprs = list(map(lambda e: interpret_expr(e, env), expr_list))
         return tuple(evaled_exprs)
+    elif type(expr) == ast_generator.List:
+        expr_list = expr.get_exprs()
+        evaled_exprs = list(map(lambda e: interpret_expr(e, env), expr_list))
+        return evaled_exprs
     elif type(expr) == ast_generator.VarValue:
         var_name = expr.get_value()
         if ("variable", var_name) not in env:
@@ -92,7 +96,43 @@ def interpret_extern(expr, env):
     if function_name == ast_generator.PRINT:
         print(*args)
         return 1  # print extern returns 1 if it occurred
-
+    elif function_name == ast_generator.MEM:
+        if len(args_list) != 2:
+            raise InterpretError(
+                "Mem requires 2 arguments : You had: " + str(args_list))
+        ob = args_list[0]
+        ob = interpret_expr(ob, env)
+        iterable = args_list[1]
+        iterable = interpret_expr(iterable, env)
+        return 1 if ob in iterable else 0
+    elif function_name == ast_generator.LEN:
+        if len(args_list) != 1:
+            raise InterpretError(
+                "Len requires 1 arguments : You had: " + str(args_list))
+        lst = args_list[0]
+        lst = interpret_expr(lst, env)
+        return len(lst)
+    elif function_name == ast_generator.GET:
+        if len(args_list) != 2:
+            raise InterpretError(
+                "Get requires 2 arguments : You had: " + str(args_list))
+        pos = args_list[0]
+        pos = interpret_expr(pos, env)
+        lst = args_list[1]
+        lst = interpret_expr(lst, env)
+        return lst[pos]
+    elif function_name == ast_generator.SET:
+        if len(args_list) != 3:
+            raise InterpretError(
+                "Set requires 3 arguments : You had: " + str(args_list))
+        pos = args_list[0]
+        pos = interpret_expr(pos, env)
+        new_val = args_list[1]
+        new_val = interpret_expr(new_val, env)
+        lst = args_list[2]
+        lst = interpret_expr(lst, env)
+        lst[pos] = new_val
+        return 1  # set successfully
     # other externs as needed, checking arg length
     # for example, len(), range(), is_int(), is_bool(), int(), str(),..
     pass
@@ -290,3 +330,13 @@ if __name__ == "__main__":
     print(main('x := "hello world!"; y := (|(3 + 3)|);'))
     print(main('x := "hello world!"; t:= (|x, x|);~ print(t); ~print((|x, x|));'))
     print(main('x := "hello world!"; t:= (|x, x|);~ print(t); ~print((|x, (|x, x, x|), (x + x)|), x);'))
+
+    print(main('x := "hello world!"; ~ print([x, x, x]);'))
+    print(main(
+        'x := "hello world!"; ~ print([x, x, x]); lst := [x, x]; ~ print(mem(x, lst));'))
+    print(main(
+        'x := "hello world!"; ~ print([x, x, x]); lst := [x, x]; ~ print(mem(x, lst)); ~print(len(lst));'))
+    print(main(
+        'x := "hello world!"; ~ print([x, x, x]); lst := [x, x]; ~ print(mem(x, lst)); ~print(len(lst)); ~print(get(0, lst));~print(get(1, lst));'))
+    print(main(
+        'x := "hello world!"; ~ print([x, x, x]); lst := [x, x]; ~ print(mem(x, lst)); ~print(len(lst)); ~set(0, "lol", lst);~print(get(0, lst)); ~print(lst);'))
