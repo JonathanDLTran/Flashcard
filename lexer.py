@@ -52,6 +52,12 @@ CLOSE_TUP = "|)"
 OPEN_BRACKET = "["
 CLOSE_BRACKET = "]"
 DOT = "."
+OPEN_DICT = "{"
+CLOSE_DICT = "}"
+COLON = ":"
+REV_ARROW = "<-"
+OPEN_STRUCT = "{|"
+CLOSE_STRUCT = "|}"
 
 
 # Order matters in keywords
@@ -100,6 +106,12 @@ keywords = sorted(
         OPEN_BRACKET,
         CLOSE_BRACKET,
         DOT,
+        OPEN_DICT,
+        CLOSE_DICT,
+        COLON,
+        REV_ARROW,
+        OPEN_STRUCT,
+        CLOSE_STRUCT,
 
     ],
     reverse=True)

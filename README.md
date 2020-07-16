@@ -105,4 +105,6 @@ Undo: Ctrl-T to undo up to undo limit number of undos (can set undo limit)
 - String
 - List
 - Tuple
+- Dictionaries
+- Structs (runtime declared, no compile time type declaractions)
 

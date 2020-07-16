@@ -31,6 +31,22 @@ def interpret_expr(expr, env):
         expr_list = expr.get_exprs()
         evaled_exprs = list(map(lambda e: interpret_expr(e, env), expr_list))
         return evaled_exprs
+    elif type(expr) == ast_generator.Dict:
+        key_list = expr.get_keys()
+        val_list = expr.get_vals()
+        evaled_keys = list(map(lambda e: interpret_expr(e, env), key_list))
+        evaled_vals = list(map(lambda e: interpret_expr(e, env), val_list))
+        combined_list = list(zip(evaled_keys, evaled_vals))
+        new_dict = {pair[0]: pair[1] for pair in combined_list}
+        return new_dict
+    elif type(expr) == ast_generator.Struct:
+        key_list = expr.get_keys()
+        val_list = expr.get_vals()
+        evaled_keys = list(map(lambda e: e.get_value(), key_list))
+        evaled_vals = list(map(lambda e: interpret_expr(e, env), val_list))
+        combined_list = list(zip(evaled_keys, evaled_vals))
+        new_dict = {pair[0]: pair[1] for pair in combined_list}
+        return new_dict
     elif type(expr) == ast_generator.VarValue:
         var_name = expr.get_value()
         if ("variable", var_name) not in env:
@@ -93,7 +109,10 @@ def interpret_expr(expr, env):
 def interpret_extern(expr, env):
     function_name = expr.get_fun()
     args_list = expr.get_args()
-    args = list(map(lambda arg: interpret_expr(arg, env), args_list))
+    if function_name != ast_generator.SET_STRUCT and function_name != ast_generator.GET_STRUCT:
+        args = list(map(lambda arg: interpret_expr(arg, env), args_list))
+    else:
+        args = args_list
 
     if function_name == ast_generator.PRINT:
         print(*args)
@@ -123,6 +142,16 @@ def interpret_extern(expr, env):
         lst = args_list[1]
         lst = interpret_expr(lst, env)
         return lst[pos]
+    elif function_name == ast_generator.GET_STRUCT:
+        if len(args_list) != 2:
+            raise InterpretError(
+                "Get_Struct requires 2 arguments : You had: " + str(args_list))
+        pos = args_list[0]
+        assert type(pos) == ast_generator.VarValue
+        pos = pos.get_value()  # must be a string
+        lst = args_list[1]
+        lst = interpret_expr(lst, env)
+        return lst[pos]
     elif function_name == ast_generator.SET:
         if len(args_list) != 3:
             raise InterpretError(
@@ -135,6 +164,20 @@ def interpret_extern(expr, env):
         lst = interpret_expr(lst, env)
         lst[pos] = new_val
         return 1  # set successfully
+    elif function_name == ast_generator.SET_STRUCT:
+        if len(args_list) != 3:
+            raise InterpretError(
+                "Set_Struct requires 3 arguments : You had: " + str(args_list))
+        pos = args_list[0]
+        assert type(pos) == ast_generator.VarValue
+        pos = pos.get_value()  # must be a string
+        new_val = args_list[1]
+        new_val = interpret_expr(new_val, env)
+        lst = args_list[2]
+        lst = interpret_expr(lst, env)
+        lst[pos] = new_val
+        return 1  # set successfully
+
     # other externs as needed, checking arg length
     # for example, len(), range(), is_int(), is_bool(), int(), str(),..
     pass
@@ -344,3 +387,10 @@ if __name__ == "__main__":
         'x := "hello world!"; ~ print([x, x, x]); lst := [x, x]; ~ print(mem(x, lst)); ~print(len(lst)); ~set(0, "lol", lst);~print(get(0, lst)); ~print(lst);'))
 
     print(main('x := -1.00 - -2.01; ~print(x);'))
+
+    print(main('x:={3 : 4}; ~print(get(3, x));'))
+
+    print(main('x:={|x <- 4|}; '))
+    print(main('x:={|x <- 4|}; ~print(get_struct(x, x));'))
+    print(main('x:={|x <- 4|}; ~set_struct(x, "lol", x); ~print(x);'))
+    print(main('x:={|x <- 4|}; ~set_struct(y, "lol", x); ~print(x);'))

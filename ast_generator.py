@@ -59,9 +59,14 @@ PRECENDENCE_MAP = {
 PRINT = "print"
 MEM = "mem"
 GET = "get"
+GET_STRUCT = "get_struct"
 LEN = "len"
 SET = "set"
-EXTERNS_LIST = [PRINT, MEM, GET, LEN, SET, ]
+SET_STRUCT = "set_struct"
+ADD_STRUCT = "add_struct"
+DEL_STRUCT = "del_struct"
+EXTERNS_LIST = [PRINT, MEM, GET, LEN, SET,
+                GET_STRUCT, SET_STRUCT, ADD_STRUCT, DEL_STRUCT, ]
 
 # ------- GRAMMAR PRODUCTION RULES ------------
 
@@ -259,6 +264,56 @@ class List(Expr):
 
     def __repr__(self):
         return "(List: [" + ", ".join(list(map(lambda e: str(e), self.exprs))) + "])"
+
+
+class Dict(Expr):
+    """
+    Dict represents an dictionary
+    """
+
+    def __init__(self, keys_list, values_list):
+        super().__init__()
+        assert len(keys_list) == len(values_list)
+        self.keys = keys_list
+        self.values = values_list
+        self.length = len(values_list)
+
+    def get_keys(self):
+        return self.keys
+
+    def get_vals(self):
+        return self.values
+
+    def get_length(self):
+        return self.length
+
+    def __repr__(self):
+        return "(Dict: {" + ", ".join(list(map(lambda k, v: str(k) + " : " + str(v), self.keys, self.values))) + "})"
+
+
+class Struct(Expr):
+    """
+    Struct represents an struct
+    """
+
+    def __init__(self, keys_list, values_list):
+        super().__init__()
+        assert len(keys_list) == len(values_list)
+        self.keys = keys_list
+        self.values = values_list
+        self.length = len(values_list)
+
+    def get_keys(self):
+        return self.keys
+
+    def get_vals(self):
+        return self.values
+
+    def get_length(self):
+        return self.length
+
+    def __repr__(self):
+        return "(Struct: {|" + ", ".join(list(map(lambda k, v: str(k) + " : " + str(v), self.keys, self.values))) + "|})"
 
 
 class Bop(Expr):
@@ -628,6 +683,18 @@ def get_between_brackets_general(lex_buff, idx, start_sym, end_sym):
             if stack != [] and stack[-1] == lexer.OPEN_BRACKET:
                 stack.pop()
 
+        if val == lexer.OPEN_DICT:
+            stack.append(val)
+        elif val == lexer.CLOSE_DICT:
+            if stack != [] and stack[-1] == lexer.OPEN_DICT:
+                stack.pop()
+
+        if val == lexer.OPEN_STRUCT:
+            stack.append(val)
+        elif val == lexer.CLOSE_STRUCT:
+            if stack != [] and stack[-1] == lexer.OPEN_STRUCT:
+                stack.pop()
+
         expr_terms.append((typ, val))
         i += 1
 
@@ -740,17 +807,6 @@ def get_between_brackets_general(lex_buff, idx, start_sym, end_sym):
 #     return parse_helper(lex_buff, AST(), [])
 
 
-PRECENDENCE_MAP = {
-    lexer.PLUS: 1,
-    lexer.MINUS: 1,
-    lexer.TIMES: 2,
-    lexer.DIV: 2,
-    lexer.EXP: 3,
-
-
-}
-
-
 def get_precedence(symbol, precendence_map=PRECENDENCE_MAP):
     return precendence_map[symbol]
 
@@ -858,6 +914,44 @@ def get_function_args(lexbuf, demarcation):
                     return get_function_args_helper(rem, demarcation, stack, arg, args_list)
             else:
                 raise MissingParens("lexbuf missing open bracket")
+
+        if val == lexer.OPEN_DICT:
+            stack.append(val)
+            arg.append(pair)
+            return get_function_args_helper(rem, demarcation, stack, arg, args_list)
+
+        elif val == lexer.CLOSE_DICT:
+            if len(stack) >= 1:
+                if stack[-1] == lexer.OPEN_DICT:
+                    stack.pop()
+                    arg.append(pair)
+                    return get_function_args_helper(rem, demarcation, stack, arg, args_list)
+                else:
+                    stack.append(val)
+                    arg.append(pair)
+                    return get_function_args_helper(rem, demarcation, stack, arg, args_list)
+            else:
+                raise MissingParens(
+                    "lexbuf missing open dictionary symbol : {")
+
+        if val == lexer.OPEN_STRUCT:
+            stack.append(val)
+            arg.append(pair)
+            return get_function_args_helper(rem, demarcation, stack, arg, args_list)
+
+        elif val == lexer.CLOSE_STRUCT:
+            if len(stack) >= 1:
+                if stack[-1] == lexer.OPEN_STRUCT:
+                    stack.pop()
+                    arg.append(pair)
+                    return get_function_args_helper(rem, demarcation, stack, arg, args_list)
+                else:
+                    stack.append(val)
+                    arg.append(pair)
+                    return get_function_args_helper(rem, demarcation, stack, arg, args_list)
+            else:
+                raise MissingParens(
+                    "lexbuf missing open dictionary symbol : {|")
 
         else:
             arg.append(pair)
@@ -1312,6 +1406,22 @@ def parse_phrase(lexbuf):
     return parse_phrase_helper(lexbuf, list(map(lambda pair: pair[1], lexbuf)), [])
 
 
+def split_dict_args(expr_list, split_symbol):
+    """
+    returns a pair of lists, split at the first instance of split_symbol in 
+    expr_list
+
+    REQUIRES: expr_list inside of dict or struct cleaned out { or {| and } and |} 
+    already
+    """
+    tokens = list(map(lambda pair: pair[1], expr_list))
+    # take first as dict cannot be a key, nor can a struct, since both are mutable
+    split_pos = tokens.index(split_symbol)
+    key_list = expr_list[:split_pos]
+    value_list = expr_list[split_pos + 1:]
+    return (key_list, value_list)
+
+
 def match_elt(lexbuf):
     """
     match_elt(lexbuf) is the length of the element and the element object
@@ -1367,6 +1477,51 @@ def match_elt(lexbuf):
         return 1 + length, List(args_pairs)
     elif elt_val == lexer.CLOSE_BRACKET:
         raise ParseError("Unmatched closing list symbol")
+
+    elif elt_val == lexer.OPEN_DICT:
+        length, middle_terms = get_between_brackets_general(
+            lexbuf, 1, lexer.OPEN_DICT, lexer.CLOSE_DICT)
+        split_args = get_function_args(
+            middle_terms, lexer.COMMA)
+        # need to get key values by splitting at lexer.COLON
+        key_val_list = list(
+            map(lambda l: split_dict_args(l, lexer.COLON), split_args))
+        # key_val_list is a list of pairs, and inside the pairs are lists
+        key_list = list(map(lambda pair: pair[0], key_val_list))
+        val_list = list(map(lambda pair: pair[1], key_val_list))
+        key_args = list(map(lambda args_buffer: parse_expr(
+            args_buffer), key_list))
+        val_args = list(map(lambda args_buffer: parse_expr(
+            args_buffer), val_list))
+        return 1 + length, Dict(key_args, val_args)
+    elif elt_val == lexer.CLOSE_DICT:
+        raise ParseError("Unmatched closing dict symbol }")
+
+    elif elt_val == lexer.OPEN_STRUCT:
+        length, middle_terms = get_between_brackets_general(
+            lexbuf, 1, lexer.OPEN_STRUCT, lexer.CLOSE_STRUCT)
+        split_args = get_function_args(
+            middle_terms, lexer.COMMA)
+        # need to get key values by splitting at lexer.COLON
+        key_val_list = list(
+            map(lambda l: split_dict_args(l, lexer.REV_ARROW), split_args))
+        # key_val_list is a list of pairs, and inside the pairs are lists
+        key_list = list(map(lambda pair: pair[0], key_val_list))
+        val_list = list(map(lambda pair: pair[1], key_val_list))
+
+        for sublist in key_list:
+            if len(sublist) != 1:
+                raise ParseError("keys for structs must be 1 in length")
+            if sublist[0][0] != lexer.VARIABLE:
+                raise ParseError("keys for structs must be variables")
+
+        key_args = list(map(lambda args_buffer: parse_expr(
+            args_buffer), key_list))
+        val_args = list(map(lambda args_buffer: parse_expr(
+            args_buffer), val_list))
+        return 1 + length, Struct(key_args, val_args)
+    elif elt_val == lexer.CLOSE_STRUCT:
+        raise ParseError("Unmatched closing struct symbol |}")
 
     elif elt_typ == lexer.KEYWORD and elt_val in lexer.UNOPS:
         _, next_pair = lexbuf[1]
