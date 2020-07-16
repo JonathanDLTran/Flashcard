@@ -98,4 +98,9 @@ Undo: Ctrl-T to undo up to undo limit number of undos (can set undo limit)
 - Function application
 - Return statements
 
+## TYPES
+- Ints
+- String
+- List
+- Tuple
 
