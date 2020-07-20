@@ -23,6 +23,8 @@ def interpret_expr(expr, env):
         return expr.get_value()
     elif type(expr) == ast_generator.StrValue:
         return expr.get_value()
+    elif type(expr) == ast_generator.BoolValue:
+        return expr.get_value()
     elif type(expr) == ast_generator.Tuple:
         expr_list = expr.get_exprs()
         evaled_exprs = list(map(lambda e: interpret_expr(e, env), expr_list))
@@ -394,3 +396,9 @@ if __name__ == "__main__":
     print(main('x:={|x <- 4|}; ~print(get_struct(x, x));'))
     print(main('x:={|x <- 4|}; ~set_struct(x, "lol", x); ~print(x);'))
     print(main('x:={|x <- 4|}; ~set_struct(y, "lol", x); ~print(x);'))
+
+    print(main('x:=True;'))
+    print(main('x:=False;'))
+
+    print(main('x:=-True;'))
+    print(main('x:=-False;'))

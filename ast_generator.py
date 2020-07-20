@@ -178,6 +178,22 @@ class IntValue(Expr):
         return "(IntValue: " + str(self.value) + ")"
 
 
+class BoolValue(Expr):
+    """
+    BoolValue represents an Bool Value
+    """
+
+    def __init__(self, value):
+        super().__init__()
+        self.value = value
+
+    def get_value(self):
+        return self.value
+
+    def __repr__(self):
+        return "(BoolValue: " + str(self.value) + ")"
+
+
 class FloatValue(Expr):
     """
     FloatValue represents an float Value
@@ -196,7 +212,7 @@ class FloatValue(Expr):
 
 class StrValue(Expr):
     """
-    StrValue represents an String 
+    StrValue represents an String
     """
 
     def __init__(self, value):
@@ -462,7 +478,7 @@ class For(Expr):
 class Function(Expr):
     """
     Function represents
-    fun f a b c -> 
+    fun f a b c ->
         body
     endfun
     """
@@ -1408,10 +1424,10 @@ def parse_phrase(lexbuf):
 
 def split_dict_args(expr_list, split_symbol):
     """
-    returns a pair of lists, split at the first instance of split_symbol in 
+    returns a pair of lists, split at the first instance of split_symbol in
     expr_list
 
-    REQUIRES: expr_list inside of dict or struct cleaned out { or {| and } and |} 
+    REQUIRES: expr_list inside of dict or struct cleaned out { or {| and } and |}
     already
     """
     tokens = list(map(lambda pair: pair[1], expr_list))
@@ -1440,6 +1456,8 @@ def match_elt(lexbuf):
         return 1, StrValue(elt_val)
     elif elt_typ == lexer.FLOAT:
         return 1, FloatValue(elt_val)
+    elif elt_typ == lexer.VARIABLE and (elt_val == lexer.TRUE or elt_val == lexer.FALSE):
+        return 1, BoolValue(True if elt_val == lexer.TRUE else False)
     elif elt_typ == lexer.VARIABLE:
         if len(lexbuf) > 1:
             _, la_val = lexbuf[1]
@@ -1538,6 +1556,8 @@ def match_elt(lexbuf):
         unop_typ, unop_val_ast = lexbuf[1]
         if unop_typ == lexer.INTEGER:
             unop_val_ast = IntValue(unop_val_ast)
+        elif unop_typ == lexer.VARIABLE and (unop_val_ast == lexer.TRUE or unop_val_ast == lexer.FALSE):
+            unop_val_ast = BoolValue(True if elt_val == lexer.TRUE else False)
         elif unop_typ == lexer.VARIABLE:
             unop_val_ast = VarValue(unop_val_ast)
         elif unop_typ == lexer.FLOAT:
@@ -1784,7 +1804,7 @@ def parse_while(lexbuf):
     parse_while(lexbuf) parses:
     while expr dowhile:
         phrases...
-    endwhile 
+    endwhile
     as
     While(guard, body)
     """
