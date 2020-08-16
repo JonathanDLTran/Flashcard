@@ -27,6 +27,15 @@ def check_bool(bool_val, ctx):
     return lexer_c.BOOL
 
 
+def check_str(str_val, ctx):
+    """
+    check_str(str_val, ctx) returns the correct type for a str expression
+    in ctx, otherwise raises error
+    """
+    assert type(str_val) == ast_generator_c.StrValue
+    return lexer_c.STR
+
+
 def check_var(var, ctx):
     """
     check_var(var, ctx) returns the correct type for a var expression
@@ -90,6 +99,12 @@ def check_bop(bop, ctx):
         raise TypeError(
             f"Type mismatch for bool binary operator: left type is {typ_l}, right type is {typ_r} and the operator {op} requires both to be bools. ")
 
+    elif op in [lexer_c.CONCAT]:
+        if typ_l == lexer_c.STR and typ_r == lexer_c.STR:
+            return lexer_c.STR
+        raise TypeError(
+            f"Type mismatch for str binary operator: left type is {typ_l}, right type is {typ_r} and the operator {op} requires both to be strings. ")
+
     raise RuntimeError("Unimplemented")
 
 
@@ -105,6 +120,8 @@ def check_expr(expr, ctx):
         return check_bool(expr, ctx)
     elif type(expr) == ast_generator_c.VarValue:
         return check_var(expr, ctx)
+    elif type(expr) == ast_generator_c.StrValue:
+        return check_str(expr, ctx)
     elif type(expr) == ast_generator_c.Unop:
         return check_unop(expr, ctx)
     elif type(expr) == ast_generator_c.Bop:
@@ -174,6 +191,6 @@ def type_check(program):
 
 
 if __name__ == "__main__":
-    program = "int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z;"
+    program = 'str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z;'
     result = type_check(ast_generator_c.parse_program(lexer_c.lex(program)))
     print(result)
