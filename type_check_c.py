@@ -48,6 +48,20 @@ def check_var(var, ctx):
     raise TypeError(f"Unbound Type for Variable : {var_str}")
 
 
+def check_tuple(tup, ctx):
+    """
+    check_tuple(tup, ctx) returns the correct type for a tup expression
+    in ctx, otherwise raises error
+    """
+    assert type(tup) == ast_generator_c.Tuple
+    exprs_list = tup.get_exprs()
+    tup_component_types = []
+    for expr in exprs_list:
+        expr_typ = check_expr(expr, ctx)
+        tup_component_types.append(expr_typ)
+    return ast_generator_c.TupleType(tup_component_types)
+
+
 def check_unop(unop, ctx):
     """
     check_unop(unop, ctx) returns the correct type for a unop expression
@@ -122,6 +136,8 @@ def check_expr(expr, ctx):
         return check_var(expr, ctx)
     elif type(expr) == ast_generator_c.StrValue:
         return check_str(expr, ctx)
+    elif type(expr) == ast_generator_c.Tuple:
+        return check_tuple(expr, ctx)
     elif type(expr) == ast_generator_c.Unop:
         return check_unop(expr, ctx)
     elif type(expr) == ast_generator_c.Bop:
@@ -137,8 +153,9 @@ def check_declaration(declr, ctx):
     assert type(declr) == ast_generator_c.Declaration
     assignment_node = declr.get_assign()
     var = assignment_node.get_var()
-    typ_node = declr.get_typ()
-    typ = typ_node.get_typ()
+    # typ_node = declr.get_typ()
+    typ = declr.get_typ()
+    # typ = typ_node.get_typ()
 
     if var not in ctx:
         ctx[var] = typ
@@ -156,6 +173,7 @@ def check_assignment(assign, ctx):
     check_assignment(assign, ctx) is the tontext of the assignment
     after the assingment is executed, otherwise raises error if incorrect typed
     """
+    assert type(assign) == ast_generator_c.Assign
     var = assign.get_var()
     expr = assign.get_expr()
 
@@ -174,6 +192,26 @@ def check_assignment(assign, ctx):
     return ctx
 
 
+def check_declare_tuple(tup, ctx):
+    """
+    check_declare_tuple(phrase, ctx)  checks if the declaration of the tuple type checks
+    """
+    assert type(tup) == ast_generator_c.DeclareTuple
+    tup_typ = tup.get_typ()
+    assign = tup.get_assign()
+    var = assign.get_var()
+
+    if var not in ctx:
+        ctx[var] = tup_typ
+    else:
+        original_typ = ctx[var]
+        raise TypeError(
+            f"Cannot reassign variable to different type: Original Type was {original_typ} while new type is {tup_typ}")
+
+    ctx = check_assignment(assign, ctx)
+    return ctx
+
+
 def type_check(program):
     """
     Returns the final context if the program type checks correctly else
@@ -187,10 +225,18 @@ def type_check(program):
             ctx = check_declaration(phrase, ctx)
         elif type(phrase) == ast_generator_c.Assign:
             ctx = check_assignment(phrase, ctx)
+        elif type(phrase) == ast_generator_c.DeclareTuple:
+            ctx = check_declare_tuple(phrase, ctx)
+        else:
+            raise RuntimeError("Unimplemented")
     return ctx
 
 
 if __name__ == "__main__":
-    program = 'str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z;'
-    result = type_check(ast_generator_c.parse_program(lexer_c.lex(program)))
-    print(result)
+    program = 'str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z; (int * int) t := (|1, 2|); (int * (str * int)) t2 := (|1, (|"hello", 3|)|);'
+    try:
+        result = type_check(
+            ast_generator_c.parse_program(lexer_c.lex(program)))
+        print(result)
+    except Exception as e:
+        print(e)

@@ -162,7 +162,7 @@ class Expr(object):
         return "This is a abstract expression"
 
 
-class Type(Expr):
+class Type(object):
     def __init__(self, typ):
         super().__init__()
         self.typ = typ
@@ -172,6 +172,57 @@ class Type(Expr):
 
     def __repr__(self):
         return "(Type: " + str(self.typ) + ")"
+
+    def __eq__(self, other):
+        return self.__repr__() == other.__repr__()
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+
+# class BasicType(Type):
+#     def __init__(self, typ):
+#         super().__init__(typ)
+
+#     def get_typ(self):
+#         return super().get_typ()
+
+#     def __repr__(self):
+#         return super().__repr__()
+
+
+class CustomType(Type):
+    def __init__(self, typ):
+        self.typ = typ
+
+    def get_typ(self):
+        return self.typ
+
+    def __repr__(self):
+        return "(CustomType: " + str(self.typ) + ")"
+
+    def __eq__(self, other):
+        return self.__repr__() == other.__repr__()
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+
+class TupleType(Type):
+    def __init__(self, typ_list):
+        self.typ_list = typ_list
+
+    def get_typ(self):
+        return self.typ_list
+
+    def __repr__(self):
+        return "(TupleType: " + str(self.typ_list) + ")"
+
+    def __eq__(self, other):
+        return self.__repr__() == other.__repr__()
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 
 class IntValue(Expr):
@@ -447,6 +498,26 @@ class Declaration(Expr):
 
     def __repr__(self):
         return "(Declaration: " + str(self.typ) + " " + str(self.assign) + ")"
+
+
+class DeclareTuple(Expr):
+    """
+    DeclareTupleTuple represents an type declaration var := tuple
+    """
+
+    def __init__(self, typ, assign):
+        super().__init__()
+        self.typ = typ
+        self.assign = assign
+
+    def get_assign(self):
+        return self.assign
+
+    def get_typ(self):
+        return self.typ
+
+    def __repr__(self):
+        return "(DeclareTuple: " + str(self.typ) + " " + str(self.assign) + ")"
 
 
 class While(Expr):
@@ -1311,6 +1382,45 @@ def get_function_args(lexbuf, demarcation):
 #         raise ParseError("Unknown Symbol")
 
 
+def parse_tuple_type(lexbuf, tokens, sep, acc):
+    """
+    parse_tuple_type(lexbuf) parses a stream that begins with an open parentheses
+    symbol, which is delineted by symbol sep
+    token sare the symbols in lexbuf
+    the 0th symbol in lexbuf must be a open parentheses
+
+    SEP is typically a TIMES or *
+    """
+    if lexbuf == []:
+        if len(acc) == 1 and type(acc[0]) == TupleType:
+            return acc[0]
+        elif len(acc) < 2:
+            raise ParseError(
+                "The type of a Tuple must have more than 2 items to be a tuple")
+        return acc
+    elif lexbuf[0][1] in lexer_c.TYPES:
+        typ = lexbuf[0][1]
+        # acc.append(BasicType(typ))
+        acc.append(typ)
+        return parse_tuple_type(lexbuf[1:], tokens[1:], sep, acc)
+    elif lexbuf[0][0] == lexer_c.VARIABLE:
+        typ = lexbuf[0][1]
+        acc.append(CustomType(typ))
+        return parse_tuple_type(lexbuf[1:], tokens[1:], sep, acc)
+    elif lexbuf[0][1] == sep:
+        return parse_tuple_type(lexbuf[1:], tokens[1:], sep, acc)
+    elif lexbuf[0][1] == lexer_c.LPAREN:
+
+        l, inner_tokens = get_between_brackets(lexbuf, 1)  # start 1 aheaf
+        remainder_lexbuf = lexbuf[1 + l + 1:]
+        remainder_tokens = tokens[1 + l + 1:]
+        inner_lexbuf = lexbuf[1: l]
+        inner_tup_typ = parse_tuple_type(
+            inner_lexbuf, inner_tokens, sep, [])
+        acc.append(TupleType(inner_tup_typ))
+        return parse_tuple_type(remainder_lexbuf, remainder_tokens, sep, acc)
+
+
 def parse_program(lexbuf):
     return Program(parse_phrase(lexbuf))
 
@@ -1338,6 +1448,23 @@ def parse_phrase(lexbuf):
             acc.append(ignore_parsed)
             return parse_phrase_helper(new_lex_buff, new_tokens, acc)
 
+        # parse tuple declaraction
+        if lexbuf[0][1] in lexer_c.LPAREN:
+            semi_loc = tokens.index(lexer_c.SEMI)
+            l, _ = get_between_brackets(lexbuf, 1)
+            tup_typ = parse_tuple_type(
+                lexbuf[1:l], tokens[1:l], lexer_c.TIMES, [])
+            tup_buffer = lexbuf[l + 1:semi_loc]
+            parsed_tuple = DeclareTuple(
+                TupleType(tup_typ), parse_assign(tup_buffer))
+            new_lex_buff = lexbuf[semi_loc + 1:]
+            new_tokens = tokens[semi_loc + 1:]
+            acc.append(parsed_tuple)
+            return parse_phrase_helper(new_lex_buff, new_tokens, acc)
+
+        # Tuples are declared as
+        # (t1 * t2 * t3) where t could itself be (t1 * t2 * t3)
+
         # non custom type declaration
         if lexbuf[0][1] in lexer_c.TYPES:
             end_type_decl = tokens.index(lexer_c.SEMI)
@@ -1346,7 +1473,10 @@ def parse_phrase(lexbuf):
             new_tokens = tokens[end_type_decl + 1:]
             typ = decl_buff[0][1]
             assign_buff = decl_buff[1:]
-            parsed_decl = Declaration(Type(typ), parse_assign(assign_buff))
+            # parsed_decl = Declaration(
+            #     BasicType(typ), parse_assign(assign_buff))
+            parsed_decl = Declaration(
+                typ, parse_assign(assign_buff))
             acc.append(parsed_decl)
             return parse_phrase_helper(new_lex_buff, new_tokens, acc)
 
@@ -1963,6 +2093,8 @@ if __name__ == "__main__":
     print(parse_phrase(lexer_c.lex(
         '~(|(|(3 + 4), x, y|), 3,(4 + 5), unit((|("hi")|))|);')))
     print(parse_phrase(lexer_c.lex("int x := 3; int y := 4;")))
+    print(parse_phrase(lexer_c.lex(
+        "(bool * int * ((int * int) * int) * float) t := (|1, 2|);")))
     pass
 
     # print(parse_expr(1, 0, 1, [], lexer_c.lex(

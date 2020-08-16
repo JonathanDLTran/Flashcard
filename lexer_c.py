@@ -66,6 +66,7 @@ NEQ = "<>"
 INT = "int"
 BOOL = "bool"
 STR = "str"
+FLOAT = "float"
 
 # Order matters in keywords
 keywords = sorted(
@@ -127,6 +128,7 @@ keywords = sorted(
         INT,
         BOOL,
         STR,
+        FLOAT,
 
     ],
     reverse=True)
@@ -135,6 +137,7 @@ TYPES = [
     INT,
     BOOL,
     STR,
+    FLOAT,
 ]
 
 UNOPS = [
@@ -191,9 +194,29 @@ add_space_in_lex = [
     INT,
     BOOL,
     STR,
+    FLOAT,
 ]
 
 no_space_in_lex = [kw for kw in keywords if kw not in add_space_in_lex]
+
+BRACKETS = [
+    OPEN_TUP,
+    CLOSE_TUP,
+    OPEN_BRACKET,
+    CLOSE_BRACKET,
+    OPEN_DICT,
+    CLOSE_DICT,
+    OPEN_STRUCT,
+    CLOSE_STRUCT,
+    LPAREN,
+    RPAREN,
+]
+
+NON_CHAR = [
+    *BRACKETS,
+    *BOPS,
+    *UNOPS,
+]
 
 ALPHABETICAL = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 NUMERICAL = "0123456789"
@@ -393,6 +416,9 @@ def match_keywords(string, idx, keywords_lst=keywords, keywords_lens=keywords_le
                     return ((KEYWORD, kw), l_key)
                 else:
                     if string[l_key + idx] == SPACE:
+                        return ((KEYWORD, kw), l_key)
+                    # if the next character is a non_char parse it as well
+                    elif string[l_key + idx] in NON_CHAR:
                         return ((KEYWORD, kw), l_key)
                     else:
                         # not end with space
