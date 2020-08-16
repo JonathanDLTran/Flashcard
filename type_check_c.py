@@ -36,6 +36,15 @@ def check_str(str_val, ctx):
     return lexer_c.STR
 
 
+def check_float(float_val, ctx):
+    """
+    check_str(str_val, ctx) returns the correct type for a str expression
+    in ctx, otherwise raises error
+    """
+    assert type(float_val) == ast_generator_c.FloatValue
+    return lexer_c.FLOAT
+
+
 def check_var(var, ctx):
     """
     check_var(var, ctx) returns the correct type for a var expression
@@ -45,7 +54,7 @@ def check_var(var, ctx):
     var_str = var.get_value()
     if var_str in ctx:
         return ctx[var_str]
-    raise TypeError(f"Unbound Type for Variable : {var_str}")
+    raise UnboundLocalError(f"Unbound Type for Variable : {var_str}")
 
 
 def check_tuple(tup, ctx):
@@ -76,6 +85,8 @@ def check_unop(unop, ctx):
     if op in [lexer_c.MINUS]:
         if typ_e == lexer_c.INT:
             return lexer_c.INT
+        elif typ_e == lexer_c.FLOAT:
+            return lexer_c.FLOAT
         raise TypeError(
             f"Type mismatch for int unary operator: expression type is {typ_e} and the operator {op} requires the expression to be an int. ")
 
@@ -136,6 +147,8 @@ def check_expr(expr, ctx):
         return check_var(expr, ctx)
     elif type(expr) == ast_generator_c.StrValue:
         return check_str(expr, ctx)
+    elif type(expr) == ast_generator_c.FloatValue:
+        return check_float(expr, ctx)
     elif type(expr) == ast_generator_c.Tuple:
         return check_tuple(expr, ctx)
     elif type(expr) == ast_generator_c.Unop:
@@ -233,7 +246,7 @@ def type_check(program):
 
 
 if __name__ == "__main__":
-    program = 'str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z; (int * int) t := (|1, 2|); (int * (str * int)) t2 := (|1, (|"hello", 3|)|);'
+    program = 'float f := -1.0; str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z; (int * int) t := (|1, 2|); (int * (str * int)) t2 := (|1, (|"hello", 3|)|); t := (| -1, -1|);'
     try:
         result = type_check(
             ast_generator_c.parse_program(lexer_c.lex(program)))
