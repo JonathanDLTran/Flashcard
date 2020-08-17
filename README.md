@@ -108,3 +108,12 @@ Undo: Ctrl-T to undo up to undo limit number of undos (can set undo limit)
 - Dictionaries
 - Structs (runtime declared, no compile time type declaractions)
 
+## Type Checker
+I have branched the language into a new c-like language, rather than the previous formerly Python like language. As such, now there is type checking. Currently, int, bool, string, float, tuple, list, ignore, if, for and while type checking is implemented for the language. The next step is to implement type checking for return, function definitions, application of function, external functions, dictionaries, typedef structs, and typedef unions (with new support for union types). 
+
+## IR (RISC-like intermediate representation) (In planning stage / In progress)
+The next step is to develop a translation of the language from the C-like version to an IR which is a higher level Risc language. This IR will be based on three argument assembly instructions and will feature ops like add, ld, st, etc. 
+
+## Code emission (Not yet planned)
+The final planned step is to develop code emission from the IR to RISC-V assembly code. This will probably be more straightforward than what happens for the IR translation phase. Register spilling into the stack will be liberally used. Space layout may not be optimal. Code is NOT OPTIMIZED in any fashion.  
+
