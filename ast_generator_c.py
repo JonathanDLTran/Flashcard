@@ -1746,7 +1746,7 @@ def match_elt(lexbuf):
         return 1, StrValue(elt_val)
     elif elt_typ == lexer_c.FLOAT:
         return 1, FloatValue(elt_val)
-    elif elt_typ == lexer_c.VARIABLE and (elt_val == lexer_c.TRUE or elt_val == lexer_c.FALSE):
+    elif elt_typ == lexer_c.KEYWORD and (elt_val == lexer_c.TRUE or elt_val == lexer_c.FALSE):
         return 1, BoolValue(True if elt_val == lexer_c.TRUE else False)
     elif elt_typ == lexer_c.VARIABLE:
         if len(lexbuf) > 1:
@@ -1846,7 +1846,7 @@ def match_elt(lexbuf):
         unop_typ, unop_val_ast = lexbuf[1]
         if unop_typ == lexer_c.INTEGER:
             unop_val_ast = IntValue(unop_val_ast)
-        elif unop_typ == lexer_c.VARIABLE and (unop_val_ast == lexer_c.TRUE or unop_val_ast == lexer_c.FALSE):
+        elif unop_typ == lexer_c.KEYWORD and (unop_val_ast == lexer_c.TRUE or unop_val_ast == lexer_c.FALSE):
             unop_val_ast = BoolValue(
                 True if elt_val == lexer_c.TRUE else False)
         elif unop_typ == lexer_c.VARIABLE:
