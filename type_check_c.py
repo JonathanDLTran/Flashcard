@@ -71,6 +71,30 @@ def check_tuple(tup, ctx):
     return ast_generator_c.TupleType(tup_component_types)
 
 
+def check_list(lst, ctx):
+    """
+    check_list(lst, ctx) returns the correct type for a lst expression
+    in ctx, otherwise raises error
+    """
+    assert type(lst) == ast_generator_c.List
+    exprs_list = lst.get_exprs()
+    lst_component_types = []
+    for expr in exprs_list:
+        expr_typ = check_expr(expr, ctx)
+        lst_component_types.append(expr_typ)
+    if lst_component_types == []:
+        return ast_generator_c.WILDCARD_TYPE
+    first_type = lst_component_types[0]
+    # if first_type == ast_generator_c.WILDCARD_TYPE:
+    #     raise TypeError(
+    #         f"Type mismatch in list: first element type is {first_type} but a non-empty list cannot have type {ast_generator_c.WILDCARD_TYPE}. ")
+    for typ in lst_component_types:
+        if typ != first_type:
+            raise TypeError(
+                f"Type mismatch in list: first element type is {first_type} and one of the elements has a mismatched type {typ}. ")
+    return ast_generator_c.ListType(first_type)
+
+
 def check_unop(unop, ctx):
     """
     check_unop(unop, ctx) returns the correct type for a unop expression
@@ -151,6 +175,8 @@ def check_expr(expr, ctx):
         return check_float(expr, ctx)
     elif type(expr) == ast_generator_c.Tuple:
         return check_tuple(expr, ctx)
+    elif type(expr) == ast_generator_c.List:
+        return check_list(expr, ctx)
     elif type(expr) == ast_generator_c.Unop:
         return check_unop(expr, ctx)
     elif type(expr) == ast_generator_c.Bop:
@@ -202,12 +228,11 @@ def check_assignment(assign, ctx):
         raise TypeError(
             f"Assignment to variable does match variable type: Variable {var} has type {var_typ} while the assignment has type {expr_typ}. ")
 
-    return ctx
-
 
 def check_declare_tuple(tup, ctx):
     """
     check_declare_tuple(phrase, ctx)  checks if the declaration of the tuple type checks
+    otherwise raises exceptiion
     """
     assert type(tup) == ast_generator_c.DeclareTuple
     tup_typ = tup.get_typ()
@@ -220,6 +245,27 @@ def check_declare_tuple(tup, ctx):
         original_typ = ctx[var]
         raise TypeError(
             f"Cannot reassign variable to different type: Original Type was {original_typ} while new type is {tup_typ}")
+
+    ctx = check_assignment(assign, ctx)
+    return ctx
+
+
+def check_declare_list(lst, ctx):
+    """
+    check_declare_list(lst, ctx) checks if the declaration of the list type 
+    type checks otherwise raises exception
+    """
+    assert type(lst) == ast_generator_c.DeclareList
+    lst_typ = lst.get_typ()
+    assign = lst.get_assign()
+    var = assign.get_var()
+
+    if var not in ctx:
+        ctx[var] = lst_typ
+    else:
+        original_typ = ctx[var]
+        raise TypeError(
+            f"Cannot reassign variable to different type: Original Type was {original_typ} while new type is {lst_typ}")
 
     ctx = check_assignment(assign, ctx)
     return ctx
@@ -240,16 +286,24 @@ def type_check(program):
             ctx = check_assignment(phrase, ctx)
         elif type(phrase) == ast_generator_c.DeclareTuple:
             ctx = check_declare_tuple(phrase, ctx)
+        elif type(phrase) == ast_generator_c.DeclareList:
+            ctx = check_declare_list(phrase, ctx)
         else:
             raise RuntimeError("Unimplemented")
     return ctx
 
 
 if __name__ == "__main__":
-    program = 'float f := -1.0; str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z; (int * int) t := (|1, 2|); (int * (str * int)) t2 := (|1, (|"hello", 3|)|); t := (| -1, -1|);'
+    program = '([int] * int) tl := (|[], 3|); tl := (|[2], -3|); [(int * int)] l1 := []; l1 := [(|1, 2|)]; l1 := []; l1 := [(|-1, -2|)]; [[int]] l := []; l := [[1, 2], [3]]; l := [[2]]; l := []; float f := -1.0; str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z; (int * int) t := (|1, 2|); (int * (str * int)) t2 := (|1, (|"hello", 3|)|); t := (| -1, -1|);'
     try:
         result = type_check(
             ast_generator_c.parse_program(lexer_c.lex(program)))
         print(result)
     except Exception as e:
         print(e)
+
+
+# lists are declared [type] var := list
+# e.g. [int] ages := [1, 2, 3];
+# or [[int]] age_lists := [[1], [2, 3]]
+# where the second imples that each element of the list is itself a list

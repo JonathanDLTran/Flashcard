@@ -55,6 +55,11 @@ PRECENDENCE_MAP = {
     lexer_c.EXP: 3,
 }
 
+
+# ------- TYPE RELATED -------
+WILDCARD_TYPE = "wildcard_type"  # matches empty list, empty dict key or value, etc
+
+
 # ------- EXTERNS ------------
 PRINT = "print"
 MEM = "mem"
@@ -219,6 +224,36 @@ class TupleType(Type):
         return "(TupleType: " + str(self.typ_list) + ")"
 
     def __eq__(self, other):
+        if type(other) != TupleType:
+            return False
+        other_typ_list = other.get_typ()
+        self_typ_list = self.get_typ()
+        if len(other_typ_list) != len(self_typ_list):
+            return False
+        for i in range(len(self_typ_list)):
+            self_item = self_typ_list[i]
+            other_item = other_typ_list[i]
+            if self_item != other_item:
+                return False
+        return True
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+
+class ListType(Type):
+    def __init__(self, typ):
+        self.typ = typ
+
+    def get_typ(self):
+        return self.typ
+
+    def __repr__(self):
+        return "(ListType: " + str(self.typ) + ")"
+
+    def __eq__(self, other):
+        if type(other) == str and other == WILDCARD_TYPE:
+            return True
         return self.__repr__() == other.__repr__()
 
     def __ne__(self, other):
@@ -520,6 +555,26 @@ class DeclareTuple(Expr):
         return "(DeclareTuple: " + str(self.typ) + " " + str(self.assign) + ")"
 
 
+class DeclareList(Expr):
+    """
+    DeclareList represents an type declaration var := list
+    """
+
+    def __init__(self, typ, assign):
+        super().__init__()
+        self.typ = typ
+        self.assign = assign
+
+    def get_assign(self):
+        return self.assign
+
+    def get_typ(self):
+        return self.typ
+
+    def __repr__(self):
+        return "(DeclareList: " + str(self.typ) + " " + str(self.assign) + ")"
+
+
 class While(Expr):
     """
     While represents
@@ -748,20 +803,20 @@ class Program(Expr):
 #     return match_expr(IntValue(val), lexbuf)
 
 
-def get_between_brackets(lex_buff, idx):
+def get_between_brackets(lex_buff, idx, start=lexer_c.LPAREN, end=lexer_c.RPAREN):
     # assume start after idx
     stack = []
-    stack.append(lexer_c.LPAREN)
+    stack.append(start)
     expr_terms = []
     i = idx
 
     while (i < len(lex_buff) and stack != []):
 
         typ, val = lex_buff[i]
-        if val == lexer_c.LPAREN:
+        if val == start:
             stack.append(val)
-        elif val == lexer_c.RPAREN:
-            if stack != [] and stack[-1] == lexer_c.LPAREN:
+        elif val == end:
+            if stack != [] and stack[-1] == start:
                 stack.pop()
         expr_terms.append((typ, val))
         i += 1
@@ -1410,7 +1465,6 @@ def parse_tuple_type(lexbuf, tokens, sep, acc):
     elif lexbuf[0][1] == sep:
         return parse_tuple_type(lexbuf[1:], tokens[1:], sep, acc)
     elif lexbuf[0][1] == lexer_c.LPAREN:
-
         l, inner_tokens = get_between_brackets(lexbuf, 1)  # start 1 aheaf
         remainder_lexbuf = lexbuf[1 + l + 1:]
         remainder_tokens = tokens[1 + l + 1:]
@@ -1419,6 +1473,47 @@ def parse_tuple_type(lexbuf, tokens, sep, acc):
             inner_lexbuf, inner_tokens, sep, [])
         acc.append(TupleType(inner_tup_typ))
         return parse_tuple_type(remainder_lexbuf, remainder_tokens, sep, acc)
+    elif lexbuf[0][1] == lexer_c.OPEN_BRACKET:
+        l, inner_tokens = get_between_brackets(
+            lexbuf, 1, start=lexer_c.OPEN_BRACKET, end=lexer_c.CLOSE_BRACKET)  # start 1 aheaf
+        remainder_lexbuf = lexbuf[1 + l + 1:]
+        remainder_tokens = tokens[1 + l + 1:]
+        inner_lexbuf = lexbuf[1: l]
+        inner_list_typ = parse_list_type(inner_lexbuf, inner_tokens)
+        acc.append(ListType(inner_list_typ))
+        return parse_tuple_type(remainder_lexbuf, remainder_tokens, sep, acc)
+
+
+def parse_list_type(lexbuf, tokens):
+    """
+    parse_list_type(lexbuf, tokens) parses the lexbuf into a lis ttype
+    """
+    if lexbuf == []:
+        # if len(acc) == 1 and type(acc[0]) == TupleType:
+        #     return acc[0]
+        # elif len(acc) < 2:
+        #     raise ParseError(
+        #         "The type of a Tuple must have more than 2 items to be a tuple")
+        # return acc
+        raise ParseError("Cannot be empty type when parsing list.")
+    elif lexbuf[0][1] in lexer_c.TYPES:
+        typ = lexbuf[0][1]
+        return typ
+    elif lexbuf[0][0] == lexer_c.VARIABLE:
+        typ = lexbuf[0][1]
+        return CustomType(typ)
+    elif lexbuf[0][1] == lexer_c.OPEN_BRACKET:
+        l, inner_tokens = get_between_brackets(
+            lexbuf, 1, start=lexer_c.OPEN_BRACKET, end=lexer_c.CLOSE_BRACKET)  # start 1 aheaf
+        inner_lexbuf = lexbuf[1: l]
+        inner_lst_typ = parse_list_type(
+            inner_lexbuf, inner_tokens)
+        return ListType(inner_lst_typ)
+    elif lexbuf[0][1] == lexer_c.LPAREN:
+        l, inner_tokens = get_between_brackets(lexbuf, 1)  # start 1 aheaf
+        tup_type = parse_tuple_type(
+            lexbuf[1:l], inner_tokens, lexer_c.TIMES, [])
+        return TupleType(tup_type)
 
 
 def parse_program(lexbuf):
@@ -1449,7 +1544,9 @@ def parse_phrase(lexbuf):
             return parse_phrase_helper(new_lex_buff, new_tokens, acc)
 
         # parse tuple declaraction
-        if lexbuf[0][1] in lexer_c.LPAREN:
+        # Tuples are declared as
+        # (t1 * t2 * t3) where t could itself be (t1 * t2 * t3)
+        if lexbuf[0][1] == lexer_c.LPAREN:
             semi_loc = tokens.index(lexer_c.SEMI)
             l, _ = get_between_brackets(lexbuf, 1)
             tup_typ = parse_tuple_type(
@@ -1462,8 +1559,21 @@ def parse_phrase(lexbuf):
             acc.append(parsed_tuple)
             return parse_phrase_helper(new_lex_buff, new_tokens, acc)
 
-        # Tuples are declared as
-        # (t1 * t2 * t3) where t could itself be (t1 * t2 * t3)
+        # parse list declaration
+        # lists are declared [type] var := list
+        # where type could itself be a list type
+        if lexbuf[0][1] == lexer_c.OPEN_BRACKET:
+            l, _ = get_between_brackets(
+                lexbuf, 1, start=lexer_c.OPEN_BRACKET, end=lexer_c.CLOSE_BRACKET)
+            list_typ = parse_list_type(lexbuf[1:l], tokens[1:l])
+            semi_loc = tokens.index(lexer_c.SEMI)
+            list_buffer = lexbuf[l + 1:semi_loc]
+            parsed_list = DeclareList(
+                ListType(list_typ), parse_assign(list_buffer))
+            new_lex_buff = lexbuf[semi_loc + 1:]
+            new_tokens = tokens[semi_loc + 1:]
+            acc.append(parsed_list)
+            return parse_phrase_helper(new_lex_buff, new_tokens, acc)
 
         # non custom type declaration
         if lexbuf[0][1] in lexer_c.TYPES:
