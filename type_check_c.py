@@ -13,6 +13,28 @@ import ast_generator_c
 import lexer_c
 
 
+# --------- RETURN EXCEPTION --------------------
+class ReturnException(Exception):
+    """
+    ReturnException(Exception) is an exception hpolding information
+    regarding the return type
+    """
+
+    def __init__(self, ret_typ):
+        """
+        __init__(self, ret_typ) creates a return exception 
+        with return type ret_typ
+        """
+        super().__init__()
+        self.ret_type = ret_typ
+
+    def get_ret_type(self):
+        """
+        get_ret_type(self) os the return type of the exception
+        """
+        return self.ret_type
+
+
 def check_int(int_val, ctx):
     """
     check_int(int_val, ctx)returns the correct type for a int expression
@@ -382,6 +404,16 @@ def check_ifthenelse(ifthenelse, ctx):
     return ctx
 
 
+def check_return(ret, ctx):
+    """
+    check_return(ret, ctx) type checks a return statement and raises
+    a Return exception with the type, otherwise raises Type Exception
+    """
+    ret_body = ret.get_body()
+    ret_type = check_expr(ret_body, ctx)
+    raise ReturnException(ret_type)
+
+
 def check_phrase(phrase, ctx):
     """
     check_phrase(phrase, ctx) type checks a phrase and returns ctx otherwise raises exception
@@ -404,6 +436,8 @@ def check_phrase(phrase, ctx):
         ctx = check_ignore(phrase, ctx)
     elif type(phrase) == ast_generator_c.IfThenElse:
         ctx = check_ifthenelse(phrase, ctx)
+    elif type(phrase) == ast_generator_c.Return:
+        check_return(phrase, ctx)
     else:
         raise RuntimeError("Unimplemented")
     return ctx
@@ -423,10 +457,13 @@ def type_check(program):
 
 
 if __name__ == "__main__":
-    program = 'if True then int m := 1; endif elif True then int n:= -2; endelif elif True then int n:= -2; endelif else int o := 24; endelse  ~1; ~2 + 3 - 4;bool k := True; while k dowhile k := False; endwhile  for i from 1 + 1 to 3 by 1 dofor int j := 1; endfor ([int] * int) tl := (|[], 3|); tl := (|[2], -3|); [(int * int)] l1 := []; l1 := [(|1, 2|)]; l1 := []; l1 := [(|-1, -2|)]; [[int]] l := []; l := [[1, 2], [3]]; l := [[2]]; l := []; float f := -1.0; str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z; (int * int) t := (|1, 2|); (int * (str * int)) t2 := (|1, (|"hello", 3|)|); t := (| -1, -1|);'
+    program = 'if True then int m := 1; endif elif True then int n:= -2; endelif elif True then int n:= -2; endelif else int o := 24; endelse  ~1; ~2 + 3 - 4;  bool k := True; while k dowhile k := False; endwhile  for i from 1 + 1 to 3 by 1 dofor int j := 1; endfor ([int] * int) tl := (|[], 3|); tl := (|[2], -3|); [(int * int)] l1 := []; l1 := [(|1, 2|)]; l1 := []; l1 := [(|-1, -2|)]; [[int]] l := []; l := [[1, 2], [3]]; l := [[2]]; l := []; float f := -1.0; str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z; (int * int) t := (|1, 2|); (int * (str * int)) t2 := (|1, (|"hello", 3|)|); t := (| -1, -1|);'
     try:
         result = type_check(
             ast_generator_c.parse_program(lexer_c.lex(program)))
         print(result)
+    except ReturnException as re:
+        print(
+            f"Return Exception caught: Return statements must be inside of function calls: Your return value of {re.get_ret_type()} was not nested in a function call.")
     except Exception as e:
         print(e)
