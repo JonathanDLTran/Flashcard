@@ -168,36 +168,93 @@ class Expr(object):
 
 
 class Type(object):
-    def __init__(self, typ):
+    def __init__(self):
         super().__init__()
-        self.typ = typ
-
-    def get_typ(self):
-        return self.typ
 
     def __repr__(self):
-        return "(Type: " + str(self.typ) + ")"
+        return "(AbstractType: DO NOT INSTANTIATE!)"
 
     def __eq__(self, other):
-        return self.__repr__() == other.__repr__()
+        print("Two Abstract Types are never equal!")
+        return False
 
     def __ne__(self, other):
         return not self.__eq__(other)
 
 
-# class BasicType(Type):
-#     def __init__(self, typ):
-#         super().__init__(typ)
+class IntType(Type):
+    def __init__(self):
+        super().__init__()
 
-#     def get_typ(self):
-#         return super().get_typ()
+    def __repr__(self):
+        return "(IntType)"
 
-#     def __repr__(self):
-#         return super().__repr__()
+    def __eq__(self, other):
+        return type(other) == IntType or type(other) == WildcardType
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+
+class StrType(Type):
+    def __init__(self):
+        super().__init__()
+
+    def __repr__(self):
+        return "(StrType)"
+
+    def __eq__(self, other):
+        return type(other) == StrType or type(other) == WildcardType
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+
+class FloatType(Type):
+    def __init__(self):
+        super().__init__()
+
+    def __repr__(self):
+        return "(FloatType)"
+
+    def __eq__(self, other):
+        return type(other) == FloatType or type(other) == WildcardType
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+
+class BoolType(Type):
+    def __init__(self):
+        super().__init__()
+
+    def __repr__(self):
+        return "(BoolType)"
+
+    def __eq__(self, other):
+        return type(other) == BoolType or type(other) == WildcardType
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+
+class WildcardType(Type):
+    def __init__(self):
+        super().__init__()
+
+    def __repr__(self):
+        return "(WildcardType)"
+
+    def __eq__(self, other):
+        return isinstance(other, Type)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 
 class CustomType(Type):
     def __init__(self, typ):
+        super().__init__()
         self.typ = typ
 
     def get_typ(self):
@@ -215,6 +272,7 @@ class CustomType(Type):
 
 class TupleType(Type):
     def __init__(self, typ_list):
+        super().__init__()
         self.typ_list = typ_list
 
     def get_typ(self):
@@ -224,6 +282,8 @@ class TupleType(Type):
         return "(TupleType: " + str(self.typ_list) + ")"
 
     def __eq__(self, other):
+        if type(other) == WILDCARD_TYPE:
+            return True
         if type(other) != TupleType:
             return False
         other_typ_list = other.get_typ()
@@ -243,6 +303,7 @@ class TupleType(Type):
 
 class ListType(Type):
     def __init__(self, typ):
+        super().__init__()
         self.typ = typ
 
     def get_typ(self):
@@ -252,9 +313,8 @@ class ListType(Type):
         return "(ListType: " + str(self.typ) + ")"
 
     def __eq__(self, other):
-        if type(other) == str and other == WILDCARD_TYPE:
-            return True
-        return self.__repr__() == other.__repr__()
+        return (type(other) == ListType and other.get_typ() == self.get_typ()) or \
+            (type(other) == WildcardType)
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -1456,7 +1516,7 @@ def parse_tuple_type(lexbuf, tokens, sep, acc):
     elif lexbuf[0][1] in lexer_c.TYPES:
         typ = lexbuf[0][1]
         # acc.append(BasicType(typ))
-        acc.append(typ)
+        acc.append(base_type_to_type_obj(typ))
         return parse_tuple_type(lexbuf[1:], tokens[1:], sep, acc)
     elif lexbuf[0][0] == lexer_c.VARIABLE:
         typ = lexbuf[0][1]
@@ -1489,16 +1549,10 @@ def parse_list_type(lexbuf, tokens):
     parse_list_type(lexbuf, tokens) parses the lexbuf into a lis ttype
     """
     if lexbuf == []:
-        # if len(acc) == 1 and type(acc[0]) == TupleType:
-        #     return acc[0]
-        # elif len(acc) < 2:
-        #     raise ParseError(
-        #         "The type of a Tuple must have more than 2 items to be a tuple")
-        # return acc
         raise ParseError("Cannot be empty type when parsing list.")
     elif lexbuf[0][1] in lexer_c.TYPES:
         typ = lexbuf[0][1]
-        return typ
+        return base_type_to_type_obj(typ)
     elif lexbuf[0][0] == lexer_c.VARIABLE:
         typ = lexbuf[0][1]
         return CustomType(typ)
@@ -1518,6 +1572,22 @@ def parse_list_type(lexbuf, tokens):
 
 def parse_program(lexbuf):
     return Program(parse_phrase(lexbuf))
+
+
+def base_type_to_type_obj(typ):
+    """
+    base_type_to_type_obj(typ) converts a base typ like 'int' to IntType()
+    or 'str' to StrType or 'float' to FloatType or 'bool' to BoolType.
+    """
+    if typ == lexer_c.INT:
+        return IntType()
+    elif typ == lexer_c.BOOL:
+        return BoolType()
+    elif typ == lexer_c.STR:
+        return StrType()
+    elif typ == lexer_c.FLOAT:
+        return FloatType()
+    raise RuntimeError(f"Parse Error: {typ} was NOT A BASE TYPE")
 
 
 def parse_phrase(lexbuf):
@@ -1583,10 +1653,21 @@ def parse_phrase(lexbuf):
             new_tokens = tokens[end_type_decl + 1:]
             typ = decl_buff[0][1]
             assign_buff = decl_buff[1:]
-            # parsed_decl = Declaration(
-            #     BasicType(typ), parse_assign(assign_buff))
             parsed_decl = Declaration(
-                typ, parse_assign(assign_buff))
+                base_type_to_type_obj(typ), parse_assign(assign_buff))
+            acc.append(parsed_decl)
+            return parse_phrase_helper(new_lex_buff, new_tokens, acc)
+
+        # two consercutve variable types ina  row indicates a custom type
+        if len(lexbuf) >= 2 and lexbuf[0][0] == lexer_c.VARIABLE and lexbuf[1][0] == lexer_c.VARIABLE:
+            end_type_decl = tokens.index(lexer_c.SEMI)
+            decl_buff = lexbuf[0:end_type_decl]  # ignore semi
+            new_lex_buff = lexbuf[end_type_decl + 1:]
+            new_tokens = tokens[end_type_decl + 1:]
+            typ = decl_buff[0][1]
+            assign_buff = decl_buff[1:]
+            parsed_decl = Declaration(
+                CustomType(typ), parse_assign(assign_buff))
             acc.append(parsed_decl)
             return parse_phrase_helper(new_lex_buff, new_tokens, acc)
 
@@ -1687,6 +1768,7 @@ def parse_phrase(lexbuf):
 
         # function
         if lexbuf[0][1] == lexer_c.FUN:
+            # need to parse function type here
             end_fun_loc = parse_end(
                 lexbuf, 1, lexer_c.FUN, lexer_c.END_FUN)
             fun_statement = lexbuf[0:end_fun_loc + 1]

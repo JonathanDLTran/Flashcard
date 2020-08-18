@@ -41,7 +41,7 @@ def check_int(int_val, ctx):
     in ctx, otherwise raises error
     """
     assert type(int_val) == ast_generator_c.IntValue
-    return lexer_c.INT
+    return ast_generator_c.IntType()
 
 
 def check_bool(bool_val, ctx):
@@ -50,7 +50,7 @@ def check_bool(bool_val, ctx):
     in ctx, otherwise raises error
     """
     assert type(bool_val) == ast_generator_c.BoolValue
-    return lexer_c.BOOL
+    return ast_generator_c.BoolType()
 
 
 def check_str(str_val, ctx):
@@ -59,7 +59,7 @@ def check_str(str_val, ctx):
     in ctx, otherwise raises error
     """
     assert type(str_val) == ast_generator_c.StrValue
-    return lexer_c.STR
+    return ast_generator_c.StrType()
 
 
 def check_float(float_val, ctx):
@@ -68,7 +68,7 @@ def check_float(float_val, ctx):
     in ctx, otherwise raises error
     """
     assert type(float_val) == ast_generator_c.FloatValue
-    return lexer_c.FLOAT
+    return ast_generator_c.FloatType()
 
 
 def check_var(var, ctx):
@@ -109,11 +109,8 @@ def check_list(lst, ctx):
         expr_typ = check_expr(expr, ctx)
         lst_component_types.append(expr_typ)
     if lst_component_types == []:
-        return ast_generator_c.WILDCARD_TYPE
+        return ast_generator_c.WildcardType()
     first_type = lst_component_types[0]
-    # if first_type == ast_generator_c.WILDCARD_TYPE:
-    #     raise TypeError(
-    #         f"Type mismatch in list: first element type is {first_type} but a non-empty list cannot have type {ast_generator_c.WILDCARD_TYPE}. ")
     for typ in lst_component_types:
         if typ != first_type:
             raise TypeError(
@@ -133,18 +130,18 @@ def check_unop(unop, ctx):
     typ_e = check_expr(expr, ctx)
 
     if op in [lexer_c.MINUS]:
-        if typ_e == lexer_c.INT:
-            return lexer_c.INT
-        elif typ_e == lexer_c.FLOAT:
-            return lexer_c.FLOAT
+        if typ_e == ast_generator_c.IntType():
+            return ast_generator_c.IntType()
+        elif typ_e == ast_generator_c.FloatType():
+            return ast_generator_c.FloatType()
         raise TypeError(
-            f"Type mismatch for int unary operator: expression type is {typ_e} and the operator {op} requires the expression to be an int. ")
+            f"Type mismatch for int or float unary operator: expression type is {typ_e} and the operator {op} requires the expression to be an int. ")
 
     elif op in [lexer_c.NOT]:
-        if typ_e == lexer_c.BOOL:
-            return lexer_c.BOOL
+        if typ_e == ast_generator_c.BoolType():
+            return ast_generator_c.BoolType()
         raise TypeError(
-            f"Type mismatch for int unary operator: expression type is {typ_e} and the operator {op} requires the expression to be a bool. ")
+            f"Type mismatch for bool unary operator: expression type is {typ_e} and the operator {op} requires the expression to be a bool. ")
 
     raise RuntimeError("Unimplemented")
 
@@ -163,20 +160,20 @@ def check_bop(bop, ctx):
     typ_r = check_expr(right, ctx)
 
     if op in [lexer_c.PLUS, lexer_c.MINUS, lexer_c.TIMES, lexer_c.DIV]:
-        if typ_l == lexer_c.INT and typ_r == lexer_c.INT:
-            return lexer_c.INT
+        if typ_l == ast_generator_c.IntType() and typ_r == ast_generator_c.IntType():
+            return ast_generator_c.IntType()
         raise TypeError(
             f"Type mismatch for int binary operator: left type is {typ_l}, right type is {typ_r} and the operator {op} requires both to be ints. ")
 
     elif op in [lexer_c.AND, lexer_c.OR]:
-        if typ_l == lexer_c.BOOL and typ_r == lexer_c.BOOL:
-            return lexer_c.BOOL
+        if typ_l == ast_generator_c.BoolType() and typ_r == ast_generator_c.BoolType():
+            return ast_generator_c.BoolType()
         raise TypeError(
             f"Type mismatch for bool binary operator: left type is {typ_l}, right type is {typ_r} and the operator {op} requires both to be bools. ")
 
     elif op in [lexer_c.CONCAT]:
-        if typ_l == lexer_c.STR and typ_r == lexer_c.STR:
-            return lexer_c.STR
+        if typ_l == ast_generator_c.StrType() and ast_generator_c.StrType():
+            return ast_generator_c.StrType()
         raise TypeError(
             f"Type mismatch for str binary operator: left type is {typ_l}, right type is {typ_r} and the operator {op} requires both to be strings. ")
 
@@ -218,9 +215,7 @@ def check_declaration(declr, ctx):
     assert type(declr) == ast_generator_c.Declaration
     assignment_node = declr.get_assign()
     var = assignment_node.get_var()
-    # typ_node = declr.get_typ()
     typ = declr.get_typ()
-    # typ = typ_node.get_typ()
 
     if var not in ctx:
         ctx[var] = typ
@@ -323,13 +318,13 @@ def check_declare_for(_for, ctx):
     end_typ = check_expr(_end, ctx)
     by_typ = check_expr(_by, ctx)
 
-    if type(from_typ) == str and from_typ != lexer_c.INT:
+    if from_typ != ast_generator_c.IntType():
         raise TypeError("For loop From must be an Int")
 
-    if type(end_typ) == str and end_typ != lexer_c.INT:
+    if end_typ != ast_generator_c.IntType():
         raise TypeError("For loop End must be an Int")
 
-    if type(by_typ) == str and by_typ != lexer_c.INT:
+    if by_typ != ast_generator_c.IntType():
         raise TypeError("By loop End must be an Int")
 
     for phrase in body:
@@ -465,5 +460,10 @@ if __name__ == "__main__":
     except ReturnException as re:
         print(
             f"Return Exception caught: Return statements must be inside of function calls: Your return value of {re.get_ret_type()} was not nested in a function call.")
-    except Exception as e:
-        print(e)
+    # except Exception as e:
+    #     print(e)
+
+# union type is
+# [|val|]
+# union cash := [|int; float|]
+# cash c := [|1|]
