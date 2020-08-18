@@ -180,6 +180,35 @@ def check_bop(bop, ctx):
     raise RuntimeError("Unimplemented")
 
 
+def check_dict(_dict, ctx):
+    """
+    check_dict(_dict, ctx) type checks and returns type of _dict, otherwise
+    raises Type error
+    """
+    keys_list = _dict.get_keys()
+    vals_list = _dict.get_vals()
+
+    key_typ = ast_generator_c.WildcardType()
+    for key in keys_list:
+        new_typ = check_expr(key, ctx)
+        if new_typ != key_typ and key_typ != ast_generator_c.WildcardType():
+            raise TypeError(
+                f"Keys must be same type in dictionary. One key was {key_typ} while another was {new_typ}.")
+        else:
+            key_typ = new_typ
+
+    val_typ = ast_generator_c.WildcardType()
+    for val in vals_list:
+        new_typ = check_expr(val, ctx)
+        if new_typ != val_typ and val_typ != ast_generator_c.WildcardType():
+            raise TypeError(
+                f"Values must be same type in dictionary. One value was {val_typ} while another was {new_typ}.")
+        else:
+            val_typ = new_typ
+
+    return (key_typ, val_typ)
+
+
 def check_expr(expr, ctx):
     """
     check_expr(expr) is the type of the expr if it is well-typed,
@@ -200,6 +229,8 @@ def check_expr(expr, ctx):
         return check_tuple(expr, ctx)
     elif type(expr) == ast_generator_c.List:
         return check_list(expr, ctx)
+    elif type(expr) == ast_generator_c.Dict:
+        return check_dict(expr, ctx)
     elif type(expr) == ast_generator_c.Unop:
         return check_unop(expr, ctx)
     elif type(expr) == ast_generator_c.Bop:
@@ -409,6 +440,29 @@ def check_return(ret, ctx):
     raise ReturnException(ret_type)
 
 
+def check_declare_dict(_dict, ctx):
+    """
+    check_declare_dict(_dict, ctx) checks if _dict is well typed  and returns ctx 
+    other wise raises typed error
+    """
+    assert type(_dict) == ast_generator_c.DeclareDict
+    _dict_types = _dict.get_typ()
+    key_typ = _dict_types.get_key_typ()
+    val_typ = _dict_types.get_val_typ()
+    assign = _dict.get_assign()
+    var = assign.get_var()
+
+    if var not in ctx:
+        ctx[var] = (key_typ, val_typ)
+    else:
+        original_typ = ctx[var]
+        raise TypeError(
+            f"Cannot reassign variable to different type: Original Type was {original_typ} while new key type is {key_typ}, and new value type is {val_typ}")
+
+    ctx = check_assignment(assign, ctx)
+    return ctx
+
+
 def check_phrase(phrase, ctx):
     """
     check_phrase(phrase, ctx) type checks a phrase and returns ctx otherwise raises exception
@@ -431,6 +485,8 @@ def check_phrase(phrase, ctx):
         ctx = check_ignore(phrase, ctx)
     elif type(phrase) == ast_generator_c.IfThenElse:
         ctx = check_ifthenelse(phrase, ctx)
+    elif type(phrase) == ast_generator_c.DeclareDict:
+        ctx = check_declare_dict(phrase, ctx)
     elif type(phrase) == ast_generator_c.Return:
         check_return(phrase, ctx)
     else:
@@ -452,7 +508,7 @@ def type_check(program):
 
 
 if __name__ == "__main__":
-    program = 'if True then int m := 1; endif elif True then int n:= -2; endelif elif True then int n:= -2; endelif else int o := 24; endelse  ~1; ~2 + 3 - 4;  bool k := True; while k dowhile k := False; endwhile  for i from 1 + 1 to 3 by 1 dofor int j := 1; endfor ([int] * int) tl := (|[], 3|); tl := (|[2], -3|); [(int * int)] l1 := []; l1 := [(|1, 2|)]; l1 := []; l1 := [(|-1, -2|)]; [[int]] l := []; l := [[1, 2], [3]]; l := [[2]]; l := []; float f := -1.0; str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z; (int * int) t := (|1, 2|); (int * (str * int)) t2 := (|1, (|"hello", 3|)|); t := (| -1, -1|);'
+    program = '{int : int} d := {1: 1, 2: -3}; d := {}; if True then int m := 1; endif elif True then int n:= -2; endelif elif True then int n:= -2; endelif else int o := 24; endelse  ~1; ~2 + 3 - 4;  bool k := True; while k dowhile k := False; endwhile  for i from 1 + 1 to 3 by 1 dofor int j := 1; endfor ([int] * int) tl := (|[], 3|); tl := (|[2], -3|); [(int * int)] l1 := []; l1 := [(|1, 2|)]; l1 := []; l1 := [(|-1, -2|)]; [[int]] l := []; l := [[1, 2], [3]]; l := [[2]]; l := []; float f := -1.0; str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z; (int * int) t := (|1, 2|); (int * (str * int)) t2 := (|1, (|"hello", 3|)|); t := (| -1, -1|);'
     try:
         result = type_check(
             ast_generator_c.parse_program(lexer_c.lex(program)))
@@ -460,8 +516,8 @@ if __name__ == "__main__":
     except ReturnException as re:
         print(
             f"Return Exception caught: Return statements must be inside of function calls: Your return value of {re.get_ret_type()} was not nested in a function call.")
-    # except Exception as e:
-    #     print(e)
+    except Exception as e:
+        print(e)
 
 # union type is
 # [|val|]

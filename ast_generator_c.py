@@ -320,6 +320,29 @@ class ListType(Type):
         return not self.__eq__(other)
 
 
+class DictType(Type):
+    def __init__(self, key_typ, val_typ):
+        super().__init__()
+        self.key_typ = key_typ
+        self.val_typ = val_typ
+
+    def get_key_typ(self):
+        return self.key_typ
+
+    def get_val_typ(self):
+        return self.val_typ
+
+    def __repr__(self):
+        return "(DictType: " + str(self.key_typ) + " : " + str(self.val_typ) + ")"
+
+    def __eq__(self, other):
+        return (type(other) == DictType and other.get_key_typ() == self.get_key_typ() and other.get_val_typ() == self.get_val_typ()) or \
+            (type(other) == WildcardType)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+
 class IntValue(Expr):
     """
     IntValue represents an Int Value
@@ -633,6 +656,26 @@ class DeclareList(Expr):
 
     def __repr__(self):
         return "(DeclareList: " + str(self.typ) + " " + str(self.assign) + ")"
+
+
+class DeclareDict(Expr):
+    """
+    DeclareDict represents an {t1 : t2} }var := dictimonary
+    """
+
+    def __init__(self, typ, assign):
+        super().__init__()
+        self.typ = typ
+        self.assign = assign
+
+    def get_assign(self):
+        return self.assign
+
+    def get_typ(self):
+        return self.typ
+
+    def __repr__(self):
+        return "(DeclareDict: " + str(self.typ) + " " + str(self.assign) + ")"
 
 
 class While(Expr):
@@ -1497,7 +1540,29 @@ def get_function_args(lexbuf, demarcation):
 #         raise ParseError("Unknown Symbol")
 
 
-def parse_tuple_type(lexbuf, sep):
+def parse_dict_type(lexbuf, sep=lexer_c.COLON):
+    """
+    parse_dict_type(lexbuf, sep) parses a stream that begins with an open brace parentheses
+    symbol { (lexer_c.OPEN_DICT), which is delineted by symbol sep
+    token sare the symbols in lexbuf
+    the 0th symbol in lexbuf must be a open parentheses
+
+    SEP is typically a COLON or :
+    """
+    component_types = []
+    for component_section in get_function_args(lexbuf, sep):
+        if component_section == []:
+            raise ParseError(
+                "Two : cannot follow each other, nor can a : be at the beginning or end.")
+        component_type = parse_type(component_section)
+        component_types.append(component_type)
+    if len(component_types) != 2:
+        raise ParseError(
+            "Dictionaries Must Have Exactly 2 types.")
+    return DictType(component_types[0], component_types[1])
+
+
+def parse_tuple_type(lexbuf, sep=lexer_c.TIMES):
     """
     parse_tuple_type(lexbuf) parses a stream that begins with an open parentheses
     symbol, which is delineted by symbol sep
@@ -1507,9 +1572,15 @@ def parse_tuple_type(lexbuf, sep):
     SEP is typically a TIMES or *
     """
     component_types = []
-    for component_sections in get_function_args(lexbuf, sep):
-        component_type = parse_type(component_sections)
+    for component_section in get_function_args(lexbuf, sep):
+        if component_section == []:
+            raise ParseError(
+                "Two * cannot follow each other, nor can a * be at the beginning or end.")
+        component_type = parse_type(component_section)
         component_types.append(component_type)
+    if len(component_types) < 2:
+        raise ParseError(
+            "Tuples must have 2 or more types for each of the corresponding components.")
     return TupleType(component_types)
 
 
@@ -1546,6 +1617,12 @@ def parse_type(lexbuf):
         tup_type = parse_tuple_type(
             lexbuf[1:l], lexer_c.TIMES)
         return tup_type
+    elif lexbuf[0][1] == lexer_c.OPEN_DICT:
+        l, _ = get_between_brackets(
+            lexbuf, 1, lexer_c.OPEN_DICT, lexer_c.CLOSE_DICT)  # start 1 aheaf
+        dict_type = parse_dict_type(
+            lexbuf[1:l], lexer_c.COLON)
+        return dict_type
     raise ParseError(
         f"Malformed type definition when parsing lexbuf stream: {lexbuf}.")
 
@@ -1619,6 +1696,21 @@ def parse_phrase(lexbuf):
             new_lex_buff = lexbuf[semi_loc + 1:]
             new_tokens = tokens[semi_loc + 1:]
             acc.append(parsed_list)
+            return parse_phrase_helper(new_lex_buff, new_tokens, acc)
+
+        # parse dict declartion: dictionaries are declared as
+        # {t1 : t2} var := dictionary
+        if lexbuf[0][1] == lexer_c.OPEN_DICT:
+            l, _ = get_between_brackets(
+                lexbuf, 1, start=lexer_c.OPEN_DICT, end=lexer_c.CLOSE_DICT)
+            dict_typ = parse_dict_type(lexbuf[1:l], lexer_c.COLON)
+            semi_loc = tokens.index(lexer_c.SEMI)
+            dict_buffer = lexbuf[l + 1:semi_loc]
+            parsed_dict = DeclareDict(
+                dict_typ, parse_assign(dict_buffer))
+            new_lex_buff = lexbuf[semi_loc + 1:]
+            new_tokens = tokens[semi_loc + 1:]
+            acc.append(parsed_dict)
             return parse_phrase_helper(new_lex_buff, new_tokens, acc)
 
         # non custom type declaration
