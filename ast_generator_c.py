@@ -253,18 +253,99 @@ class WildcardType(Type):
 
 
 class CustomType(Type):
-    def __init__(self, typ):
+    def __init__(self, name):
         super().__init__()
+        self.name = name
+
+    def get_name(self):
+        return self.name
+
+    def __repr__(self):
+        return "(CustomType: " + str(self.name) + ")"
+
+    def __eq__(self, other):
+        raise RuntimeError("NEVER TEST FOR CUSTOM TYPE EQUALITY!")
+        # if type(other) == WildcardType:
+        #     return True
+        # if type(other) != CustomType:
+        #     return False
+        # may not be completely correct: other variants of the same type
+        # are still false!
+        # return self.name == other.name
+
+    def __ne__(self, other):
+        raise RuntimeError("NEVER TEST FOR CUSTOM TYPE INEQUALITY!")
+        # return not self.__eq__(other)
+
+
+class UnionType(Type):
+    def __init__(self, name, typ):
+        super().__init__()
+        self.name = name
         self.typ = typ
+
+    def get_name(self):
+        return self.name
 
     def get_typ(self):
         return self.typ
 
     def __repr__(self):
-        return "(CustomType: " + str(self.typ) + ")"
+        return "(UnionDeclaration: " + + str(self.name) + " " + str(self.typ) + ")"
 
     def __eq__(self, other):
-        return self.__repr__() == other.__repr__()
+        raise RuntimeError("NEVER TEST FOR UNION TYPE EQUALITY!")
+        # if type(other) == WildcardType:
+        #     return True
+        # if type(other) != UnionType:
+        #     return False
+        # may not be completely correct: other variants of the same type
+        # are still false!
+        # return self.name == other.name and self.typ == other.typ
+
+    def __ne__(self, other):
+        raise RuntimeError("NEVER TEST FOR UNION TYPE INEQUALITY!")
+        # return not self.__eq__(other)
+
+
+class DeclareUnion(Type):
+    def __init__(self, name, typ_list):
+        super().__init__()
+        self.name = name
+        self.typ_list = typ_list
+
+    def get_name(self):
+        return self.name
+
+    def get_typ_list(self):
+        return self.typ_list
+
+    def __repr__(self):
+        return "(UnionDeclaration: " + + str(self.name) + " " + str(self.typ_list) + ")"
+
+    def __eq__(self, other):
+        if type(other) == WildcardType:
+            return True
+        if type(other) != DeclareUnion:
+            return False
+        self_name = self.get_name()
+        other_name = other.get_name()
+        if self_name != other_name:
+            return False
+        self_typ_list = self.get_typ_list()
+        other_typ_list = other.get_typ_list()
+        if len(self_typ_list) != len(other_typ_list):
+            return False
+        # order of declarations does not matter, as long as they are
+        # they exist in both Union Types
+        for typ in self_typ_list:
+            has_match = False
+            for other_typ in self_typ_list:
+                if typ == other_typ:
+                    has_match = True
+            if not has_match:
+                return False
+        return True
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -1754,6 +1835,15 @@ def parse_phrase(lexbuf):
             acc.append(ignore_parsed)
             return parse_phrase_helper(new_lex_buff, new_tokens, acc)
 
+        # parse union declaration
+        if lexbuf[0][1] == lexer_c.UNION:
+            semi_loc = tokens.index(lexer_c.SEMI)
+            parsed_union = parse_union_declaration(lexbuf[:semi_loc + 1])
+            new_lex_buff = lexbuf[semi_loc + 1:]
+            new_tokens = tokens[semi_loc + 1:]
+            acc.append(parsed_union)
+            return parse_phrase_helper(new_lex_buff, new_tokens, acc)
+
         # parse tuple declaraction
         # Tuples are declared as
         # (t1 * t2 * t3) where t could itself be (t1 * t2 * t3)
@@ -2443,6 +2533,69 @@ def parse_ignore(lexbuf):
     expr = lexbuf[ignore_pos + 1:semi_pos]
     expr_ast = parse_expr(expr)
     return Ignore(expr_ast)
+
+
+def parse_union_declaration(lexbuf):
+    """
+    lexbuf begins with "union" keyword 
+
+    lexbuf is the ENTIRE UNION DECLARATION, NO MORE OR NO LESS
+    e.g. no extra hanging keywords or characters
+
+    Returns a DeclareUnion type object
+
+    union type is
+    union name := A of type1 | B of type 2 |C ...|(typedef declare);
+    name var := @A; or name var := @A(2); or ~@B(True);
+    union type declaractions CANNOT BE NESTED in each other
+    e.f union lol := A of (union lol2 := B of int)) is ILLEGAL
+    BUT YOU CAN NEST UNION DECLARATIONS INSIDE OF EACH OTHER
+    lol := @A(@B);
+    In general, it is illegal to declare any other type including a UNION
+    inside a union type declaration
+
+    union always ends with semi colon. there are no possible
+    semi colons inside of a union declaration.
+    """
+    name_pos = 1
+    assign_pos = 2
+    assert lexbuf[assign_pos][1] == lexer_c.ASSIGN
+    assert lexbuf[0][1] == lexer_c.UNION
+    type_name = lexbuf[name_pos][1]
+    tokens_list = list(map(lambda pair: pair[1], lexbuf))
+
+    union_sub_types = []
+    tokens_list = tokens_list[assign_pos + 1:]
+    lexbuf = lexbuf[assign_pos + 1:]
+    while lexer_c.PIPE in tokens_list:
+        pipe_pos = tokens_list.index(lexer_c.PIPE)
+        union_type_name = tokens_list[0]
+
+        remainder = lexbuf[1:pipe_pos]
+        if remainder == []:
+            union_tag_type = None
+        else:
+            union_tag_type = parse_type(remainder[1:])
+
+        union_sub_types.append((union_type_name, union_tag_type))
+
+        tokens_list = tokens_list[pipe_pos + 1:]
+        lexbuf = lexbuf[pipe_pos + 1:]
+
+    semi_pos = tokens_list.index(lexer_c.SEMI)
+    union_type_name = tokens_list[0]
+    # optional of type statement
+    remainder = lexbuf[1:semi_pos]
+    if remainder == []:
+        union_tag_type = None
+    else:
+        union_tag_type = parse_type(remainder[1:])
+
+    union_sub_types.append((union_type_name, union_tag_type))
+
+    assert len(union_sub_types) >= 1
+
+    return DeclareUnion(type_name, union_sub_types)
 
 
 def parse_program(lexbuf):

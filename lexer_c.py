@@ -67,6 +67,11 @@ INT = "int"
 BOOL = "bool"
 STR = "str"
 FLOAT = "float"
+STRUCT = "struct"
+UNION = "union"
+PIPE = "|"
+TAG = "@"
+OF = "of"
 
 # Order matters in keywords
 keywords = sorted(
@@ -129,6 +134,11 @@ keywords = sorted(
         BOOL,
         STR,
         FLOAT,
+        STRUCT,
+        UNION,
+        PIPE,
+        TAG,
+        OF,
 
     ],
     reverse=True)
@@ -195,6 +205,9 @@ add_space_in_lex = [
     BOOL,
     STR,
     FLOAT,
+    STRUCT,
+    UNION,
+    OF,
 ]
 
 no_space_in_lex = [kw for kw in keywords if kw not in add_space_in_lex]
@@ -237,6 +250,8 @@ NON_CHAR = [
     REV_ARROW,
     CONCAT,
     NEQ,
+    PIPE,
+    TAG,
 ]
 
 ALPHABETICAL = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"

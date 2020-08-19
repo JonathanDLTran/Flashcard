@@ -109,7 +109,16 @@ Undo: Ctrl-T to undo up to undo limit number of undos (can set undo limit)
 - Structs (runtime declared, no compile time type declaractions)
 
 ## Type Checker
-I have branched the language into a new c-like language, rather than the previous formerly Python like language. As such, now there is type checking. Currently, int, bool, string, float, tuple, list, ignore, if, for and while type checking is implemented for the language. The next step is to implement type checking for return, function definitions, application of function, external functions, dictionaries, typedef structs, and typedef unions (with new support for union types). 
+I have branched the language into a new c-like language, rather than the previous formerly Python like language. As such, now there is type checking. Currently, int, bool, string, float, tuple, list, dictionary, return, ignore, if, for, while, function, application type checking is implemented for the language. The next step is to implement type checking for external functions, typedef structs, and typedef unions (with new support for union types). Further extension might add some type inference with the unification algorithm for generic types, specified like 
+````
+`a
+````
+or 
+````
+ `t
+````
+However, there is no plan to extend generic types or polymorphic types beyond an intepreter phase, and certainly not to the IR or final compiler.
+
 
 ## IR (RISC-like intermediate representation) (In planning stage / In progress)
 The next step is to develop a translation of the language from the C-like version to an IR which is a higher level Risc language. This IR will be based on three argument assembly instructions and will feature ops like add, ld, st, etc. 

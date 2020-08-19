@@ -191,7 +191,7 @@ def check_dict(_dict, ctx):
     key_typ = ast_generator_c.WildcardType()
     for key in keys_list:
         new_typ = check_expr(key, ctx)
-        if new_typ != key_typ and key_typ != ast_generator_c.WildcardType():
+        if new_typ != key_typ:  # and key_typ != ast_generator_c.WildcardType():
             raise TypeError(
                 f"Keys must be same type in dictionary. One key was {key_typ} while another was {new_typ}.")
         else:
@@ -200,7 +200,7 @@ def check_dict(_dict, ctx):
     val_typ = ast_generator_c.WildcardType()
     for val in vals_list:
         new_typ = check_expr(val, ctx)
-        if new_typ != val_typ and val_typ != ast_generator_c.WildcardType():
+        if new_typ != val_typ:  # and val_typ != ast_generator_c.WildcardType():
             raise TypeError(
                 f"Values must be same type in dictionary. One value was {val_typ} while another was {new_typ}.")
         else:
@@ -549,6 +549,17 @@ def check_declare_func(fun, ctx):
     return ctx
 
 
+def check_declare_union(union, ctx):
+    """
+    check_declare_union(union, ctx) type checcks a declare dunoon and raises errior
+    if not typed correctly
+    """
+    union_name = union.get_name()
+    union_types = union.get_typ_list()
+    ctx[("union", union_name)] = union_types
+    return ctx
+
+
 def check_phrase(phrase, ctx):
     """
     check_phrase(phrase, ctx) type checks a phrase and returns ctx otherwise raises exception
@@ -575,6 +586,8 @@ def check_phrase(phrase, ctx):
         ctx = check_declare_dict(phrase, ctx)
     elif type(phrase) == ast_generator_c.DeclareFunc:
         ctx = check_declare_func(phrase, ctx)
+    elif type(phrase) == ast_generator_c.DeclareUnion:
+        ctx = check_declare_union(phrase, ctx)
     elif type(phrase) == ast_generator_c.Return:
         check_return(phrase, ctx)
     else:
@@ -596,7 +609,7 @@ def type_check(program):
 
 
 if __name__ == "__main__":
-    program = 'fun (|int -> int|) int_id x -> int u := 2; int r := int_id(u); return x; endfun {int : int} d := {1: 1, 2: -3}; d := {}; if True then int m := 1; endif elif True then int n:= -2; endelif elif True then int n:= -2; endelif else int o := 24; endelse  ~1; ~2 + 3 - 4;  bool k := True; while k dowhile k := False; endwhile  for i from 1 + 1 to 3 by 1 dofor int j := 1; endfor ([int] * int) tl := (|[], 3|); tl := (|[2], -3|); [(int * int)] l1 := []; l1 := [(|1, 2|)]; l1 := []; l1 := [(|-1, -2|)]; [[int]] l := []; l := [[1, 2], [3]]; l := [[2]]; l := []; float f := -1.0; str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z; (int * int) t := (|1, 2|); (int * (str * int)) t2 := (|1, (|"hello", 3|)|); t := (| -1, -1|);'
+    program = r'union singleton := NULL; union school := Elementary of int | Middle of int; union race := Black | White; ~{[]: [1, 2], []: []}; ~{}; ~(|1, True|); ~[1, 2, 3]; fun (|int -> int|) int_id x -> int u := 2; ~int_id(3); int r := int_id(u); return x; endfun {int : int} d := {1: 1, 2: -3}; d := {}; if True then int m := 1; endif elif True then int n:= -2; endelif elif True then int n:= -2; endelif else int o := 24; endelse  ~1; ~2 + 3 - 4;  bool k := True; while k dowhile k := False; endwhile  for i from 1 + 1 to 3 by 1 dofor int j := 1; endfor ([int] * int) tl := (|[], 3|); tl := (|[2], -3|); [(int * int)] l1 := []; l1 := [(|1, 2|)]; l1 := []; l1 := [(|-1, -2|)]; [[int]] l := []; l := [[1, 2], [3]]; l := [[2]]; l := []; float f := -1.0; str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z; (int * int) t := (|1, 2|); (int * (str * int)) t2 := (|1, (|"hello", 3|)|); t := (| -1, -1|);'
     try:
         result = type_check(
             ast_generator_c.parse_program(lexer_c.lex(program)))
@@ -604,10 +617,16 @@ if __name__ == "__main__":
     except ReturnException as re:
         print(
             f"Return Exception caught: Return statements must be inside of function calls: Your return value of {re.get_ret_type()} was not nested in a function call.")
-    except Exception as e:
-        print(e)
+    # except Exception as e:
+    #     print(e)
 
-# union type is
-# [|val|]
-# union cash := [|int; float|]
-# cash c := [|1|]
+
+# struct type declaration is
+# struct name := {name1:type1,...namen:typen};
+# where n >= 1
+# To limit infinite recursion, none of name_i can be the
+# name of the struct itself
+# though you can have mutual recursion of structs, unions
+# and structs and unions
+# It is illegal to declare any other type, including a struct, within
+# a struct type declaration
