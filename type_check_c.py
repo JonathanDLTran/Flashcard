@@ -209,6 +209,30 @@ def check_dict(_dict, ctx):
     return (key_typ, val_typ)
 
 
+def check_apply(app, ctx):
+    """
+    check_apply(app, ctx) is the type of the application of a function
+    otherwise raises exception
+    """
+    fun_name_str = app.get_fun()
+    args = app.get_args()
+
+    arg_typs = list(map(lambda arg: check_expr(arg, ctx), args))
+    (fun_typ, _) = ctx[("function", fun_name_str)]
+    decl_args_typs = fun_typ.get_args_typs()
+    decl_ret_typ = fun_typ.get_ret_typ()
+
+    def check_pairs_equal(l, r):
+        if l == r:
+            return True
+        else:
+            raise TypeError(
+                f"Argument - Type Mismatch: One of your arguments had type {l} and while the type declaration was type {r}. ")
+
+    _ = list(map(lambda a, d: check_pairs_equal(a, d), arg_typs, decl_args_typs))
+    return decl_ret_typ
+
+
 def check_expr(expr, ctx):
     """
     check_expr(expr) is the type of the expr if it is well-typed,
@@ -235,6 +259,8 @@ def check_expr(expr, ctx):
         return check_unop(expr, ctx)
     elif type(expr) == ast_generator_c.Bop:
         return check_bop(expr, ctx)
+    elif type(expr) == ast_generator_c.Apply:
+        return check_apply(expr, ctx)
     raise RuntimeError("Unimplemented")
 
 
@@ -463,6 +489,66 @@ def check_declare_dict(_dict, ctx):
     return ctx
 
 
+def check_declare_func(fun, ctx):
+    """
+    check_declare_func(fun, ctx) type checks a function and makes
+    sure it has the right type, otherwise raises error
+    """
+    fun_typ = fun.get_typ()
+    fun_ret_typ = fun_typ.get_ret_typ()
+    fun_args_typs = fun_typ.get_args_typs()
+
+    func_assign = fun.get_assign()
+    func_name = func_assign.get_name()
+    func_args = func_assign.get_args()
+    # convert func_arg VarValues to their string names
+    func_arg_strs = list(map(lambda arg: arg.get_value(), func_args))
+    func_name_str = func_name.get_value()
+    func_body = func_assign.get_body()
+
+    func_ctx = deepcopy(ctx)
+
+    # add in the bindings for all the arg to arg types
+    def assign_typ(name, typ, ctx):
+        ctx[name] = typ
+        return None
+    _ = list(map(lambda name, typ: assign_typ(
+        name, typ, func_ctx), func_arg_strs, fun_args_typs))
+
+    # add in recursive closure binding of func name to fun type binding
+    # right most func_ctx is really the memloc of the dic which si why this works
+    func_ctx[("function", func_name_str)] = (fun_typ, func_ctx)
+    ctx[("function", func_name_str)] = (fun_typ, func_ctx)
+
+    ret_types = []
+    for phrase in func_body:
+        try:
+            # ignore anything that does not have return
+            _ = check_phrase(phrase, func_ctx)
+        except ReturnException as re:
+            # catch returns
+            ret_type = re.get_ret_type()
+            ret_types.append(ret_type)
+
+    # must have one return type, not multiple
+    if len(ret_types) < 1:
+        raise TypeError(f"Functions must have one and only one return type.")
+
+    # must have one return type, not multiple
+    ret_typ = ret_types[0]
+    for typ in ret_types:
+        if typ != ret_typ:
+            raise TypeError(
+                f"Functions must have one and only one return type, but your function had one return type {ret_typ} and another return type {typ}.")
+
+    # declared return type must be same as context return type
+    if ret_typ != fun_ret_typ:
+        raise TypeError(
+            f"Functions return type must match the declared return type, but your function had a return type {ret_typ} and a declared return type {fun_ret_typ}.")
+
+    return ctx
+
+
 def check_phrase(phrase, ctx):
     """
     check_phrase(phrase, ctx) type checks a phrase and returns ctx otherwise raises exception
@@ -487,6 +573,8 @@ def check_phrase(phrase, ctx):
         ctx = check_ifthenelse(phrase, ctx)
     elif type(phrase) == ast_generator_c.DeclareDict:
         ctx = check_declare_dict(phrase, ctx)
+    elif type(phrase) == ast_generator_c.DeclareFunc:
+        ctx = check_declare_func(phrase, ctx)
     elif type(phrase) == ast_generator_c.Return:
         check_return(phrase, ctx)
     else:
@@ -508,7 +596,7 @@ def type_check(program):
 
 
 if __name__ == "__main__":
-    program = '{int : int} d := {1: 1, 2: -3}; d := {}; if True then int m := 1; endif elif True then int n:= -2; endelif elif True then int n:= -2; endelif else int o := 24; endelse  ~1; ~2 + 3 - 4;  bool k := True; while k dowhile k := False; endwhile  for i from 1 + 1 to 3 by 1 dofor int j := 1; endfor ([int] * int) tl := (|[], 3|); tl := (|[2], -3|); [(int * int)] l1 := []; l1 := [(|1, 2|)]; l1 := []; l1 := [(|-1, -2|)]; [[int]] l := []; l := [[1, 2], [3]]; l := [[2]]; l := []; float f := -1.0; str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z; (int * int) t := (|1, 2|); (int * (str * int)) t2 := (|1, (|"hello", 3|)|); t := (| -1, -1|);'
+    program = 'fun (|int -> int|) int_id x -> int u := 2; int r := int_id(u); return x; endfun {int : int} d := {1: 1, 2: -3}; d := {}; if True then int m := 1; endif elif True then int n:= -2; endelif elif True then int n:= -2; endelif else int o := 24; endelse  ~1; ~2 + 3 - 4;  bool k := True; while k dowhile k := False; endwhile  for i from 1 + 1 to 3 by 1 dofor int j := 1; endfor ([int] * int) tl := (|[], 3|); tl := (|[2], -3|); [(int * int)] l1 := []; l1 := [(|1, 2|)]; l1 := []; l1 := [(|-1, -2|)]; [[int]] l := []; l := [[1, 2], [3]]; l := [[2]]; l := []; float f := -1.0; str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z; (int * int) t := (|1, 2|); (int * (str * int)) t2 := (|1, (|"hello", 3|)|); t := (| -1, -1|);'
     try:
         result = type_check(
             ast_generator_c.parse_program(lexer_c.lex(program)))

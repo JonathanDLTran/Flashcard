@@ -343,6 +343,45 @@ class DictType(Type):
         return not self.__eq__(other)
 
 
+class FuncType(Type):
+    def __init__(self, ret_typ, args_typs_lst):
+        super().__init__()
+        self.ret_typ = ret_typ
+        self.args_typs = args_typs_lst
+
+    def get_ret_typ(self):
+        return self.ret_typ
+
+    def get_args_typs(self):
+        return self.args_typs
+
+    def __repr__(self):
+        typs = deepcopy(self.args_typs)
+        typs.append(self.ret_typ)
+        return "(FunctionType: " + (str(lexer_c.FUN_ARROW)).join(list(map(lambda t: str(t), typs))) + ")"
+
+    def __eq__(self, other):
+        if type(other) == WILDCARD_TYPE:
+            return True
+        if type(other) != FuncType:
+            return False
+        if self.get_ret_typ() != other.get_ret_typ():
+            return False
+        other_typ_list = other.get_args_typs()
+        self_typ_list = self.get_args_typs()
+        if len(other_typ_list) != len(self_typ_list):
+            return False
+        for i in range(len(self_typ_list)):
+            self_item = self_typ_list[i]
+            other_item = other_typ_list[i]
+            if self_item != other_item:
+                return False
+        return True
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+
 class IntValue(Expr):
     """
     IntValue represents an Int Value
@@ -767,6 +806,26 @@ class Function(Expr):
 
     def __repr__(self):
         return "(fun " + str(self.name) + " " + " ".join(list(map(lambda arg: str(arg), self.args))) + " ->\n\t" + "\n\t".join(list(map(lambda phrase: str(phrase), self.body))) + "\nendfun)"
+
+
+class DeclareFunc(Expr):
+    """
+    DeclareFunc represents an fun (|t1 -> t2|) name -> body endfun
+    """
+
+    def __init__(self, typ, assign):
+        super().__init__()
+        self.typ = typ
+        self.assign = assign
+
+    def get_assign(self):
+        return self.assign
+
+    def get_typ(self):
+        return self.typ
+
+    def __repr__(self):
+        return "(DeclareFunc: " + str(self.typ) + " " + str(self.assign) + ")"
 
 
 class IfThenElse(Expr):
@@ -1540,6 +1599,29 @@ def get_function_args(lexbuf, demarcation):
 #         raise ParseError("Unknown Symbol")
 
 
+def parse_func_type(lexbuf, sep=lexer_c.FUN_ARROW):
+    """
+    parse_func_type(lexbuf, sep) parses a stream that begins with an open TUP parentheses
+    symbol (| (lexer_c.OPEN_TUP), which is delineted by symbol sep
+    token sare the symbols in lexbuf
+    the 0th symbol in lexbuf must be a open parentheses (
+
+    SEP is typically a FUN_ARROW or ->
+    """
+    component_types = []
+    for component_section in get_function_args(lexbuf, sep):
+        if component_section == []:
+            raise ParseError(
+                "Two -> cannot follow each other, nor can a -> be at the beginning or end.")
+        component_type = parse_type(component_section)
+        component_types.append(component_type)
+    if len(component_types) != 2:
+        raise ParseError(
+            "Functions Must Have At Least One Argument and One Return Type.")
+    l = len(component_types)
+    return FuncType(component_types[l - 1], component_types[:l - 1])
+
+
 def parse_dict_type(lexbuf, sep=lexer_c.COLON):
     """
     parse_dict_type(lexbuf, sep) parses a stream that begins with an open brace parentheses
@@ -1623,6 +1705,12 @@ def parse_type(lexbuf):
         dict_type = parse_dict_type(
             lexbuf[1:l], lexer_c.COLON)
         return dict_type
+    elif lexbuf[0][1] == lexer_c.OPEN_TUP:
+        l, _ = get_between_brackets(
+            lexbuf, 1, lexer_c.OPEN_TUP, lexer_c.CLOSE_TUP)  # start 1 ahead
+        func_type = parse_func_type(
+            lexbuf[1:l], lexer_c.FUN_ARROW)
+        return func_type
     raise ParseError(
         f"Malformed type definition when parsing lexbuf stream: {lexbuf}.")
 
@@ -1835,15 +1923,28 @@ def parse_phrase(lexbuf):
             return parse_phrase_helper(new_lex_buff, new_tokens, acc)
 
         # function
+        # parse function type  parsed as
+        # fun (t1->t2...->tn) name args ->... where tn is return type
+        # and t1 -> t2 -> tn-1 are arg types and
+        # there is always one arg type for each arg
+        # and always one return type
         if lexbuf[0][1] == lexer_c.FUN:
-            # need to parse function type here
+            # second element is the one after the open bracket
+            l, _ = get_between_brackets(
+                lexbuf, 2, start=lexer_c.OPEN_TUP, end=lexer_c.CLOSE_TUP)
+            func_typ = parse_func_type(lexbuf[2: 1 + l], lexer_c.FUN_ARROW)
             end_fun_loc = parse_end(
                 lexbuf, 1, lexer_c.FUN, lexer_c.END_FUN)
-            fun_statement = lexbuf[0:end_fun_loc + 1]
+            fun_statement = [lexbuf[0]] + lexbuf[2 + l:end_fun_loc + 1]
             fun_parsed = parse_function(fun_statement)
             new_lex_buff = lexbuf[end_fun_loc + 1:]
             new_tokens = tokens[end_fun_loc + 1:]
-            acc.append(fun_parsed)
+            num_arg_typs = len(func_typ.get_args_typs())
+            num_args = len(fun_parsed.get_args())
+            if num_arg_typs != num_args or num_args < 1 or num_arg_typs < 1:
+                raise ParseError(
+                    "The Number of Function Arguments Should be Equalt o the Number of Function Argument Types, and they Should both be ar least 1 in number.")
+            acc.append(DeclareFunc(func_typ, fun_parsed))
             return parse_phrase_helper(new_lex_buff, new_tokens, acc)
 
         # return
