@@ -233,6 +233,33 @@ def check_apply(app, ctx):
     return decl_ret_typ
 
 
+def check_union(union_val, ctx):
+    """
+    check_union(union_val, ctx) is the type of union_val under ctx else exception
+    """
+    name = union_val.get_name()
+    value = union_val.get_expr()
+    if value != None:
+        value_typ = check_expr(value, ctx)
+    else:
+        value_typ = None
+
+    union_types = []
+    for key in ctx:
+        if type(key) == tuple and len(key) == 2 and key[0] == "union":
+            type_name = key[1]
+            union_types.append(type_name)
+
+    for typ in union_types:
+        union_body_types = ctx[("union", typ)]
+        for variant_name, variant_inner_typ in union_body_types:
+            if variant_name == name and variant_inner_typ == value_typ:
+                return ast_generator_c.CustomType(typ)
+
+    raise TypeError(
+        f"Union Type for variant {name} with value {value} has not been defined. Please define a Union Type.")
+
+
 def check_expr(expr, ctx):
     """
     check_expr(expr) is the type of the expr if it is well-typed,
@@ -249,6 +276,8 @@ def check_expr(expr, ctx):
         return check_str(expr, ctx)
     elif type(expr) == ast_generator_c.FloatValue:
         return check_float(expr, ctx)
+    elif type(expr) == ast_generator_c.UnionValue:
+        return check_union(expr, ctx)
     elif type(expr) == ast_generator_c.Tuple:
         return check_tuple(expr, ctx)
     elif type(expr) == ast_generator_c.List:
@@ -609,7 +638,7 @@ def type_check(program):
 
 
 if __name__ == "__main__":
-    program = r'union singleton := NULL; union school := Elementary of int | Middle of int; union race := Black | White; ~{[]: [1, 2], []: []}; ~{}; ~(|1, True|); ~[1, 2, 3]; fun (|int -> int|) int_id x -> int u := 2; ~int_id(3); int r := int_id(u); return x; endfun {int : int} d := {1: 1, 2: -3}; d := {}; if True then int m := 1; endif elif True then int n:= -2; endelif elif True then int n:= -2; endelif else int o := 24; endelse  ~1; ~2 + 3 - 4;  bool k := True; while k dowhile k := False; endwhile  for i from 1 + 1 to 3 by 1 dofor int j := 1; endfor ([int] * int) tl := (|[], 3|); tl := (|[2], -3|); [(int * int)] l1 := []; l1 := [(|1, 2|)]; l1 := []; l1 := [(|-1, -2|)]; [[int]] l := []; l := [[1, 2], [3]]; l := [[2]]; l := []; float f := -1.0; str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z; (int * int) t := (|1, 2|); (int * (str * int)) t2 := (|1, (|"hello", 3|)|); t := (| -1, -1|);'
+    program = r'union singleton := NULL; ~@NULL(); singleton s := @NULL(); union school := Elementary of int | Middle of int; school sch := @Elementary(1); sch := @Elementary(2); union race := Black | White; ~{[]: [1, 2], []: []}; ~{}; ~(|1, True|); ~[1, 2, 3]; fun (|int -> int|) int_id x -> int u := 2; ~int_id(3); int r := int_id(u); return x; endfun {int : int} d := {1: 1, 2: -3}; d := {}; if True then int m := 1; endif elif True then int n:= -2; endelif elif True then int n:= -2; endelif else int o := 24; endelse  ~1; ~2 + 3 - 4;  bool k := True; while k dowhile k := False; endwhile  for i from 1 + 1 to 3 by 1 dofor int j := 1; endfor ([int] * int) tl := (|[], 3|); tl := (|[2], -3|); [(int * int)] l1 := []; l1 := [(|1, 2|)]; l1 := []; l1 := [(|-1, -2|)]; [[int]] l := []; l := [[1, 2], [3]]; l := [[2]]; l := []; float f := -1.0; str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z; (int * int) t := (|1, 2|); (int * (str * int)) t2 := (|1, (|"hello", 3|)|); t := (| -1, -1|);'
     try:
         result = type_check(
             ast_generator_c.parse_program(lexer_c.lex(program)))
@@ -617,8 +646,8 @@ if __name__ == "__main__":
     except ReturnException as re:
         print(
             f"Return Exception caught: Return statements must be inside of function calls: Your return value of {re.get_ret_type()} was not nested in a function call.")
-    # except Exception as e:
-    #     print(e)
+    except Exception as e:
+        print(e)
 
 
 # struct type declaration is

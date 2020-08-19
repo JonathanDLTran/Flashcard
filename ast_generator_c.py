@@ -264,48 +264,34 @@ class CustomType(Type):
         return "(CustomType: " + str(self.name) + ")"
 
     def __eq__(self, other):
-        raise RuntimeError("NEVER TEST FOR CUSTOM TYPE EQUALITY!")
-        # if type(other) == WildcardType:
-        #     return True
-        # if type(other) != CustomType:
-        #     return False
+        # raise RuntimeError("NEVER TEST FOR CUSTOM TYPE EQUALITY!")
+        if type(other) == WildcardType:
+            return True
+        if type(other) != CustomType:
+            return False
         # may not be completely correct: other variants of the same type
         # are still false!
-        # return self.name == other.name
+        return self.name == other.name
 
     def __ne__(self, other):
-        raise RuntimeError("NEVER TEST FOR CUSTOM TYPE INEQUALITY!")
-        # return not self.__eq__(other)
+        # raise RuntimeError("NEVER TEST FOR CUSTOM TYPE INEQUALITY!")
+        return not self.__eq__(other)
 
 
-class UnionType(Type):
-    def __init__(self, name, typ):
+class UnionValue(Expr):
+    def __init__(self, name, expr):
         super().__init__()
         self.name = name
-        self.typ = typ
+        self.expr = expr
 
     def get_name(self):
         return self.name
 
-    def get_typ(self):
-        return self.typ
+    def get_expr(self):
+        return self.expr
 
     def __repr__(self):
-        return "(UnionDeclaration: " + + str(self.name) + " " + str(self.typ) + ")"
-
-    def __eq__(self, other):
-        raise RuntimeError("NEVER TEST FOR UNION TYPE EQUALITY!")
-        # if type(other) == WildcardType:
-        #     return True
-        # if type(other) != UnionType:
-        #     return False
-        # may not be completely correct: other variants of the same type
-        # are still false!
-        # return self.name == other.name and self.typ == other.typ
-
-    def __ne__(self, other):
-        raise RuntimeError("NEVER TEST FOR UNION TYPE INEQUALITY!")
-        # return not self.__eq__(other)
+        return "(UnionValue: @" + str(self.name) + "(" + str(self.expr) + "))"
 
 
 class DeclareUnion(Type):
@@ -321,7 +307,7 @@ class DeclareUnion(Type):
         return self.typ_list
 
     def __repr__(self):
-        return "(UnionDeclaration: " + + str(self.name) + " " + str(self.typ_list) + ")"
+        return "(UnionDeclaration: " + str(self.name) + " " + str(self.typ_list) + ")"
 
     def __eq__(self, other):
         if type(other) == WildcardType:
@@ -2089,6 +2075,17 @@ def match_elt(lexbuf):
         return 1, FloatValue(elt_val)
     elif elt_typ == lexer_c.KEYWORD and (elt_val == lexer_c.TRUE or elt_val == lexer_c.FALSE):
         return 1, BoolValue(True if elt_val == lexer_c.TRUE else False)
+    elif elt_val == lexer_c.TAG:
+        union_name = lexbuf[1][1]
+        assert lexbuf[2][1] == lexer_c.LPAREN
+        l, middle_terms = get_between_brackets(lexbuf, 3)
+        if middle_terms != []:
+            inner_val = parse_expr(middle_terms)
+        else:
+            inner_val = None
+        remainder = lexbuf[l + 3:]
+        assert remainder == []
+        return (l + 3), UnionValue(union_name, inner_val)
     elif elt_typ == lexer_c.VARIABLE:
         if len(lexbuf) > 1:
             _, la_val = lexbuf[1]
@@ -2183,6 +2180,17 @@ def match_elt(lexbuf):
         elif next_pair == lexer_c.RPAREN:
             raise UnmatchedParenError(
                 "Unmatched right parenthesis %s" % (next_pair))
+        elif next_pair == lexer_c.TAG:
+            union_name = lexbuf[2][1]
+            assert lexbuf[3][1] == lexer_c.LPAREN
+            l, middle_terms = get_between_brackets(lexbuf, 4)
+            if middle_terms != []:
+                inner_val = parse_expr(middle_terms)
+            else:
+                inner_val = None
+            remainder = lexbuf[l + 4:]
+            assert remainder == []
+            return (l + 3), UnionValue(union_name, inner_val)
         length = 1
         unop_typ, unop_val_ast = lexbuf[1]
         if unop_typ == lexer_c.INTEGER:
@@ -2195,6 +2203,7 @@ def match_elt(lexbuf):
         elif unop_typ == lexer_c.FLOAT:
             unop_val_ast = FloatValue(unop_val_ast)
         return (1 + length), Unop(elt_val, unop_val_ast)
+
     elif elt_val == lexer_c.LPAREN:
         # length, middle_terms = get_between_brackets(lexbuf, 1)
         length, middle_terms = get_between_brackets_general(
