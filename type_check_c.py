@@ -260,6 +260,56 @@ def check_union(union_val, ctx):
         f"Union Type for variant {name} with value {value} has not been defined. Please define a Union Type.")
 
 
+def check_struct(struct, ctx):
+    """
+    check_struct(struct, ctx) returns the type of the struct in ctx
+    otherwises raises exception
+    """
+    keys = struct.get_keys()
+    vals = struct.get_vals()
+
+    key_names = tuple(map(lambda k: k.get_value(), keys))
+    val_typs = tuple(map(lambda v: check_expr(v, ctx), vals))
+
+    struct_types = []
+    for key in ctx:
+        if type(key) == tuple and len(key) == 2 and key[0] == "struct":
+            type_name = key[1]
+            struct_types.append(type_name)
+
+    for typ in struct_types:
+        struct_body_types = ctx[("struct", typ)]
+        if len(struct_body_types) == len(keys):
+            struct_body_keys, struct_body_vals = list(zip(*struct_body_types))
+            if key_names == struct_body_keys and val_typs == struct_body_vals:
+                return ast_generator_c.CustomType(typ)
+
+    raise TypeError(
+        f"Struct Type with keys {key_names} and values {val_typs} has not been defined. Please define a Struct Type.")
+
+
+def check_extern(extern, ctx):
+    """
+    check_extern(extern, ctx) is the type of the extern or a excpetion
+    """
+    name = extern.get_fun()
+    args = extern.get_args()
+    args_typs = list(map(lambda a: check_expr(a, ctx), args))
+
+    if ("function", name) not in ctx:
+        raise TypeError(
+            f"External function named {name} not bound in language. ")
+    func_typ, _ = ctx[("function", name)]
+    ret_typ = func_typ.get_ret_typ()
+    declared_arg_typs = func_typ.get_args_typs()
+
+    if declared_arg_typs == args_typs:
+        return ret_typ
+
+    raise TypeError(
+        f"External function named {name} requires arguments with types {declared_arg_typs} yet got the types of {args_typs}. ")
+
+
 def check_expr(expr, ctx):
     """
     check_expr(expr) is the type of the expr if it is well-typed,
@@ -278,6 +328,8 @@ def check_expr(expr, ctx):
         return check_float(expr, ctx)
     elif type(expr) == ast_generator_c.UnionValue:
         return check_union(expr, ctx)
+    elif type(expr) == ast_generator_c.Struct:
+        return check_struct(expr, ctx)
     elif type(expr) == ast_generator_c.Tuple:
         return check_tuple(expr, ctx)
     elif type(expr) == ast_generator_c.List:
@@ -290,6 +342,8 @@ def check_expr(expr, ctx):
         return check_bop(expr, ctx)
     elif type(expr) == ast_generator_c.Apply:
         return check_apply(expr, ctx)
+    elif type(expr) == ast_generator_c.Extern:
+        return check_extern(expr, ctx)
     raise RuntimeError("Unimplemented")
 
 
@@ -580,12 +634,23 @@ def check_declare_func(fun, ctx):
 
 def check_declare_union(union, ctx):
     """
-    check_declare_union(union, ctx) type checcks a declare dunoon and raises errior
+    check_declare_union(union, ctx) type checcks a declare union and raises errior
     if not typed correctly
     """
     union_name = union.get_name()
     union_types = union.get_typ_list()
     ctx[("union", union_name)] = union_types
+    return ctx
+
+
+def check_declare_struct(struct, ctx):
+    """
+    check_declare_union(union, ctx) type checcks a declare struct and raises errior
+    if not typed correctly
+    """
+    struct_name = struct.get_name()
+    struct_types = struct.get_typ_list()
+    ctx[("struct", struct_name)] = struct_types
     return ctx
 
 
@@ -617,10 +682,34 @@ def check_phrase(phrase, ctx):
         ctx = check_declare_func(phrase, ctx)
     elif type(phrase) == ast_generator_c.DeclareUnion:
         ctx = check_declare_union(phrase, ctx)
+    elif type(phrase) == ast_generator_c.DeclareStruct:
+        ctx = check_declare_struct(phrase, ctx)
     elif type(phrase) == ast_generator_c.Return:
         check_return(phrase, ctx)
     else:
         raise RuntimeError("Unimplemented")
+    return ctx
+
+
+def load_type_name_binding_ctx(typ, func_name, ctx):
+    """
+    load_type_name_binding_ctx(typ, func_name) loads in the function name
+    to the typ binding in ctx with a closure and returns ctx
+    """
+    func_ctx = deepcopy(ctx)
+    func_ctx[("function", func_name)] = (typ, func_ctx)
+    ctx[("function", func_name)] = (typ, func_ctx)
+    return ctx
+
+
+def load_extern_types(ctx):
+    """
+    load_extern_types() loads in the external types to the contxt 
+    and returns it
+    """
+    print_type = ast_generator_c.FuncType(
+        ast_generator_c.IntType(), [ast_generator_c.WildcardType()])
+    ctx = load_type_name_binding_ctx(print_type, "print", ctx)
     return ctx
 
 
@@ -632,30 +721,20 @@ def type_check(program):
     assert type(program) == ast_generator_c.Program
     phrases = program.get_phrases()
     ctx = {}
+    ctx = load_extern_types(ctx)
     for phrase in phrases:
         ctx = check_phrase(phrase, ctx)
     return ctx
 
 
 if __name__ == "__main__":
-    program = r'union singleton := NULL; ~@NULL(); singleton s := @NULL(); union school := Elementary of int | Middle of int; school sch := @Elementary(1); sch := @Elementary(2); union race := Black | White; ~{[]: [1, 2], []: []}; ~{}; ~(|1, True|); ~[1, 2, 3]; fun (|int -> int|) int_id x -> int u := 2; ~int_id(3); int r := int_id(u); return x; endfun {int : int} d := {1: 1, 2: -3}; d := {}; if True then int m := 1; endif elif True then int n:= -2; endelif elif True then int n:= -2; endelif else int o := 24; endelse  ~1; ~2 + 3 - 4;  bool k := True; while k dowhile k := False; endwhile  for i from 1 + 1 to 3 by 1 dofor int j := 1; endfor ([int] * int) tl := (|[], 3|); tl := (|[2], -3|); [(int * int)] l1 := []; l1 := [(|1, 2|)]; l1 := []; l1 := [(|-1, -2|)]; [[int]] l := []; l := [[1, 2], [3]]; l := [[2]]; l := []; float f := -1.0; str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z; (int * int) t := (|1, 2|); (int * (str * int)) t2 := (|1, (|"hello", 3|)|); t := (| -1, -1|);'
+    program = r'~print(1); ~print("lol"); struct singular := {use : bool;}; singular used := {|use <- True|}; struct time := {minutes:int; hours:int;}; ~{|minutes <- -15, hours<- 0|}; time st :={|minutes <- 4, hours<- 3|}; union singleton := NULL; ~@NULL(); singleton s := @NULL(); union school := Elementary of int | Middle of int; school sch := @Elementary(1); sch := @Elementary(2); union race := Black | White; ~{[]: [1, 2], []: []}; ~{}; ~(|1, True|); ~[1, 2, 3]; fun (|int -> int|) int_id x -> int u := 2; ~int_id(3); int r := int_id(u); return x; endfun {int : int} d := {1: 1, 2: -3}; d := {}; if True then int m := 1; endif elif True then int n:= -2; endelif elif True then int n:= -2; endelif else int o := 24; endelse  ~1; ~2 + 3 - 4;  bool k := True; while k dowhile k := False; endwhile  for i from 1 + 1 to 3 by 1 dofor int j := 1; endfor ([int] * int) tl := (|[], 3|); tl := (|[2], -3|); [(int * int)] l1 := []; l1 := [(|1, 2|)]; l1 := []; l1 := [(|-1, -2|)]; [[int]] l := []; l := [[1, 2], [3]]; l := [[2]]; l := []; float f := -1.0; str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z; (int * int) t := (|1, 2|); (int * (str * int)) t2 := (|1, (|"hello", 3|)|); t := (| -1, -1|);'
     try:
         result = type_check(
             ast_generator_c.parse_program(lexer_c.lex(program)))
-        print(result)
+        print(f"The Final Context is: {result}")
     except ReturnException as re:
         print(
             f"Return Exception caught: Return statements must be inside of function calls: Your return value of {re.get_ret_type()} was not nested in a function call.")
-    except Exception as e:
-        print(e)
-
-
-# struct type declaration is
-# struct name := {name1:type1,...namen:typen};
-# where n >= 1
-# To limit infinite recursion, none of name_i can be the
-# name of the struct itself
-# though you can have mutual recursion of structs, unions
-# and structs and unions
-# It is illegal to declare any other type, including a struct, within
-# a struct type declaration
+    # except Exception as e:
+    #     print(e)

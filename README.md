@@ -109,7 +109,7 @@ Undo: Ctrl-T to undo up to undo limit number of undos (can set undo limit)
 - Structs (runtime declared, no compile time type declaractions)
 
 ## Type Checker
-I have branched the language into a new c-like language, rather than the previous formerly Python like language. As such, now there is type checking. Currently, int, bool, string, float, tuple, list, dictionary,  typedef unions (with new support for union types), return, ignore, if, for, while, function, application type checking is implemented for the language. The next step is to implement type checking for external functions and typedef structs, though runtime definition of structs were previously permitted without typechecking. Further extension might add some type inference with the unification algorithm for generic types, specified like 
+I have branched the language into a new c-like language, rather than the previous formerly Python like language. As such, now there is type checking. Currently, int, bool, string, float, tuple, list, dictionary, typedef unions (with new support for union types for union creation), typedef structs (and struct creation), return, ignore, if, for, while, function, external functions, and function application type checking is implemented for the language.  Further extension might add some type inference with the unification algorithm for generic types, specified like 
 ````
 `a
 ````

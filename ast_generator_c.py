@@ -337,6 +337,49 @@ class DeclareUnion(Type):
         return not self.__eq__(other)
 
 
+class DeclareStruct(Type):
+    def __init__(self, name, typ_list):
+        super().__init__()
+        self.name = name
+        self.typ_list = typ_list
+
+    def get_name(self):
+        return self.name
+
+    def get_typ_list(self):
+        return self.typ_list
+
+    def __repr__(self):
+        return "(StructDeclaration: " + str(self.name) + " " + str(self.typ_list) + ")"
+
+    def __eq__(self, other):
+        if type(other) == WildcardType:
+            return True
+        if type(other) != DeclareStruct:
+            return False
+        self_name = self.get_name()
+        other_name = other.get_name()
+        if self_name != other_name:
+            return False
+        self_typ_list = self.get_typ_list()
+        other_typ_list = other.get_typ_list()
+        if len(self_typ_list) != len(other_typ_list):
+            return False
+        # order of declarations does not matter, as long as they are
+        # they exist in both Struct Types
+        for typ in self_typ_list:
+            has_match = False
+            for other_typ in self_typ_list:
+                if typ == other_typ:
+                    has_match = True
+            if not has_match:
+                return False
+        return True
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+
 class TupleType(Type):
     def __init__(self, typ_list):
         super().__init__()
@@ -602,6 +645,10 @@ class Struct(Expr):
     def __init__(self, keys_list, values_list):
         super().__init__()
         assert len(keys_list) == len(values_list)
+        joined_list = list(zip(keys_list, values_list))
+        joined_list = sorted(
+            joined_list, key=lambda pair: pair[0].get_value())  # sort by key
+        keys_list, values_list = list(zip(*joined_list))
         self.keys = keys_list
         self.values = values_list
         self.length = len(values_list)
@@ -1830,6 +1877,17 @@ def parse_phrase(lexbuf):
             acc.append(parsed_union)
             return parse_phrase_helper(new_lex_buff, new_tokens, acc)
 
+        # parse struct declaration
+        if lexbuf[0][1] == lexer_c.STRUCT:
+            l, _ = get_between_brackets(
+                lexbuf, 4, lexer_c.OPEN_DICT, lexer_c.CLOSE_DICT)
+            semi_loc = tokens[4 + l:].index(lexer_c.SEMI) + (4 + l)
+            parsed_struct = parse_struct_declaration(lexbuf[:semi_loc + 1])
+            new_lex_buff = lexbuf[semi_loc + 1:]
+            new_tokens = tokens[semi_loc + 1:]
+            acc.append(parsed_struct)
+            return parse_phrase_helper(new_lex_buff, new_tokens, acc)
+
         # parse tuple declaraction
         # Tuples are declared as
         # (t1 * t2 * t3) where t could itself be (t1 * t2 * t3)
@@ -2542,6 +2600,61 @@ def parse_ignore(lexbuf):
     expr = lexbuf[ignore_pos + 1:semi_pos]
     expr_ast = parse_expr(expr)
     return Ignore(expr_ast)
+
+
+def parse_struct_declaration(lexbuf):
+    """
+    struct type declaration is
+    struct name := {name1:type1;...namen:typen;};
+    where n >= 1
+    To limit infinite recursion, none of name_i can be the
+    name of the struct itself
+    though you can have mutual recursion of structs, unions
+    and structs and unions
+    It is illegal to declare any other type, including a struct, within
+    a struct type declaration`
+    """
+    name_pos = 1
+    assign_pos = 2
+    open_brace = 3
+    assert lexbuf[assign_pos][1] == lexer_c.ASSIGN
+    assert lexbuf[0][1] == lexer_c.STRUCT
+    assert lexbuf[-1][1] == lexer_c.SEMI
+    assert lexbuf[-2][1] == lexer_c.CLOSE_DICT
+    assert lexbuf[open_brace][1] == lexer_c.OPEN_DICT
+    type_name = lexbuf[name_pos][1]
+    tokens_list = list(map(lambda pair: pair[1], lexbuf))
+
+    struct_sub_types = []
+    tokens_list = tokens_list[open_brace + 1:]
+    lexbuf = lexbuf[open_brace + 1:]
+    while lexer_c.SEMI in tokens_list:
+        if tokens_list == [lexer_c.CLOSE_DICT, lexer_c.SEMI]:
+            break
+
+        semi_pos = tokens_list.index(lexer_c.SEMI)
+        struct_type_name = tokens_list[0]
+
+        assert tokens_list[1] == lexer_c.COLON
+
+        struct_type = lexbuf[2:semi_pos]
+        struct_type = parse_type(struct_type)
+
+        struct_sub_types.append((struct_type_name, struct_type))
+
+        tokens_list = tokens_list[semi_pos + 1:]
+        lexbuf = lexbuf[semi_pos + 1:]
+
+    assert len(struct_sub_types) >= 1
+
+    # structs cannot refer to themselves directly!
+    for typ in struct_sub_types:
+        assert typ != CustomType(type_name)
+
+    # add subtypes sorted by first element in tuple, a sgtring
+    struct_sub_types = sorted(struct_sub_types, key=lambda pair: pair[0])
+
+    return DeclareStruct(type_name, struct_sub_types)
 
 
 def parse_union_declaration(lexbuf):
