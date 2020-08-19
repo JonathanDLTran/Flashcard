@@ -736,5 +736,5 @@ if __name__ == "__main__":
     except ReturnException as re:
         print(
             f"Return Exception caught: Return statements must be inside of function calls: Your return value of {re.get_ret_type()} was not nested in a function call.")
-    # except Exception as e:
-    #     print(e)
+    except Exception as e:
+        print(e)
