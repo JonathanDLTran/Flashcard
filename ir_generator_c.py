@@ -49,6 +49,7 @@ class Mappings():
         self.throwaway = False
         self.while_idx = 1
         self.for_idx = 1
+        self.if_idx = 1
 
     def set_reg_map(self, reg_map):
         self.reg_map = reg_map
@@ -65,6 +66,9 @@ class Mappings():
     def set_for_idx(self, idx):
         self.for_idx = idx
 
+    def set_if_idx(self, idx):
+        self.if_idx = idx
+
     def get_reg_map(self):
         return self.reg_map
 
@@ -79,6 +83,9 @@ class Mappings():
 
     def get_for_idx(self):
         return self.for_idx
+
+    def get_if_idx(self):
+        return self.if_idx
 
     def get_reg(self, var_name):
         reg_map = self.reg_map
@@ -123,6 +130,20 @@ def gen_int(_int, mapping, cmd_stack):
     cmd = (LI, THROWAWAY_REG, val)
     cmd_stack.append(cmd)
 
+    return THROWAWAY_REG
+
+
+def gen_bool(_bool, mapping, cmd_stack):
+    assert type(_bool) == ast_generator_c.BoolValue
+    val = _bool.get_value()
+    if val:
+        cmd = (LI, THROWAWAY_REG, 1)
+    else:
+        cmd = (LI, THROWAWAY_REG, 0)
+    cmd_stack.append(cmd)
+
+    return THROWAWAY_REG
+
 
 def gen_int_op(int_op, op, mapping, cmd_stack):
     """
@@ -139,15 +160,28 @@ def gen_int_op(int_op, op, mapping, cmd_stack):
         return trans_dict[op]
 
     left_node = int_op.get_left()
-    gen_expr(left_node, mapping, cmd_stack)
-    cmd = (ADD, BACKUP_REG, THROWAWAY_REG, ZERO)
+    left_reg = gen_expr(left_node, mapping, cmd_stack)
+    cmd = (ADD, BACKUP_REG, left_reg, ZERO)
     cmd_stack.append(cmd)
     right_node = int_op.get_right()
-    gen_expr(right_node, mapping, cmd_stack)
-    cmd = (op_to_code(op), BACKUP_REG, BACKUP_REG, THROWAWAY_REG)
+    right_reg = gen_expr(right_node, mapping, cmd_stack)
+    cmd = (op_to_code(op), BACKUP_REG, BACKUP_REG, right_reg)
     cmd_stack.append(cmd)
     cmd = (MV, THROWAWAY_REG, BACKUP_REG)
     cmd_stack.append(cmd)
+
+    return THROWAWAY_REG
+
+
+def gen_var(var, mapping, cmd_stack):
+    var_name = var.get_value()
+    var_reg_map = mapping.get_rev_reg_map()
+
+    if var_name in var_reg_map:
+        return var_reg_map[var_name]
+
+    var_reg = mapping.get_reg(var_name)
+    return var_reg
 
 
 def gen_binop(bop, mapping, cmd_stack):
@@ -159,6 +193,10 @@ def gen_binop(bop, mapping, cmd_stack):
 def gen_expr(expr, mapping, cmd_stack):
     if type(expr) == ast_generator_c.IntValue:
         return gen_int(expr, mapping, cmd_stack)
+    elif type(expr) == ast_generator_c.BoolValue:
+        return gen_bool(expr, mapping, cmd_stack)
+    elif type(expr) == ast_generator_c.VarValue:
+        return gen_var(expr, mapping, cmd_stack)
     elif type(expr) == ast_generator_c.Bop:
         return gen_binop(expr, mapping, cmd_stack)
 
@@ -177,8 +215,8 @@ def gen_assign(assign, mapping, cmd_stack):
     else:
         reg = mapping.get_rev_reg_map()[var]
 
-    gen_expr(expr, mapping, cmd_stack)
-    cmd = (ADD, reg, THROWAWAY_REG, ZERO)
+    expr_reg = gen_expr(expr, mapping, cmd_stack)
+    cmd = (ADD, reg, expr_reg, ZERO)
     cmd_stack.append(cmd)
 
 
@@ -209,13 +247,13 @@ def gen_while(_while, mapping, cmd_stack):
     cmd_stack.append(cmd)
 
     # negate guard condition
-    gen_expr(guard, mapping, cmd_stack)
-    cmd = (NOT, THROWAWAY_REG, THROWAWAY_REG)
+    guard_reg = gen_expr(guard, mapping, cmd_stack)
+    cmd = (NOT, guard_reg, guard_reg)
     cmd_stack.append(cmd)
 
     # add the guard condition
     while_footer = f"while_footer_{while_idx}"
-    cmd = (BEQ, THROWAWAY_REG, ZERO, while_footer)
+    cmd = (BEQ, guard_reg, ZERO, while_footer)
     cmd_stack.append(cmd)
 
     # generate body of while loop
@@ -229,8 +267,6 @@ def gen_while(_while, mapping, cmd_stack):
     # generate while footer
     cmd = (LABEL, while_footer)
     cmd_stack.append(cmd)
-
-    return
 
 
 def gen_for(_for, mapping, cmd_stack):
@@ -304,7 +340,107 @@ def gen_for(_for, mapping, cmd_stack):
     cmd = (LABEL, for_footer)
     cmd_stack.append(cmd)
 
-    return
+
+def gen_if_then_else(ifthenelse, mapping, cmd_stack):
+    """
+    if_header_ix:
+    negative assembly condition jump to if_footer_idx
+    (NOT rd, rs)
+    add if guard condition
+    if body
+    beq x0, x0, end_if_then_else_idx
+    if_footer_idx:
+
+    elif_header_idx_1:
+    negative assembly condition jump to elif_footer_idx_1
+    (NOT rd, rs)
+    add elif 1 guard condition
+    elif 1 body
+    beq x0, x0, end_if_then_else_idx
+    elif_footer_idx_1:
+
+    ... more elifs
+
+    else body
+
+    end_if_then_else_idx
+    """
+    (if_guard, if_body) = ifthenelse.get_if_pair()
+    (elif_guards, elif_bodies) = ifthenelse.get_elif_pair_list()
+    else_body = ifthenelse.get_else()
+
+    # add if header
+    if_idx = mapping.get_if_idx()
+    mapping.set_if_idx(if_idx + 1)
+
+    if_header = f"if_header_{if_idx}"
+    cmd = (LABEL, if_header)
+    cmd_stack.append(cmd)
+
+    # define end if-then-else footer
+    if_then_else_footer = f'if_then_else_footer_{if_idx}'
+
+    # negate if guard condition
+    if_guard_reg = gen_expr(if_guard, mapping, cmd_stack)
+    cmd = (NOT, if_guard_reg, if_guard_reg)
+    cmd_stack.append(cmd)
+
+    # add the if guard condition to branch
+    if_footer = f"if_footer_{if_idx}"
+    cmd = (BEQ, if_guard_reg, ZERO, if_footer)
+    cmd_stack.append(cmd)
+
+    # generate body of if loop
+    for phrase in if_body:
+        gen_phrase(phrase, mapping, cmd_stack)
+
+    # add in absolute branch to if then else footer
+    cmd = (BEQ, ZERO, ZERO, if_then_else_footer)
+    cmd_stack.append(cmd)
+
+    # add in if footer
+    cmd = (LABEL, if_footer)
+    cmd_stack.append(cmd)
+
+    for i in range(len(elif_guards)):
+        elif_guard = elif_guards[i]
+        elif_body = elif_bodies[i]
+
+        # add elif header
+        elif_header = f"elif_header_{if_idx}_{i + 1}"
+        cmd = (LABEL, elif_header)
+        cmd_stack.append(cmd)
+
+        # negate elif guard condition
+        elif_guard_reg = gen_expr(elif_guard, mapping, cmd_stack)
+        cmd = (NOT, elif_guard_reg, elif_guard_reg)
+        cmd_stack.append(cmd)
+
+        # add the elif guard condition to branch
+        elif_footer = f"elif_footer_{if_idx}_{i + 1}"
+        cmd = (BEQ, elif_guard_reg, ZERO, elif_footer)
+        cmd_stack.append(cmd)
+
+        # generate body of elif loop
+        for phrase in elif_body:
+            gen_phrase(phrase, mapping, cmd_stack)
+
+        # add in absolute branch to if then else footer
+        cmd = (BEQ, ZERO, ZERO, if_then_else_footer)
+        cmd_stack.append(cmd)
+
+        # add in elif footer:
+        cmd = (LABEL, elif_footer)
+        cmd_stack.append(cmd)
+
+    # add in else body
+    if else_body != None:
+        for phrase in else_body:
+            gen_phrase(phrase, mapping, cmd_stack)
+
+    # generate if then else footer
+    cmd = (LABEL, if_then_else_footer)
+    cmd_stack.append(cmd)
 
 
 def gen_phrase(phrase, mapping, cmd_stack):
@@ -318,6 +454,8 @@ def gen_phrase(phrase, mapping, cmd_stack):
         return gen_while(phrase, mapping, cmd_stack)
     elif type(phrase) == ast_generator_c.For:
         return gen_for(phrase, mapping, cmd_stack)
+    elif type(phrase) == ast_generator_c.IfThenElse:
+        return gen_if_then_else(phrase, mapping, cmd_stack)
 
 
 def gen_program(program):
@@ -334,12 +472,13 @@ def gen_program(program):
 
 
 if __name__ == "__main__":
-    program = r"~3 + 4;~3 - 4; int x := 3; x:= 2; while True dowhile x := 1; endwhile for i from 1 to 3 by 1 dofor x := 1; endfor"
-    print(
-        gen_program(
-            type_check_c.type_check(
-                ast_generator_c.parse_program(
-                    lexer_c.lex(program)))))
+    program = r"~3 + 4;~3 - 4; int x := 3; x:= 2; int z := 2; z := z + x + x; while True dowhile x := 1; endwhile for i from 1 to 3 by 1 dofor x := 1; endfor if True then int y := 4; endif"
+    ir = gen_program(
+        type_check_c.type_check(
+            ast_generator_c.parse_program(
+                lexer_c.lex(program))))
+    for triple in ir:
+        print(triple)
 
 
 # Notes
