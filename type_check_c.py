@@ -715,7 +715,7 @@ def load_extern_types(ctx):
 
 def type_check(program):
     """
-    Returns the final context if the program type checks correctly else
+    Returns the program if the program type checks correctly else
     raises exception of type check error
     """
     assert type(program) == ast_generator_c.Program
@@ -724,7 +724,7 @@ def type_check(program):
     ctx = load_extern_types(ctx)
     for phrase in phrases:
         ctx = check_phrase(phrase, ctx)
-    return ctx
+    return program
 
 
 if __name__ == "__main__":
@@ -732,7 +732,7 @@ if __name__ == "__main__":
     try:
         result = type_check(
             ast_generator_c.parse_program(lexer_c.lex(program)))
-        print(f"The Final Context is: {result}")
+        print(f"The Final Program is: {result}")
     except ReturnException as re:
         print(
             f"Return Exception caught: Return statements must be inside of function calls: Your return value of {re.get_ret_type()} was not nested in a function call.")
