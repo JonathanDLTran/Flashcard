@@ -10,25 +10,45 @@ import ast_generator_c
 import type_check_c
 
 
-# ---------- IR OP CODE CONSTANTS --------
-ADD = "add"
-ADDI = "addi"
+# ---------- DATA SIZES -----------------
+INT = "int"
+CHAR = "char"
+FLOAT = "float"
+SIZEOF = {INT: 4, CHAR: 1, FLOAT: 8, }
+
+
+# ---------- IR REGISTER CONSTANTS --------
 THROWAWAY_REG = "x31"  # meant to be reused immediately
 BACKUP_REG = "x30"  # meant to be used as an intermediate with the throwaway
 ZERO = "x0"
 N_REGISTERS = 32
 REGISTER_DICT = {f"x{i}": None for i in range(1, N_REGISTERS - 2)}
 STACK_LOC = 'stack_loc'
+ALL_REGISTERS = [f"x{i}" for i in range(N_REGISTERS)]
+
+
+# ---------- CALLING CONVENTIONS -----------
+RA = "x1"
+SP = "x2"
+GP = "x3"
+TP = "x4"
+FP = "x8"
+
+MAIN = int("0x7000000", 16)  # high address
+DATA = int("0x1000000", 16)
+SPECIAL_REG_DICT = {SP: MAIN, FP: MAIN + N_REGISTERS *
+                    SIZEOF[INT], GP: DATA, RA: None, TP: None}
 
 
 # --------- IR OP CODE NAMES -------------
 ADD = "add"
+ADDI = "addi"
 SUB = "sub"
 MUL = "mul"
 DIV = "div"
 NOT = "not"
-LOAD = "load"
-STORE = "store"
+LW = "load_word"
+SW = "store_word"
 LABEL = "label"
 LI = "load_immediate"
 MV = "move"
@@ -46,12 +66,11 @@ class Mappings():
         self.reg_map = reg_map
         self.rev_reg_map = {reg_map[key]: key for key in reg_map}
         self.sym_table = sym_table
-        self.func_map = {}
         self.throwaway = False
         self.while_idx = 1
         self.for_idx = 1
         self.if_idx = 1
-        self.func_idx = 1
+        self.curr_func = None
 
     def set_reg_map(self, reg_map):
         self.reg_map = reg_map
@@ -71,11 +90,8 @@ class Mappings():
     def set_if_idx(self, idx):
         self.if_idx = idx
 
-    def set_func_idx(self, idx):
-        self.func_idx = idx
-
-    def set_func_map(self, func_map):
-        self.func_map = func_map
+    def set_curr_func(self, func_name):
+        self.curr_func = func_name
 
     def get_reg_map(self):
         return self.reg_map
@@ -95,11 +111,8 @@ class Mappings():
     def get_if_idx(self):
         return self.if_idx
 
-    def get_func_idx(self):
-        return self.func_idx
-
-    def get_func_map(self):
-        return self.func_map
+    def get_curr_func(self):
+        return self.curr_func
 
     def get_reg(self, var_name):
         reg_map = self.reg_map
@@ -287,7 +300,7 @@ def gen_for(_for, mapping, cmd_stack):
     """
     set for variable
     for_header_idx:
-    negate for guard condition 
+    negate for guard condition
     add for guard branch
     for body
     increment for variable
@@ -458,16 +471,122 @@ def gen_if_then_else(ifthenelse, mapping, cmd_stack):
 
 
 def gen_function(_func, mapping, cmd_stack):
-    pass
+    """
+    function_header_idx
+    function_prologue_idx
+    store all variables
+    move fp down
+    move sp down
+    function_body_idx
+    function_body
+    function_epilogue_idx
+    restore all variables
+    move fp up
+    move sp up
+
+    CALLING CONVENTIONS
+    ===============================
+    -> Old FP
+    Parent Stack Frame
+
+
+    ===============================
+    -> Old SP
+    New (Child) Stack Frame
+    -----------------------
+    -> New FP
+    number of args (implicit, not stored in stack or calling conventions)
+    Incoming Args (all on stack) [these are done at function application time]
+    Saved RA
+    Saved FP
+    Saved SP
+    Saved Regs (all 32 regs that are not RA, FP, SP and ZERO)
+    Shift Stack Pointer
+    Shift Frame Pointer
+    -----------------------
+    New (Child) Stack Frame
+    ===============================
+    -> New SP
+    """
+    func_assign = _func.get_assign()
+    func_name = func_assign.get_name().get_value()
+    func_args = list(map(lambda arg: arg.get_value(), func_assign.get_args()))
+    func_body = func_assign.get_body()
+
+    mapping.set_curr_func(func_name)
+
+    # add in function header
+    func_header = f"{func_name}_header"
+    cmd = (LABEL, func_header)
+    cmd_stack.append(cmd)
+
+    # add in function prologue
+    func_prologue = f"{func_name}_prologue"
+    cmd = (LABEL, func_prologue)
+    cmd_stack.append(cmd)
+
+    # add in bindings of function args on stack to registers
+    # first incoming arg on the stack is at the current (parent) SP value
+    # each arg is the size of an int (a memory address)
+    n_args = len(func_args)
+    for i in range(n_args):
+        arg_name = func_args[i]
+        # bind arg_name to register
+        arg_reg = mapping.get_reg(arg_name)
+
+        # get the value from the stack with first arg at SP
+        arg_value_cmd = (LW, arg_reg, -1 * i * SIZEOF[INT], SP)
+        cmd_stack.append(arg_value_cmd)
+
+    # shift stack pointer down by (number of args + number_of_registers) * SIZEOF[int]
+    cmd = (ADDI, SP, SP,  - (n_args + N_REGISTERS + 1) * SIZEOF[INT])
+    cmd_stack.append(cmd)
+
+    # save all 32 registers
+    for i in range(1, N_REGISTERS + 1):
+        reg = ALL_REGISTERS[i - 1]
+        save_reg_cmd = (SW, reg, i * SIZEOF[INT], SP)
+        cmd_stack.append(save_reg_cmd)
+
+    # shift frame pointer up by same amount
+    cmd = (ADDI, FP, SP,  (n_args + N_REGISTERS) * SIZEOF[INT])
+    cmd_stack.append(cmd)
+
+    # add in function body
+    func_body_label = f"{func_name}_body"
+    cmd = (LABEL, func_body_label)
+    cmd_stack.append(cmd)
+
+    # add in body
+    for phrase in func_body:
+        gen_phrase(phrase, mapping, cmd_stack)
+
+    # add in epilogue
+    func_epilogue = f"{func_name}_epilogue"
+    cmd = (LABEL, func_epilogue)
+    cmd_stack.append(cmd)
+
+    # restore all registers
+    for i in range(1, N_REGISTERS + 1):
+        reg = ALL_REGISTERS[i - 1]
+        save_reg_cmd = (LW, reg, i * SIZEOF[INT], SP)
+        cmd_stack.append(save_reg_cmd)
+
+    # restore sp
+    cmd = (ADDI, SP, SP, (n_args + N_REGISTERS + 1) * SIZEOF[INT])
+    cmd_stack.append(cmd)
+
+    # jalr to ra
+    cmd = (JALR, ZERO, 0, RA)
 
 
 def gen_return(ret, mapping, cmd_stack):
     """
     gen_return(ret, mapping, cmd_stack) jumps to the function epilogue
-    beq x0, x0, function_epilogue_{idx}
+    beq x0, x0, {function_name}_epilogue
     """
-    function_idx = mapping.get_func_idx()
-    function_epilogue = f"function_epilogue_{function_idx}"
+    function_name = mapping.get_curr_func()
+    function_epilogue = f"{function_name}_epilogue"
     cmd = (BEQ, ZERO, ZERO, function_epilogue)
     cmd_stack.append(cmd)
     return
@@ -506,7 +625,7 @@ def gen_program(program):
 
 
 if __name__ == "__main__":
-    program = r"~3 + 4;~3 - 4; int x := 3; x:= 2; int z := 2; z := z + x + x; while True dowhile x := 1; endwhile for i from 1 to 3 by 1 dofor x := 1; endfor if True then int y := 4; endif"
+    program = r"fun (|int -> int|) int_id x -> return x; endfun ~3 + 4;~3 - 4; int x := 3; x:= 2; int z := 2; z := z + x + x; while True dowhile x := 1; endwhile for i from 1 to 3 by 1 dofor x := 1; endfor if True then int y := 4; endif"
     ir = gen_program(
         type_check_c.type_check(
             ast_generator_c.parse_program(
