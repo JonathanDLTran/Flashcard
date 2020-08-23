@@ -217,6 +217,29 @@ def gen_binop(bop, mapping, cmd_stack):
         return gen_int_op(bop, op, mapping, cmd_stack)
 
 
+def gen_apply(apply, mapping, cmd_stack):
+    """
+    gen_apply
+    loads in the arguments below the SP
+    then jal to ra, label
+    """
+    func_name = apply.get_fun()
+    func_args = apply.get_args()
+
+    # load in args below SP
+    for i in range(len(func_args)):
+        arg_expr = func_args[i]
+        arg_reg = gen_expr(arg_expr, mapping, cmd_stack)
+        new_loc = -1 * i * SIZEOF[INT]
+        cmd = (SW, arg_reg, new_loc, RA)
+        cmd_stack.append(cmd)
+
+    # jal to func_name
+    func_header = f"{func_name}_header"
+    cmd = (JAL, RA, func_header)
+    cmd_stack.append(cmd)
+
+
 def gen_expr(expr, mapping, cmd_stack):
     if type(expr) == ast_generator_c.IntValue:
         return gen_int(expr, mapping, cmd_stack)
@@ -226,6 +249,8 @@ def gen_expr(expr, mapping, cmd_stack):
         return gen_var(expr, mapping, cmd_stack)
     elif type(expr) == ast_generator_c.Bop:
         return gen_binop(expr, mapping, cmd_stack)
+    elif type(expr) == ast_generator_c.Apply:
+        return gen_apply(expr, mapping, cmd_stack)
 
 
 def gen_ignore(ignore, mapping, cmd_stack):
@@ -578,6 +603,7 @@ def gen_function(_func, mapping, cmd_stack):
 
     # jalr to ra
     cmd = (JALR, ZERO, 0, RA)
+    cmd_stack.append(cmd)
 
 
 def gen_return(ret, mapping, cmd_stack):
@@ -625,7 +651,7 @@ def gen_program(program):
 
 
 if __name__ == "__main__":
-    program = r"fun (|int -> int|) int_id x -> return x; endfun ~3 + 4;~3 - 4; int x := 3; x:= 2; int z := 2; z := z + x + x; while True dowhile x := 1; endwhile for i from 1 to 3 by 1 dofor x := 1; endfor if True then int y := 4; endif"
+    program = r"fun (|int -> int|) int_id x -> return x; endfun ~3 + 4; ~int_id(2); ~3 - 4; int x := 3; x:= 2; int z := 2; z := z + x + x; while True dowhile x := 1; endwhile for i from 1 to 3 by 1 dofor x := 1; endfor if True then int y := 4; endif"
     ir = gen_program(
         type_check_c.type_check(
             ast_generator_c.parse_program(
