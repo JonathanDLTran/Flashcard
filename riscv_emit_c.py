@@ -1,5 +1,5 @@
 """
-ir_generator_c is a ir generator from the c-like code language to
+riscv_emit_c is a ir generator from the c-like code language to
 the lower level RISC-like language
 """
 
@@ -43,6 +43,8 @@ SPECIAL_REG_DICT = {SP: MAIN, FP: MAIN + N_REGISTERS *
 # --------- IR OP CODE NAMES -------------
 ADD = "add"
 ADDI = "addi"
+AND = "and"
+ANDI = "andi"
 SUB = "sub"
 MUL = "mul"
 DIV = "div"
@@ -240,6 +242,37 @@ def gen_apply(apply, mapping, cmd_stack):
     cmd_stack.append(cmd)
 
 
+def gen_int_unop(unop, op, mapping, cmd_stack):
+    if op == lexer_c.MINUS:
+        expr = unop.get_expr()
+        reg = gen_expr(expr, mapping, cmd_stack)
+        cmd = (SUB, reg, ZERO, reg)
+        cmd_stack.append(cmd)
+        return reg
+
+
+def gen_bool_unop(unop, op, mapping, cmd_stack):
+    if op == lexer_c.NOT:
+        expr = unop.get_expr()
+        reg = gen_expr(expr, mapping, cmd_stack)
+
+        # turn 1 to 0 and 0 to 1 with NOT complement and bit mask
+        cmd = (NOT, reg, reg)
+        cmd_stack.append(cmd)
+
+        cmd = (ANDI, reg, reg, 1)
+        cmd_stack.append(cmd)
+        return reg
+
+
+def gen_unop(unop, mapping, cmd_stack):
+    op = unop.get_unop()
+    if op == lexer_c.MINUS:
+        return gen_int_unop(unop, op, mapping, cmd_stack)
+    elif op == lexer_c.NOT:
+        return gen_bool_unop(unop, op, mapping, cmd_stack)
+
+
 def gen_expr(expr, mapping, cmd_stack):
     if type(expr) == ast_generator_c.IntValue:
         return gen_int(expr, mapping, cmd_stack)
@@ -247,6 +280,8 @@ def gen_expr(expr, mapping, cmd_stack):
         return gen_bool(expr, mapping, cmd_stack)
     elif type(expr) == ast_generator_c.VarValue:
         return gen_var(expr, mapping, cmd_stack)
+    elif type(expr) == ast_generator_c.Unop:
+        return gen_unop(expr, mapping, cmd_stack)
     elif type(expr) == ast_generator_c.Bop:
         return gen_binop(expr, mapping, cmd_stack)
     elif type(expr) == ast_generator_c.Apply:
@@ -381,7 +416,7 @@ def gen_for(_for, mapping, cmd_stack):
         gen_phrase(phrase, mapping, cmd_stack)
 
     # increment for variable
-    cmd = (ADD, reg, reg, IntImm(_by))
+    cmd = (ADDI, reg, reg, _by)
     cmd_stack.append(cmd)
 
     # branch to header
@@ -651,7 +686,7 @@ def gen_program(program):
 
 
 if __name__ == "__main__":
-    program = r"fun (|int -> int|) int_id x -> return x; endfun ~3 + 4; ~int_id(2); ~3 - 4; int x := 3; x:= 2; int z := 2; z := z + x + x; while True dowhile x := 1; endwhile for i from 1 to 3 by 1 dofor x := 1; endfor if True then int y := 4; endif"
+    program = r"~not False; ~ -3; fun (|int -> int|) int_id x -> return x; endfun ~3 + 4; ~int_id(2); ~3 - 4; int x := 3; x:= 2; int z := 2; z := z + x + x; while True dowhile x := 1; endwhile for i from 1 to 3 by 1 dofor x := 1; endfor if True then int y := 4; endif"
     ir = gen_program(
         type_check_c.type_check(
             ast_generator_c.parse_program(
