@@ -72,6 +72,8 @@ UNION = "union"
 PIPE = "|"
 TAG = "@"
 OF = "of"
+OPEN_ARRAY = "[|"
+CLOSE_ARRAY = "|]"
 
 # Order matters in keywords
 keywords = sorted(
@@ -139,6 +141,8 @@ keywords = sorted(
         PIPE,
         TAG,
         OF,
+        OPEN_ARRAY,
+        CLOSE_ARRAY,
 
     ],
     reverse=True)
@@ -223,6 +227,8 @@ BRACKETS = [
     CLOSE_STRUCT,
     LPAREN,
     RPAREN,
+    OPEN_ARRAY,
+    CLOSE_ARRAY,
 ]
 
 NON_CHAR = [

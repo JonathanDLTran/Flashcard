@@ -430,6 +430,30 @@ class ListType(Type):
         return not self.__eq__(other)
 
 
+class ArrayType(Type):
+    def __init__(self, typ, length):
+        super().__init__()
+        assert type(length) == int
+        self.typ = typ
+        self.length = length
+
+    def get_typ(self):
+        return self.typ
+
+    def get_len(self):
+        return self.length
+
+    def __repr__(self):
+        return "(ArrayType: " + str(self.typ) + "<" + str(self.length) + ">" + ")"
+
+    def __eq__(self, other):
+        return (type(other) == ArrayType and other.get_typ() == self.get_typ()) or \
+            (type(other) == WildcardType)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+
 class DictType(Type):
     def __init__(self, key_typ, val_typ):
         super().__init__()
@@ -590,6 +614,26 @@ class Tuple(Expr):
 
     def __repr__(self):
         return "(Tuple: (" + ", ".join(list(map(lambda e: str(e), self.exprs))) + "))"
+
+
+class Array(Expr):
+    """
+    Array represents an array
+    """
+
+    def __init__(self, exprs_list):
+        super().__init__()
+        self.exprs = exprs_list
+        self.length = len(exprs_list)
+
+    def get_exprs(self):
+        return self.exprs
+
+    def get_length(self):
+        return self.length
+
+    def __repr__(self):
+        return "(Array: (" + ", ".join(list(map(lambda e: str(e), self.exprs))) + "))"
 
 
 class List(Expr):
@@ -809,6 +853,26 @@ class DeclareList(Expr):
 
     def __repr__(self):
         return "(DeclareList: " + str(self.typ) + " " + str(self.assign) + ")"
+
+
+class DeclareArray(Expr):
+    """
+    DeclareArray represents an type declaration var := arry
+    """
+
+    def __init__(self, typ, assign):
+        super().__init__()
+        self.typ = typ
+        self.assign = assign
+
+    def get_assign(self):
+        return self.assign
+
+    def get_typ(self):
+        return self.typ
+
+    def __repr__(self):
+        return "(DeclareArray: " + str(self.typ) + " " + str(self.assign) + ")"
 
 
 class DeclareDict(Expr):
@@ -1151,6 +1215,12 @@ def get_between_brackets_general(lex_buff, idx, start_sym, end_sym):
             if stack != [] and stack[-1] == lexer_c.OPEN_STRUCT:
                 stack.pop()
 
+        if val == lexer_c.OPEN_ARRAY:
+            stack.append(val)
+        elif val == lexer_c.CLOSE_ARRAY:
+            if stack != [] and stack[-1] == lexer_c.OPEN_ARRAY:
+                stack.pop()
+
         expr_terms.append((typ, val))
         i += 1
 
@@ -1408,6 +1478,25 @@ def get_function_args(lexbuf, demarcation):
             else:
                 raise MissingParens(
                     "lexbuf missing open dictionary symbol : {|")
+
+        if val == lexer_c.OPEN_ARRAY:
+            stack.append(val)
+            arg.append(pair)
+            return get_function_args_helper(rem, demarcation, stack, arg, args_list)
+
+        elif val == lexer_c.CLOSE_ARRAY:
+            if len(stack) >= 1:
+                if stack[-1] == lexer_c.OPEN_ARRAY:
+                    stack.pop()
+                    arg.append(pair)
+                    return get_function_args_helper(rem, demarcation, stack, arg, args_list)
+                else:
+                    stack.append(val)
+                    arg.append(pair)
+                    return get_function_args_helper(rem, demarcation, stack, arg, args_list)
+            else:
+                raise MissingParens(
+                    "lexbuf missing open array symbol : [|")
 
         else:
             arg.append(pair)
@@ -1787,6 +1876,20 @@ def parse_list_type(lexbuf):
     return ListType(parse_type(lexbuf))
 
 
+def parse_array_type(lexbuf):
+    """
+    parse_array_type(lexbuf) parses the lexbuf into a array ttype
+    """
+    assert lexbuf[-1][1] == lexer_c.GT
+    assert lexbuf[-3][1] == lexer_c.LT
+    assert lexbuf[-2][0] == lexer_c.INTEGER
+
+    arr_length = lexbuf[-2][1]
+
+    arr_type = parse_type(lexbuf[:-3])
+    return ArrayType(arr_type, arr_length)
+
+
 def parse_type(lexbuf):
     """
     Given a lexbuf that DEFINITEVLY contains a type, parses the tyupe out
@@ -1825,6 +1928,13 @@ def parse_type(lexbuf):
         func_type = parse_func_type(
             lexbuf[1:l], lexer_c.FUN_ARROW)
         return func_type
+    elif lexbuf[0][1] == lexer_c.OPEN_ARRAY:
+        l, _ = get_between_brackets(
+            lexbuf, 1, start=lexer_c.OPEN_ARRAY, end=lexer_c.CLOSE_ARRAY)  # start 1 aheaf
+        inner_lexbuf = lexbuf[1: l]
+        inner_arr_typ = parse_array_type(
+            inner_lexbuf)
+        return inner_arr_typ
     raise ParseError(
         f"Malformed type definition when parsing lexbuf stream: {lexbuf}.")
 
@@ -1902,6 +2012,20 @@ def parse_phrase(lexbuf):
             new_lex_buff = lexbuf[semi_loc + 1:]
             new_tokens = tokens[semi_loc + 1:]
             acc.append(parsed_tuple)
+            return parse_phrase_helper(new_lex_buff, new_tokens, acc)
+
+        # parse array declaration
+        if lexbuf[0][1] == lexer_c.OPEN_ARRAY:
+            l, _ = get_between_brackets(
+                lexbuf, 1, start=lexer_c.OPEN_ARRAY, end=lexer_c.CLOSE_ARRAY)
+            arr_typ = parse_array_type(lexbuf[1:l])
+            semi_loc = tokens.index(lexer_c.SEMI)
+            list_buffer = lexbuf[l + 1:semi_loc]
+            parsed_list = DeclareArray(
+                arr_typ, parse_assign(list_buffer))
+            new_lex_buff = lexbuf[semi_loc + 1:]
+            new_tokens = tokens[semi_loc + 1:]
+            acc.append(parsed_list)
             return parse_phrase_helper(new_lex_buff, new_tokens, acc)
 
         # parse list declaration
@@ -2159,6 +2283,18 @@ def match_elt(lexbuf):
                     return 2 + length, Extern(elt_val, args)
                 return 2 + length, Apply(elt_val, args)
         return 1, VarValue(elt_val)
+
+    # array declaration expression
+    elif elt_val == lexer_c.OPEN_ARRAY:
+        length, middle_terms = get_between_brackets_general(
+            lexbuf, 1, lexer_c.OPEN_ARRAY, lexer_c.CLOSE_ARRAY)
+        split_args = get_function_args(
+            middle_terms, lexer_c.COMMA)
+        args_pairs = list(map(lambda args_buffer: parse_expr(
+            args_buffer), split_args))
+        return 1 + length, Array(args_pairs)
+    elif elt_val == lexer_c.CLOSE_ARRAY:
+        raise ParseError("Unmatched closing Array symbol")
 
     elif elt_val == lexer_c.OPEN_TUP:
         length, middle_terms = get_between_brackets_general(

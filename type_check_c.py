@@ -310,6 +310,27 @@ def check_extern(extern, ctx):
         f"External function named {name} requires arguments with types {declared_arg_typs} yet got the types of {args_typs}. ")
 
 
+def check_array(array, ctx):
+    """
+    check_array(lst, ctx) returns the correct type for a array expression
+    in ctx, otherwise raises error
+    """
+    assert type(array) == ast_generator_c.Array
+    exprs_list = array.get_exprs()
+    lst_component_types = []
+    for expr in exprs_list:
+        expr_typ = check_expr(expr, ctx)
+        lst_component_types.append(expr_typ)
+    if lst_component_types == []:
+        return ast_generator_c.WildcardType()
+    first_type = lst_component_types[0]
+    for typ in lst_component_types:
+        if typ != first_type:
+            raise TypeError(
+                f"Type mismatch in array: first element type is {first_type} and one of the elements has a mismatched type {typ}. ")
+    return ast_generator_c.ArrayType(first_type, len(exprs_list))
+
+
 def check_expr(expr, ctx):
     """
     check_expr(expr) is the type of the expr if it is well-typed,
@@ -336,6 +357,8 @@ def check_expr(expr, ctx):
         return check_list(expr, ctx)
     elif type(expr) == ast_generator_c.Dict:
         return check_dict(expr, ctx)
+    elif type(expr) == ast_generator_c.Array:
+        return check_array(expr, ctx)
     elif type(expr) == ast_generator_c.Unop:
         return check_unop(expr, ctx)
     elif type(expr) == ast_generator_c.Bop:
@@ -645,12 +668,32 @@ def check_declare_union(union, ctx):
 
 def check_declare_struct(struct, ctx):
     """
-    check_declare_union(union, ctx) type checcks a declare struct and raises errior
+    check_declare_union(struct, ctx) type checcks a declare struct and raises errior
     if not typed correctly
     """
     struct_name = struct.get_name()
     struct_types = struct.get_typ_list()
     ctx[("struct", struct_name)] = struct_types
+    return ctx
+
+
+def check_declare_array(array, ctx):
+    """
+    check_declare_array(array, ctx) type checcks a declare struct and raises errior
+    if not typed correctly
+    """
+    arr_typ = array.get_typ()
+    assign = array.get_assign()
+    var = assign.get_var()
+
+    if var not in ctx:
+        ctx[var] = arr_typ
+    else:
+        original_typ = ctx[var]
+        raise TypeError(
+            f"Cannot reassign variable to different type: Original Type was {original_typ} while new type is {arr_typ}")
+
+    ctx = check_assignment(assign, ctx)
     return ctx
 
 
@@ -684,6 +727,8 @@ def check_phrase(phrase, ctx):
         ctx = check_declare_union(phrase, ctx)
     elif type(phrase) == ast_generator_c.DeclareStruct:
         ctx = check_declare_struct(phrase, ctx)
+    elif type(phrase) == ast_generator_c.DeclareArray:
+        ctx = check_declare_array(phrase, ctx)
     elif type(phrase) == ast_generator_c.Return:
         check_return(phrase, ctx)
     else:
@@ -728,7 +773,7 @@ def type_check(program):
 
 
 if __name__ == "__main__":
-    program = r'~print(1); ~print("lol"); struct singular := {use : bool;}; singular used := {|use <- True|}; struct time := {minutes:int; hours:int;}; ~{|minutes <- -15, hours<- 0|}; time st :={|minutes <- 4, hours<- 3|}; union singleton := NULL; ~@NULL(); singleton s := @NULL(); union school := Elementary of int | Middle of int; school sch := @Elementary(1); sch := @Elementary(2); union race := Black | White; ~{[]: [1, 2], []: []}; ~{}; ~(|1, True|); ~[1, 2, 3]; fun (|int -> int|) int_id x -> int u := 2; ~int_id(3); int r := int_id(u); return x; endfun {int : int} d := {1: 1, 2: -3}; d := {}; if True then int m := 1; endif elif True then int n:= -2; endelif elif True then int n:= -2; endelif else int o := 24; endelse  ~1; ~2 + 3 - 4;  bool k := True; while k dowhile k := False; endwhile  for i from 1 + 1 to 3 by 1 dofor int j := 1; endfor ([int] * int) tl := (|[], 3|); tl := (|[2], -3|); [(int * int)] l1 := []; l1 := [(|1, 2|)]; l1 := []; l1 := [(|-1, -2|)]; [[int]] l := []; l := [[1, 2], [3]]; l := [[2]]; l := []; float f := -1.0; str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z; (int * int) t := (|1, 2|); (int * (str * int)) t2 := (|1, (|"hello", 3|)|); t := (| -1, -1|);'
+    program = r'[|[|int<10>|]<10>|] arr := [|[|3, 4, 5|], [|3, 4, 5|], [|3, 4, 5|]|]; [|int<10>|] arr2 := [|3, 4, 5|]; ~print(1); ~print("lol"); struct singular := {use : bool;}; singular used := {|use <- True|}; struct time := {minutes:int; hours:int;}; ~{|minutes <- -15, hours<- 0|}; time st :={|minutes <- 4, hours<- 3|}; union singleton := NULL; ~@NULL(); singleton s := @NULL(); union school := Elementary of int | Middle of int; school sch := @Elementary(1); sch := @Elementary(2); union race := Black | White; ~{[]: [1, 2], []: []}; ~{}; ~(|1, True|); ~[1, 2, 3]; fun (|int -> int|) int_id x -> int u := 2; ~int_id(3); int r := int_id(u); return x; endfun {int : int} d := {1: 1, 2: -3}; d := {}; if True then int m := 1; endif elif True then int n:= -2; endelif elif True then int n:= -2; endelif else int o := 24; endelse  ~1; ~2 + 3 - 4;  bool k := True; while k dowhile k := False; endwhile  for i from 1 + 1 to 3 by 1 dofor int j := 1; endfor ([int] * int) tl := (|[], 3|); tl := (|[2], -3|); [(int * int)] l1 := []; l1 := [(|1, 2|)]; l1 := []; l1 := [(|-1, -2|)]; [[int]] l := []; l := [[1, 2], [3]]; l := [[2]]; l := []; float f := -1.0; str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z; (int * int) t := (|1, 2|); (int * (str * int)) t2 := (|1, (|"hello", 3|)|); t := (| -1, -1|);'
     try:
         result = type_check(
             ast_generator_c.parse_program(lexer_c.lex(program)))
