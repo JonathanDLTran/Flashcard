@@ -273,6 +273,10 @@ def gen_unop(unop, mapping, cmd_stack):
         return gen_bool_unop(unop, op, mapping, cmd_stack)
 
 
+def gen_array(array, mapping, cmd_stack):
+    pass
+
+
 def gen_expr(expr, mapping, cmd_stack):
     if type(expr) == ast_generator_c.IntValue:
         return gen_int(expr, mapping, cmd_stack)
@@ -280,6 +284,8 @@ def gen_expr(expr, mapping, cmd_stack):
         return gen_bool(expr, mapping, cmd_stack)
     elif type(expr) == ast_generator_c.VarValue:
         return gen_var(expr, mapping, cmd_stack)
+    elif type(expr) == ast_generator_c.Array:
+        return gen_array(expr, mapping, cmd_stack)
     elif type(expr) == ast_generator_c.Unop:
         return gen_unop(expr, mapping, cmd_stack)
     elif type(expr) == ast_generator_c.Bop:
@@ -653,6 +659,10 @@ def gen_return(ret, mapping, cmd_stack):
     return
 
 
+def gen_declare_array(array, mapping, cmd_stack):
+    pass
+
+
 def gen_phrase(phrase, mapping, cmd_stack):
     if type(phrase) == ast_generator_c.Ignore:
         return gen_ignore(phrase, mapping, cmd_stack)
@@ -670,6 +680,8 @@ def gen_phrase(phrase, mapping, cmd_stack):
         return gen_function(phrase, mapping, cmd_stack)
     elif type(phrase) == ast_generator_c.Return:
         return gen_return(phrase, mapping, cmd_stack)
+    elif type(phrase) == ast_generator_c.DeclareArray:
+        return gen_declare_array(phrase, mapping, cmd_stack)
 
 
 def gen_program(program):

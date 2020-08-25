@@ -1885,6 +1885,7 @@ def parse_array_type(lexbuf):
     assert lexbuf[-2][0] == lexer_c.INTEGER
 
     arr_length = lexbuf[-2][1]
+    assert arr_length >= 0
 
     arr_type = parse_type(lexbuf[:-3])
     return ArrayType(arr_type, arr_length)
