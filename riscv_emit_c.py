@@ -126,6 +126,20 @@ class Mappings():
                 return reg
         raise KeyError("No more free registers. ")
 
+        # TODO: Change bindings for registers
+        # register is now only linked to a variable for a shoirt amount of time
+        # possibly only for a little value. Register could also be linked to a value
+        # in a load immediate operation, in which case it holds no variable
+
+        # the srack must contain room for all variables in order to store in
+        # the correct location
+
+        # TODO: Heap
+        # TODO: Global
+        # TODO: Data
+        # TODO: BSS
+        # TODO: Text
+
 
 # ---------- IR CLASSES ------------------
 class IntImm():
