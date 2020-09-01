@@ -10,6 +10,10 @@ import ast_generator_c
 import type_check_c
 
 
+# ---------- OTHER IMPORTS --------------
+from copy import deepcopy
+
+
 # ---------- DATA SIZES -----------------
 INT = "int"
 CHAR = "char"
@@ -18,26 +22,23 @@ SIZEOF = {INT: 4, CHAR: 1, FLOAT: 8, }
 
 
 # ---------- IR REGISTER CONSTANTS --------
-THROWAWAY_REG = "x31"  # meant to be reused immediately
-BACKUP_REG = "x30"  # meant to be used as an intermediate with the throwaway
-ZERO = "x0"
 N_REGISTERS = 32
-REGISTER_DICT = {f"x{i}": None for i in range(1, N_REGISTERS - 2)}
-STACK_LOC = 'stack_loc'
-ALL_REGISTERS = [f"x{i}" for i in range(N_REGISTERS)]
 
-
-# ---------- CALLING CONVENTIONS -----------
+ZERO = "x0"
 RA = "x1"
 SP = "x2"
 GP = "x3"
 TP = "x4"
 FP = "x8"
+BACKUP_REG = "x30"  # meant to be used as an intermediate with the throwaway
+THROWAWAY_REG = "x31"  # meant to be reused immediately
 
-MAIN = int("0x7000000", 16)  # high address
-DATA = int("0x1000000", 16)
-SPECIAL_REG_DICT = {SP: MAIN, FP: MAIN + N_REGISTERS *
-                    SIZEOF[INT], GP: DATA, RA: None, TP: None}
+ALL_REGISTERS = [f"x{i}" for i in range(N_REGISTERS)]
+SPECIAL_REGS = {RA, SP, GP, TP, FP, THROWAWAY_REG, BACKUP_REG, ZERO}
+
+START_REG_VAR_MAP = {f"x{i}": None for i in range(N_REGISTERS)}
+
+START_STACK = int("0x70000000", 16)
 
 
 # --------- IR OP CODE NAMES -------------
@@ -64,24 +65,45 @@ BLT = "blt"
 
 # ---------- INFORMATION CLASSES ---------
 class Mappings():
-    def __init__(self, reg_map, sym_table):
-        self.reg_map = reg_map
-        self.rev_reg_map = {reg_map[key]: key for key in reg_map}
-        self.sym_table = sym_table
-        self.throwaway = False
+    def __init__(self, reg_var_map, var_stack_map, closure_vars, old_closure_vars):
+        """
+        A Mappings object contains the state needed for the translation in a single
+        stack frame
+
+        A Mappings object is created each time a function is cdefined/declared
+        """
+
+        # indicdes to mark headers and footers for jumping
+        # to while, for, if and functions
         self.while_idx = 1
         self.for_idx = 1
         self.if_idx = 1
         self.curr_func = None
+
+        # reg_var_map maps each register to None or a string, the name of a variable
+        self.reg_var_map = reg_var_map
+        # var_stack_map maps each variable to a location on the stack relative
+        # to the stack pointer, e.g.  40 + SP
+        self.var_stack_map = var_stack_map
+
+        # this is an ordered list of  closure vars in that order
+        # with first being the top most and last being bottom most ons tack
+        self.closure_vars_ordered = old_closure_vars
+
+        # mappings is the mappings inside the function for
+        # different functiond
+        # it is in the form {<"function name"> : mapping_obj}
+        self.mappings = {}
+
+        # closure_vars is the list of all closure variables for this stakc frame
+        # including those varibales it inherited from a previous stack frame
+        self.closure_vars = closure_vars
 
     def set_reg_map(self, reg_map):
         self.reg_map = reg_map
 
     def set_rev_reg_map(self, rev_reg_map):
         self.rev_reg_map = rev_reg_map
-
-    def set_sym_table(self, sym_table):
-        self.sym_table = sym_table
 
     def set_while_idx(self, idx):
         self.while_idx = idx
@@ -95,11 +117,11 @@ class Mappings():
     def set_curr_func(self, func_name):
         self.curr_func = func_name
 
+    def set_mappings(self, mappings):
+        self.mappings = mappings
+
     def get_reg_map(self):
         return self.reg_map
-
-    def get_sym_table(self):
-        return self.sym_table
 
     def get_rev_reg_map(self):
         return self.rev_reg_map
@@ -116,58 +138,166 @@ class Mappings():
     def get_curr_func(self):
         return self.curr_func
 
-    def get_reg(self, var_name):
-        reg_map = self.reg_map
-        for reg in reg_map:
-            if reg_map[reg] == None:
-                reg_map[reg] = var_name
-                rev_reg_map = {reg_map[key]: key for key in reg_map}
-                self.set_rev_reg_map(rev_reg_map)
+    def get_reg_var_map(self):
+        return self.reg_var_map
+
+    def get_var_stack_map(self):
+        return self.var_stack_map
+
+    def get_mappings(self):
+        return self.mappings
+
+    def get_closure_vars(self):
+        return self.closure_vars
+
+    def get_old_closure_vars(self):
+        return self.closure_vars_ordered
+
+
+# ---------- FUNCTION STACK FRAME ANALYSIS -------------------------
+
+
+def get_all_vars(phrases):
+    """
+    get_all_vars(function_body) gets a unique set of variables
+    used in a function_body and returns a list of those string names of
+    the variables
+
+    USED FOR CALLING CONVENTION IN STACK FRAME TO RESERVE MEMORY FOR EACH VARIABLE
+    """
+    # assert type(function_body) == ast_generator_c.Program
+
+    # phrases = function_body.get_phrases()
+
+    vars_list = []
+    for phrase in phrases:
+        if type(phrase) == ast_generator_c.Ignore:
+            pass  # cannot declare a variable
+        elif type(phrase) == ast_generator_c.Declaration:
+            assign = phrase.get_assign()
+            var = assign.get_var()
+            vars_list.append(var)
+        elif type(phrase) == ast_generator_c.Assign:
+            var = phrase.get_var()
+            vars_list.append(var)
+        elif type(phrase) == ast_generator_c.While:
+            body = phrase.get_body()
+            inner_vars = get_all_vars(body)
+            vars_list += inner_vars
+        elif type(phrase) == ast_generator_c.For:
+            index_var = phrase.get_index().get_value()
+            vars_list.append(index_var)
+            body = phrase.get_body()
+            inner_vars = get_all_vars(body)
+            vars_list += inner_vars
+        elif type(phrase) == ast_generator_c.IfThenElse:
+            (_, if_body) = phrase.get_if_pair()
+            (_, elif_bodies) = phrase.get_elif_pair_list()
+            else_body = phrase.get_else()
+
+            inner_vars = get_all_vars(if_body)
+            vars_list += inner_vars
+
+            for elif_body in elif_bodies:
+                inner_vars = get_all_vars(elif_body)
+                vars_list += inner_vars
+
+            if else_body != None:
+                inner_vars = get_all_vars(else_body)
+                vars_list += inner_vars
+
+        elif type(phrase) == ast_generator_c.DeclareFunc:
+            pass  # new scope
+        elif type(phrase) == ast_generator_c.Return:
+            pass  # cannot declare a variable
+        elif type(phrase) == ast_generator_c.DeclareArray:
+            assign = phrase.get_assign()
+            var = assign.get_var()
+            vars_list.append(var)
+    return list(set(vars_list))
+
+
+# ---------- REGISTER REPLACEMENT ALGORITHMS ------------------
+
+
+def reg_to_boot(reg_var_map):
+    """
+    reg_to_boot(reg_var_map) boots the first register in reg_var_map
+
+    reg_var_map must have at least one register
+
+    TODO: OPTIMIZE REPLACEMNT ALGORITHM
+    """
+    for reg in reg_var_map:
+        if reg not in SPECIAL_REGS:
+            return reg
+
+
+def move_var_to_reg(reg_var_map, var_stack_map, var, cmd_stack):
+    """
+    move_var_to_reg(reg_var_map, var_stack_map, var, cmd_stack) moves var
+    to a register in reg_var_map
+
+    if extra commands have to be used to load and store,
+    commands are added automatically to the command stakc
+    """
+
+    # check if var is already bound to a register
+    for reg, _var in reg_var_map.items():
+        if _var == var:
+            return reg
+
+    # check if there is an open register
+    for reg, _var in reg_var_map.items():
+        if reg not in SPECIAL_REGS:
+            if _var == None:
                 return reg
-        raise KeyError("No more free registers. ")
 
-        # TODO: Change bindings for registers
-        # register is now only linked to a variable for a shoirt amount of time
-        # possibly only for a little value. Register could also be linked to a value
-        # in a load immediate operation, in which case it holds no variable
+    # no free registers: boot some variable from a register
+    boot_reg = reg_to_boot(reg_var_map)
+    add_var_to_reg(reg_var_map, var_stack_map, var, boot_reg, cmd_stack)
 
-        # the srack must contain room for all variables in order to store in
-        # the correct location
-
-        # TODO: Heap
-        # TODO: Global
-        # TODO: Data
-        # TODO: BSS
-        # TODO: Text
+    return boot_reg
 
 
-# ---------- IR CLASSES ------------------
-class IntImm():
-    def __init__(self, int_val):
-        self.val = int_val
+def add_var_to_reg(reg_var_map, var_stack_map, var, reg, cmd_stack):
+    """
+    add_var_to_reg(reg_var_map, var_stack_map, var, reg, cmd_stack) assumes var is not bound
+    to a register in reg_var_map
+    """
+
+    # remove the var from register and spill into stack
+    old_var = reg_var_map[reg]
+    old_var_loc = var_stack_map[old_var]
+
+    cmd = (LI, THROWAWAY_REG, old_var_loc)
+    cmd_stack.append(cmd)
+
+    cmd = (SW, reg, 0, THROWAWAY_REG)
+    cmd_stack.append(cmd)
+
+    # add var from stack to register
+    reg_var_map[reg] = var
+    new_var_loc = var_stack_map[var]
+
+    cmd = (LI, THROWAWAY_REG, new_var_loc)
+    cmd_stack.append(cmd)
+
+    cmd = (LW, reg, 0, THROWAWAY_REG)
+    cmd_stack.append(cmd)
 
 
-class GenAdd():
-    def __init__(self, bop, rd, rs1, rs2):
-        self.bop = bop
-        self.rd = rd
-        self.rs1 = rs1
-        self.rs2 = rs2
-
-    def get_bop(self):
-        return self.bop
-
-    def get_rs1(self):
-        return self.rs1
-
-    def get_rs2(self):
-        return self.rs2
-
-    def get_rd(self):
-        return self.rd
+# ----------- CODE GENERATION -----------------
 
 
 def gen_int(_int, mapping, cmd_stack):
+    """
+    gen_int(_int, mapping, cmd_stack) places the int in THROWAWAY_REG
+    and returns THROWAWAY_REG
+
+    REQUIRES: BACKUP_REG and THROWAWAY_REG are held free for these operations
+    RETURNS: REGISTER
+    """
     assert type(_int) == ast_generator_c.IntValue
     val = _int.get_value()
     cmd = (LI, THROWAWAY_REG, val)
@@ -177,6 +307,13 @@ def gen_int(_int, mapping, cmd_stack):
 
 
 def gen_bool(_bool, mapping, cmd_stack):
+    """
+    gen_bool(_bool, mapping, cmd_stack) places the int in THROWAWAY_REG
+    and returns THROWAWAY_REG
+
+    REQUIRES: BACKUP_REG and THROWAWAY_REG are held free for these operations
+    RETURNS: REGISTER
+    """
     assert type(_bool) == ast_generator_c.BoolValue
     val = _bool.get_value()
     if val:
@@ -193,7 +330,9 @@ def gen_int_op(int_op, op, mapping, cmd_stack):
     gen_int_op(add_int_node, op, mapping, cmd_stack) generates IR AST node code for
     a int_op node.
 
-    Returns IR Ast Node
+    Returns THROWAWAY_REG which holds the result of the int op
+    RETURNS: REGISTER
+    REQUIRES: BACKUP_REG and THROWAWAY_REG are held free for these operations
 
     int_op must be syntactically correct under type checking
     """
@@ -217,17 +356,22 @@ def gen_int_op(int_op, op, mapping, cmd_stack):
 
 
 def gen_var(var, mapping, cmd_stack):
+    """
+    gen_var is the register bound to var
+
+    RETURNS: REGISTER
+    """
     var_name = var.get_value()
-    var_reg_map = mapping.get_rev_reg_map()
-
-    if var_name in var_reg_map:
-        return var_reg_map[var_name]
-
-    var_reg = mapping.get_reg(var_name)
-    return var_reg
+    return move_var_to_reg(mapping.get_reg_var_map(), mapping.get_var_stack_map(), var_name, cmd_stack)
 
 
 def gen_binop(bop, mapping, cmd_stack):
+    """
+    gen_binop(bop, mapping, cmd_stack) gens assembly code for the bop
+    and returns what register the binary operastion result is stored in
+
+    RETURNS: REGISTER
+    """
     op = bop.get_bop()
     if op in [lexer_c.PLUS, lexer_c.MINUS, lexer_c.TIMES, lexer_c.DIV]:
         return gen_int_op(bop, op, mapping, cmd_stack)
@@ -242,13 +386,32 @@ def gen_apply(apply, mapping, cmd_stack):
     func_name = apply.get_fun()
     func_args = apply.get_args()
 
-    # load in args below SP
-    for i in range(len(func_args)):
-        arg_expr = func_args[i]
+    curr_var_stack_mapping = mapping.get_var_stack_map()
+
+    mappings_dict = mapping.get_mappings()
+    func_mapping = mappings_dict[func_name]
+    func_closure_vars = func_mapping.get_old_closure_vars()
+
+    # load in incoming args at SP and BELOW
+    i = 0
+    func_args.reverse()
+    for arg_expr in func_args:
         arg_reg = gen_expr(arg_expr, mapping, cmd_stack)
         new_loc = -1 * i * SIZEOF[INT]
-        cmd = (SW, arg_reg, new_loc, RA)
+        cmd = (SW, arg_reg, new_loc, SP)
         cmd_stack.append(cmd)
+        i += 1
+
+    # load in closure args below incking args
+    func_closure_vars.reverse()
+    for closure_var in func_closure_vars:
+        curr_stack_loc = curr_var_stack_mapping[closure_var]
+        cmd = (LW, THROWAWAY_REG, curr_stack_loc, SP)
+        cmd_stack.append(cmd)
+        new_loc = -1 * i * SIZEOF[INT]
+        cmd = (SW, THROWAWAY_REG, new_loc, SP)
+        cmd_stack.append(cmd)
+        i += 1
 
     # jal to func_name
     func_header = f"{func_name}_header"
@@ -317,10 +480,8 @@ def gen_assign(assign, mapping, cmd_stack):
     expr = assign.get_expr()
     var = assign.get_var()
 
-    if var not in mapping.get_rev_reg_map():
-        reg = mapping.get_reg(var)
-    else:
-        reg = mapping.get_rev_reg_map()[var]
+    reg = move_var_to_reg(mapping.get_reg_var_map(),
+                          mapping.get_var_stack_map(), var, cmd_stack)
 
     expr_reg = gen_expr(expr, mapping, cmd_stack)
     cmd = (ADD, reg, expr_reg, ZERO)
@@ -394,10 +555,13 @@ def gen_for(_for, mapping, cmd_stack):
     body = _for.get_body()
 
     # add for variable
-    if index_var not in mapping.get_rev_reg_map():
-        reg = mapping.get_reg(index_var)
-    else:
-        reg = mapping.get_rev_reg_map()[index_var]
+    reg = move_var_to_reg(mapping.get_reg_var_map(),
+                          mapping.get_var_stack_map(), index_var, cmd_stack)
+
+    # if index_var not in mapping.get_rev_reg_map():
+    #     reg = mapping.get_reg(index_var)
+    # else:
+    #     reg = mapping.get_rev_reg_map()[index_var]
 
     cmd = (LI, reg, _from)
     cmd_stack.append(cmd)
@@ -588,12 +752,58 @@ def gen_function(_func, mapping, cmd_stack):
     ===============================
     -> New SP
     """
+
     func_assign = _func.get_assign()
     func_name = func_assign.get_name().get_value()
     func_args = list(map(lambda arg: arg.get_value(), func_assign.get_args()))
     func_body = func_assign.get_body()
 
+    # get all variable names
+    incoming_vars = func_args
+    closure_vars = mapping.get_closure_vars()
+    local_func_vars = set(get_all_vars(func_body))
+    local_func_vars = local_func_vars.difference(
+        incoming_vars)  # remove incoming vars
+    new_closure_vars = list(set(closure_vars).union(
+        set(incoming_vars).union(local_func_vars)))
+
+    num_vars = len(closure_vars) + len(incoming_vars) + \
+        len(local_func_vars) + N_REGISTERS
+
+    new_var_stack_map = {}
+    i = 1
+    # bottom of stack
+    for var_name in local_func_vars:
+        new_var_stack_map[var_name] = SIZEOF[INT] * i + \
+            SIZEOF[INT] * N_REGISTERS  # relative to SP
+        i += 1
+
+    # middle of stack
+    for var_name in closure_vars:
+        new_var_stack_map[var_name] = SIZEOF[INT] * i + \
+            SIZEOF[INT] * N_REGISTERS  # relative to SP
+        i += 1
+
+    # top of stack
+    for var_name in incoming_vars:
+        new_var_stack_map[var_name] = SIZEOF[INT] * i + \
+            SIZEOF[INT] * N_REGISTERS  # relative to SP
+        i += 1
+
+    # append a new mapping
+    mappings_dict = mapping.get_mappings()
+    new_reg_var_map = deepcopy(
+        mapping.get_reg_var_map())  # hold register state
+    new_mapping = Mappings(
+        new_reg_var_map, new_var_stack_map, new_closure_vars, closure_vars)
+    if func_name not in mappings_dict:
+        mappings_dict[func_name] = new_mapping
+    mapping.set_mappings(mappings_dict)
+
+    # set current function
     mapping.set_curr_func(func_name)
+
+    ####################### FUNCTION BODY CODE ########################
 
     # add in function header
     func_header = f"{func_name}_header"
@@ -605,31 +815,17 @@ def gen_function(_func, mapping, cmd_stack):
     cmd = (LABEL, func_prologue)
     cmd_stack.append(cmd)
 
-    # add in bindings of function args on stack to registers
-    # first incoming arg on the stack is at the current (parent) SP value
-    # each arg is the size of an int (a memory address)
-    n_args = len(func_args)
-    for i in range(n_args):
-        arg_name = func_args[i]
-        # bind arg_name to register
-        arg_reg = mapping.get_reg(arg_name)
-
-        # get the value from the stack with first arg at SP
-        arg_value_cmd = (LW, arg_reg, -1 * i * SIZEOF[INT], SP)
-        cmd_stack.append(arg_value_cmd)
-
-    # shift stack pointer down by (number of args + number_of_registers) * SIZEOF[int]
-    cmd = (ADDI, SP, SP,  - (n_args + N_REGISTERS + 1) * SIZEOF[INT])
-    cmd_stack.append(cmd)
-
     # save all 32 registers
     for i in range(1, N_REGISTERS + 1):
         reg = ALL_REGISTERS[i - 1]
         save_reg_cmd = (SW, reg, i * SIZEOF[INT], SP)
         cmd_stack.append(save_reg_cmd)
 
-    # shift frame pointer up by same amount
-    cmd = (ADDI, FP, SP,  (n_args + N_REGISTERS) * SIZEOF[INT])
+    # shift stack pointer and frame pointer commands
+    cmd = (ADDI, SP, SP, -1 * SIZEOF[INT] * (num_vars + 1))
+    cmd_stack.append(cmd)
+
+    cmd = (ADDI, FP, FP, SIZEOF[INT] * (num_vars))
     cmd_stack.append(cmd)
 
     # add in function body
@@ -653,7 +849,7 @@ def gen_function(_func, mapping, cmd_stack):
         cmd_stack.append(save_reg_cmd)
 
     # restore sp
-    cmd = (ADDI, SP, SP, (n_args + N_REGISTERS + 1) * SIZEOF[INT])
+    cmd = (ADDI, SP, SP, 1 * SIZEOF[INT] * (num_vars + 1))
     cmd_stack.append(cmd)
 
     # jalr to ra
@@ -700,13 +896,26 @@ def gen_phrase(phrase, mapping, cmd_stack):
 
 def gen_program(program):
     cmd_stack = []
-    reg_map = REGISTER_DICT
-    sym_table = {}
-    mapping = Mappings(reg_map, sym_table)
+
+    cmd = (LABEL, "__main__")
+    cmd_stack.append(cmd)
+
+    mapping = Mappings(START_REG_VAR_MAP, [], [], [])
 
     phrases = program.get_phrases()
-    for phrase in phrases:
-        gen_phrase(phrase, mapping, cmd_stack)
+    main_function = ast_generator_c.DeclareFunc(None, ast_generator_c.Function(
+        ast_generator_c.VarValue('__main__'), [], phrases))
+
+    gen_function(main_function, mapping, cmd_stack)
+
+    cmd = (LABEL, "__start__")
+    cmd_stack.append(cmd)
+
+    cmd = (ADDI, SP, SP, START_STACK)
+    cmd_stack.append(cmd)
+
+    cmd = (JAL, RA, "__main__")
+    cmd_stack.append(cmd)
 
     return cmd_stack
 
@@ -720,7 +929,9 @@ if __name__ == "__main__":
     for triple in ir:
         print(triple)
 
-
-# Notes
-# When generating, there are n registers n >= 1 and I will store
-# data in one register and keep shifting data to a free register.
+# TODO: translate to normal form instread of triples
+# TODO: Heap
+# TODO: Global
+# TODO: Data
+# TODO: BSS
+# TODO: Text
