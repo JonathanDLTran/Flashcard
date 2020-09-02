@@ -12,6 +12,7 @@ import type_check_c
 
 # ---------- OTHER IMPORTS --------------
 from copy import deepcopy
+import sys
 
 
 # ---------- DATA SIZES -----------------
@@ -83,11 +84,11 @@ SUB = "sub"
 MUL = "mul"
 DIV = "div"
 NOT = "not"
-LW = "load_word"
-SW = "store_word"
+LW = "lw"
+SW = "sw"
 LABEL = "label"
-LI = "load_immediate"
-MV = "move"
+LI = "li"
+MV = "mv"
 JAL = "jal"
 JALR = "jalr"
 BEQ = "beq"
@@ -1016,18 +1017,50 @@ def gen_program(program):
     return cmd_stack
 
 
+def translate_to_riscv(triple_form):
+    """
+    translate_to_riscv translates triples to the risc v format
+    """
+    s = ""
+    s += ".globl\n"
+    s += ".data\n"
+    s += ".text\n"
+    for triple in triple_form:
+        if triple[0] == LABEL:
+            _, label = triple
+            s += label
+            s += ":\n"
+        # for jalr, sw, lw
+        elif len(triple) == 4:
+            op, r1, amt, r2 = triple
+            s += "\t"
+            s += str(op) + " " + str(r1) + " " + str(amt) + "(" + str(r2) + ")"
+            s += "\n"
+        else:
+            s += "\t"
+            s += " ".join(list(map(lambda e: str(e), triple)))
+            s += "\n"
+    return s
+
+
+def write_to_file(asm_code, file_path):
+    """
+    write_to_file writes the asm_code, a string, to the requested file_path
+    """
+    fp = open(file_path, "w")
+    fp.write(asm_code)
+    fp.close()
+
+
 if __name__ == "__main__":
     program = r"[|int<10>|] arr := [|3|]; ~not False; ~ -3; fun (|int -> int|) int_id x -> return x; endfun ~3 + 4; ~int_id(2); ~3 - 4; int x := 3; x:= 2; int z := 2; z := z + x + x; while True dowhile x := 1; endwhile for i from 1 to 3 by 1 dofor x := 1; endfor if True then int y := 4; endif"
-    ir = gen_program(
+    triple_form = gen_program(
         type_check_c.type_check(
             ast_generator_c.parse_program(
                 lexer_c.lex(program))))
-    for triple in ir:
-        print(triple)
+    asm_code = translate_to_riscv(triple_form)
 
-# TODO: translate to normal form instread of triples
-# TODO: Heap
-# TODO: Global
-# TODO: Data
-# TODO: BSS
-# TODO: Text
+    cli_args = sys.argv
+    if len(cli_args) > 1:
+        file_path = cli_args[1]
+        write_to_file(asm_code, file_path)
