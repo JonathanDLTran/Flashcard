@@ -120,11 +120,13 @@ or
 However, there is no plan to extend generic types or polymorphic types beyond an intepreter phase, and certainly not to the IR or final compiler.
 
 
-## IR (RISC-like intermediate representation) (In planning stage / In progress)
+## IR (RISC-like intermediate representation) (In planning stage / In progress / TODO)
 The next step is to develop a translation of the language from the C-like version to an IR which is a higher level Risc language. This IR will be based on three argument assembly instructions and will feature ops like add, ld, st, etc. Instead of using registers, variables will be kept with the function names. Temporary variables are introduced as necessary. If needed, control flow graphs and redundancy DAGs may be added, as provisions for optimization. 
 
-## Code emission (Preliminary Non-IR Emission In Progress / IR Based Emission - Not yet planned)
+## Code emission (Preliminary Non-IR Emission Finished / IR Based Emission - Not yet planned)
 Current code emission translates semantically analyzed code straight into RISC-V assembly code, without the intermediate representation. This was due to a misunderstanding of the purpose and structure of the IR. Following this basic translation, an IR will be developed to facilitate higher level concepts and optimization. 
 
 The final planned step is to develop code emission from the IR to RISC-V assembly code. This will probably be more straightforward than what happens for the IR translation phase. Register spilling into the stack will be liberally used. Space layout may not be optimal. Code is NOT OPTIMIZED in any fashion.  
+
+Code emission currently generates RISC V code for a core subset of the language defined earlier. This was finished by Septermber 1st, 2020.
 
