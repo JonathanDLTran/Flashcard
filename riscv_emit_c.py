@@ -21,6 +21,38 @@ FLOAT = "float"
 SIZEOF = {INT: 4, CHAR: 1, FLOAT: 8, }
 
 
+# ---------- OTHER SIZE UTILITIES ----------------------------------------
+def round_to_closest_pow(base, num):
+    """
+    rounds num to closest power of [base]
+    """
+    power = 1
+    while base ** power < num:
+        power += 1
+    return base ** power
+
+
+def sizeof(typ):
+    if type(typ) == ast_generator_c.IntType:
+        return SIZEOF[INT]
+    elif type(typ) == ast_generator_c.DeclareStruct:
+        typ_list = typ.get_typ_list()
+        sizes_list = list(map(lambda t: sizeof(t), typ_list))
+        rounded_sizes = list(
+            map(lambda s: round_to_closest_pow(2, s), sizes_list))
+        return sum(rounded_sizes)
+    elif type(typ) == ast_generator_c.DeclareUnion:
+        typ_list = typ.get_typ_list()
+        sizes_list = list(map(lambda t: sizeof(t), typ_list))
+        return max(sizes_list)
+    elif type(typ) == ast_generator_c.TupleType:
+        typ_list = typ.get_typ_list()
+        sizes_list = list(map(lambda t: sizeof(t), typ_list))
+        rounded_sizes = list(
+            map(lambda s: round_to_closest_pow(2, s), sizes_list))
+        return sum(rounded_sizes)
+
+
 # ---------- IR REGISTER CONSTANTS --------
 N_REGISTERS = 32
 
