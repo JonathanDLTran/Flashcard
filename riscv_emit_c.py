@@ -992,6 +992,9 @@ def gen_phrase(phrase, mapping, cmd_stack):
 
 
 def gen_program(program):
+    """
+    gen_program generates triples for the program
+    """
     cmd_stack = []
 
     cmd = (LABEL, "__main__")
@@ -1015,6 +1018,9 @@ def gen_program(program):
     cmd_stack.append(cmd)
 
     return cmd_stack
+
+
+# ---------- UTILITIES TO WRITE FULL PROGRAM ----------------
 
 
 def translate_to_riscv(triple_form):
