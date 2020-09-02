@@ -70,8 +70,10 @@ SET = "set"
 SET_STRUCT = "set_struct"
 ADD_STRUCT = "add_struct"
 DEL_STRUCT = "del_struct"
+GET_ARR = "get_arr"
+SET_ARR = "set_arr"
 EXTERNS_LIST = [PRINT, MEM, GET, LEN, SET,
-                GET_STRUCT, SET_STRUCT, ADD_STRUCT, DEL_STRUCT, ]
+                GET_STRUCT, SET_STRUCT, ADD_STRUCT, DEL_STRUCT, GET_ARR, SET_ARR, ]
 
 # ------- GRAMMAR PRODUCTION RULES ------------
 

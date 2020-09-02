@@ -288,6 +288,55 @@ def check_struct(struct, ctx):
         f"Struct Type with keys {key_names} and values {val_typs} has not been defined. Please define a Struct Type.")
 
 
+def check_extern_handler(extern, ctx):
+    """
+    check_extern_handler(extern, ctx) type checks a specific extern as a object extern
+    returns the pair of return type of the external function and list of declared_args_types
+
+    return is first, and then declared args is next
+    """
+    name = extern.get_fun()
+    args = extern.get_args()
+    args_typs = list(map(lambda a: check_expr(a, ctx), args))
+
+    if name == ast_generator_c.PRINT:
+        if len(args_typs) != 1:
+            raise TypeError(
+                f"{name} function requires exactly one argument. You gave {args_typs} arguments.")
+        return (ast_generator_c.IntType(), [ast_generator_c.WildcardType()])
+    elif name == ast_generator_c.GET_ARR:
+        if len(args_typs) != 2:
+            raise TypeError(
+                f"{name} function requires exactly two arguments. You gave {args_typs} arguments.")
+        pos = args_typs[0]
+        arr = args_typs[1]
+        if type(pos) != ast_generator_c.IntType:
+            raise TypeError(
+                f"{name} function requires its first argument to be an int [the position in the array]. You gave {pos} type instead.")
+        if type(arr) != ast_generator_c.ArrayType:
+            raise TypeError(
+                f"{name} function requires its second argument to be an array. You gave {arr} type instead.")
+        return (arr.get_typ(), args_typs)
+    elif name == ast_generator_c.SET_ARR:
+        if len(args_typs) != 3:
+            raise TypeError(
+                f"{name} function requires exactly three arguments. You gave {args_typs} arguments.")
+        pos = args_typs[0]
+        elt = args_typs[1]
+        arr = args_typs[2]
+        if type(pos) != ast_generator_c.IntType:
+            raise TypeError(
+                f"{name} function requires its first argument to be an int [the position in the array]. You gave {pos} type instead.")
+        if type(arr) != ast_generator_c.ArrayType:
+            raise TypeError(
+                f"{name} function requires its second argument to be an array. You gave {arr} type instead.")
+        arr_typ = arr.get_typ()
+        if arr_typ != elt:
+            raise TypeError(
+                f"{name} function requires its second argument to be an element of the same type as the types of the elements in the array You gave {arr} type for the array and type {elt} for the element.")
+        return (arr, args_typs)
+
+
 def check_extern(extern, ctx):
     """
     check_extern(extern, ctx) is the type of the extern or a excpetion
@@ -296,12 +345,7 @@ def check_extern(extern, ctx):
     args = extern.get_args()
     args_typs = list(map(lambda a: check_expr(a, ctx), args))
 
-    if ("function", name) not in ctx:
-        raise TypeError(
-            f"External function named {name} not bound in language. ")
-    func_typ, _ = ctx[("function", name)]
-    ret_typ = func_typ.get_ret_typ()
-    declared_arg_typs = func_typ.get_args_typs()
+    ret_typ, declared_arg_typs = check_extern_handler(extern, ctx)
 
     if declared_arg_typs == args_typs:
         return ret_typ
@@ -736,28 +780,6 @@ def check_phrase(phrase, ctx):
     return ctx
 
 
-def load_type_name_binding_ctx(typ, func_name, ctx):
-    """
-    load_type_name_binding_ctx(typ, func_name) loads in the function name
-    to the typ binding in ctx with a closure and returns ctx
-    """
-    func_ctx = deepcopy(ctx)
-    func_ctx[("function", func_name)] = (typ, func_ctx)
-    ctx[("function", func_name)] = (typ, func_ctx)
-    return ctx
-
-
-def load_extern_types(ctx):
-    """
-    load_extern_types() loads in the external types to the contxt 
-    and returns it
-    """
-    print_type = ast_generator_c.FuncType(
-        ast_generator_c.IntType(), [ast_generator_c.WildcardType()])
-    ctx = load_type_name_binding_ctx(print_type, "print", ctx)
-    return ctx
-
-
 def type_check(program):
     """
     Returns the program if the program type checks correctly else
@@ -766,14 +788,13 @@ def type_check(program):
     assert type(program) == ast_generator_c.Program
     phrases = program.get_phrases()
     ctx = {}
-    ctx = load_extern_types(ctx)
     for phrase in phrases:
         ctx = check_phrase(phrase, ctx)
     return program
 
 
 if __name__ == "__main__":
-    program = r'[|[|int<10>|]<10>|] arr := [|[|3, 4, 5|], [|3, 4, 5|], [|3, 4, 5|]|]; [|int<10>|] arr2 := [|3, 4, 5|]; ~print(1); ~print("lol"); struct singular := {use : bool;}; singular used := {|use <- True|}; struct time := {minutes:int; hours:int;}; ~{|minutes <- -15, hours<- 0|}; time st :={|minutes <- 4, hours<- 3|}; union singleton := NULL; ~@NULL(); singleton s := @NULL(); union school := Elementary of int | Middle of int; school sch := @Elementary(1); sch := @Elementary(2); union race := Black | White; ~{[]: [1, 2], []: []}; ~{}; ~(|1, True|); ~[1, 2, 3]; fun (|int -> int|) int_id x -> int u := 2; ~int_id(3); int r := int_id(u); return x; endfun {int : int} d := {1: 1, 2: -3}; d := {}; if True then int m := 1; endif elif True then int n:= -2; endelif elif True then int n:= -2; endelif else int o := 24; endelse  ~1; ~2 + 3 - 4;  bool k := True; while k dowhile k := False; endwhile  for i from 1 + 1 to 3 by 1 dofor int j := 1; endfor ([int] * int) tl := (|[], 3|); tl := (|[2], -3|); [(int * int)] l1 := []; l1 := [(|1, 2|)]; l1 := []; l1 := [(|-1, -2|)]; [[int]] l := []; l := [[1, 2], [3]]; l := [[2]]; l := []; float f := -1.0; str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z; (int * int) t := (|1, 2|); (int * (str * int)) t2 := (|1, (|"hello", 3|)|); t := (| -1, -1|);'
+    program = r'[|[|int<10>|]<10>|] arr := [|[|3, 4, 5|], [|3, 4, 5|], [|3, 4, 5|]|]; ~ get_arr(2, arr); ~ set_arr(2, [|2, 3|], arr);  [|int<10>|] arr10 := get_arr(2, arr); [|int<10>|] arr2 := [|3, 4, 5|]; ~print(1); ~print("lol"); struct singular := {use : bool;}; singular used := {|use <- True|}; struct time := {minutes:int; hours:int;}; ~{|minutes <- -15, hours<- 0|}; time st :={|minutes <- 4, hours<- 3|}; union singleton := NULL; ~@NULL(); singleton s := @NULL(); union school := Elementary of int | Middle of int; school sch := @Elementary(1); sch := @Elementary(2); union race := Black | White; ~{[]: [1, 2], []: []}; ~{}; ~(|1, True|); ~[1, 2, 3]; fun (|int -> int|) int_id x -> int u := 2; ~int_id(3); int r := int_id(u); return x; endfun {int : int} d := {1: 1, 2: -3}; d := {}; if True then int m := 1; endif elif True then int n:= -2; endelif elif True then int n:= -2; endelif else int o := 24; endelse  ~1; ~2 + 3 - 4;  bool k := True; while k dowhile k := False; endwhile  for i from 1 + 1 to 3 by 1 dofor int j := 1; endfor ([int] * int) tl := (|[], 3|); tl := (|[2], -3|); [(int * int)] l1 := []; l1 := [(|1, 2|)]; l1 := []; l1 := [(|-1, -2|)]; [[int]] l := []; l := [[1, 2], [3]]; l := [[2]]; l := []; float f := -1.0; str s1 := "hello"; str s2 := s1; int x := 3; int y := 4; x := y; y := 5; x := x + y; bool b1 := True; bool b2 := False; int z := -3; int w := x + y - z * z; (int * int) t := (|1, 2|); (int * (str * int)) t2 := (|1, (|"hello", 3|)|); t := (| -1, -1|);'
     try:
         result = type_check(
             ast_generator_c.parse_program(lexer_c.lex(program)))
