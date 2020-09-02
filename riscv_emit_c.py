@@ -62,11 +62,12 @@ SP = "x2"
 GP = "x3"
 TP = "x4"
 FP = "x8"
+A0 = "x10"
 BACKUP_REG = "x30"  # meant to be used as an intermediate with the throwaway
 THROWAWAY_REG = "x31"  # meant to be reused immediately
 
 ALL_REGISTERS = [f"x{i}" for i in range(N_REGISTERS)]
-SPECIAL_REGS = {RA, SP, GP, TP, FP, THROWAWAY_REG, BACKUP_REG, ZERO}
+SPECIAL_REGS = {RA, SP, GP, TP, FP, THROWAWAY_REG, BACKUP_REG, ZERO, A0}
 
 START_REG_VAR_MAP = {f"x{i}": None for i in range(N_REGISTERS)}
 
@@ -93,6 +94,7 @@ BEQ = "beq"
 BNE = "bne"
 BGE = "bge"
 BLT = "blt"
+ECALL = "ecall"
 
 
 # ---------- INFORMATION CLASSES ---------
@@ -131,12 +133,6 @@ class Mappings():
         # including those varibales it inherited from a previous stack frame
         self.closure_vars = closure_vars
 
-    def set_reg_map(self, reg_map):
-        self.reg_map = reg_map
-
-    def set_rev_reg_map(self, rev_reg_map):
-        self.rev_reg_map = rev_reg_map
-
     def set_while_idx(self, idx):
         self.while_idx = idx
 
@@ -151,12 +147,6 @@ class Mappings():
 
     def set_mappings(self, mappings):
         self.mappings = mappings
-
-    def get_reg_map(self):
-        return self.reg_map
-
-    def get_rev_reg_map(self):
-        return self.rev_reg_map
 
     def get_while_idx(self):
         return self.while_idx
@@ -279,7 +269,7 @@ def move_var_to_reg(reg_var_map, var_stack_map, var, cmd_stack):
         if _var == var:
             return reg
 
-    # check if there is an open register
+    # check if there is an open register and it is not a special register
     for reg, _var in reg_var_map.items():
         if reg not in SPECIAL_REGS:
             if _var == None:
@@ -317,6 +307,25 @@ def add_var_to_reg(reg_var_map, var_stack_map, var, reg, cmd_stack):
 
     cmd = (LW, reg, 0, THROWAWAY_REG)
     cmd_stack.append(cmd)
+
+
+def boot_all_vars(reg_var_map, var_stack_map, cmd_stack):
+    """
+    boot_all_vars() boots all variables from registers, spilling all variables
+    bound to a register to the stack instead
+    """
+    for reg, var in reg_var_map.items():
+        if var != None:
+            var_stack_loc = var_stack_map[var]
+
+            cmd = (LI, THROWAWAY_REG, var_stack_loc)
+            cmd_stack.append(cmd)
+
+            cmd = (SW, reg, 0, THROWAWAY_REG)
+            cmd_stack.append(cmd)
+
+    for reg in reg_var_map:
+        reg_var_map[reg] = None
 
 
 # ----------- CODE GENERATION -----------------
@@ -482,8 +491,18 @@ def gen_unop(unop, mapping, cmd_stack):
         return gen_bool_unop(unop, op, mapping, cmd_stack)
 
 
-def gen_array(array, mapping, cmd_stack):
-    pass
+def gen_array(array_base_loc_register, sizeof_elt, array, mapping, cmd_stack):
+    exprs_list = array.get_exprs()
+
+    i = 0
+    for expr in exprs_list:
+        # will never be a0 since a0 is special
+        reg = gen_expr(expr, mapping, cmd_stack)
+
+        cmd = (SW, reg, i * sizeof_elt, array_base_loc_register)
+        cmd_stack.append(cmd)
+
+        i += 1
 
 
 def gen_expr(expr, mapping, cmd_stack):
@@ -494,7 +513,7 @@ def gen_expr(expr, mapping, cmd_stack):
     elif type(expr) == ast_generator_c.VarValue:
         return gen_var(expr, mapping, cmd_stack)
     elif type(expr) == ast_generator_c.Array:
-        return gen_array(expr, mapping, cmd_stack)
+        raise RuntimeError("Arrays can only be made in array declarations.")
     elif type(expr) == ast_generator_c.Unop:
         return gen_unop(expr, mapping, cmd_stack)
     elif type(expr) == ast_generator_c.Bop:
@@ -589,11 +608,6 @@ def gen_for(_for, mapping, cmd_stack):
     # add for variable
     reg = move_var_to_reg(mapping.get_reg_var_map(),
                           mapping.get_var_stack_map(), index_var, cmd_stack)
-
-    # if index_var not in mapping.get_rev_reg_map():
-    #     reg = mapping.get_reg(index_var)
-    # else:
-    #     reg = mapping.get_rev_reg_map()[index_var]
 
     cmd = (LI, reg, _from)
     cmd_stack.append(cmd)
@@ -901,8 +915,58 @@ def gen_return(ret, mapping, cmd_stack):
     return
 
 
-def gen_declare_array(array, mapping, cmd_stack):
-    pass
+def gen_declare_array(decl_array, mapping, cmd_stack):
+    """
+    gen_declare_array 
+    clears all registers
+    asks for right amount of memory from mmap
+    """
+    arr_typ_obj = decl_array.get_typ()
+    arr_typ = arr_typ_obj.get_typ()
+    arr_len = arr_typ_obj.get_len()
+
+    type_size = sizeof(arr_typ)
+
+    bytes_of_memory = arr_len * type_size
+
+    boot_all_vars(mapping.get_reg_var_map(),
+                  mapping.get_var_stack_map(),
+                  cmd_stack)
+
+    # add 222 mmap in a7 or x17
+
+    cmd = (LI, "x17", 222)
+    cmd_stack.append(cmd)
+
+    cmd = (LI, A0, bytes_of_memory)
+    cmd_stack.append(cmd)
+    cmd = (LI, "x11", 0)
+    cmd_stack.append(cmd)
+    cmd = (LI, "x12", 0)
+    cmd_stack.append(cmd)
+    cmd = (LI, "x13", 0)
+    cmd_stack.append(cmd)
+    cmd = (LI, "x14", 0)
+    cmd_stack.append(cmd)
+    cmd = (LI, "x15", 0)
+    cmd_stack.append(cmd)
+
+    cmd = (ECALL,)
+    cmd_stack.append(cmd)
+
+    # register a0 or x10 holds the result of memory location
+    assign = decl_array.get_assign()
+    array_expr = assign.get_expr()
+    var = assign.get_var()
+
+    # update reg var map
+    reg_var_map = mapping.get_reg_var_map()
+    reg_var_map[A0] = var
+
+    # load each element of array into proper location on heap
+    gen_array(A0, type_size, array_expr, mapping, cmd_stack)
+
+    return
 
 
 def gen_phrase(phrase, mapping, cmd_stack):
@@ -953,7 +1017,7 @@ def gen_program(program):
 
 
 if __name__ == "__main__":
-    program = r"~not False; ~ -3; fun (|int -> int|) int_id x -> return x; endfun ~3 + 4; ~int_id(2); ~3 - 4; int x := 3; x:= 2; int z := 2; z := z + x + x; while True dowhile x := 1; endwhile for i from 1 to 3 by 1 dofor x := 1; endfor if True then int y := 4; endif"
+    program = r"[|int<10>|] arr := [|3|]; ~not False; ~ -3; fun (|int -> int|) int_id x -> return x; endfun ~3 + 4; ~int_id(2); ~3 - 4; int x := 3; x:= 2; int z := 2; z := z + x + x; while True dowhile x := 1; endwhile for i from 1 to 3 by 1 dofor x := 1; endfor if True then int y := 4; endif"
     ir = gen_program(
         type_check_c.type_check(
             ast_generator_c.parse_program(
