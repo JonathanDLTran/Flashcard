@@ -830,4 +830,13 @@ if __name__ == "__main__":
 # so we can downcast a generic: 't becomes an int
 # GENERIC SCOPE
 # 't type exists only in the function scope, and everywhere in the function
-# scrope
+# scope
+
+# Generics and containers types
+# One can declare a container type for generics
+# only in functions with generic arguments
+# e.g.
+# ['t] lst = [1, 2, 3];
+# is illegal!
+# but in a function,
+# one can append a 't to a ['t] list

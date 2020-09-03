@@ -254,6 +254,27 @@ class WildcardType(Type):
         return not self.__eq__(other)
 
 
+class GenericType(Type):
+    def __init__(self, name):
+        super().__init__()
+        self.name = name
+
+    def __repr__(self):
+        return "(GenericType : `" + str(self.name) + ")"
+
+    def __eq__(self, other):
+        if type(other) == WildcardType:
+            return True
+        if type(other) != GenericType:
+            return False
+        # may not be completely correct: other variants of the same type
+        # are still false!
+        return self.name == other.name
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+
 class CustomType(Type):
     def __init__(self, name):
         super().__init__()
@@ -1893,6 +1914,16 @@ def parse_array_type(lexbuf):
     return ArrayType(arr_type, arr_length)
 
 
+def parse_generic_type(lexbuf):
+    """
+    parse_generic_type parses the lexbuf into a generic type
+    """
+    assert lexbuf[0][1] == lexer_c.GENERIC_MARKER
+    assert lexbuf[1][0] == lexer_c.VARIABLE
+    generic_name = lexbuf[1][1]
+    return GenericType(generic_name)
+
+
 def parse_type(lexbuf):
     """
     Given a lexbuf that DEFINITEVLY contains a type, parses the tyupe out
@@ -1907,6 +1938,8 @@ def parse_type(lexbuf):
     elif len(lexbuf) == 1 and lexbuf[0][0] == lexer_c.VARIABLE:
         typ = lexbuf[0][1]
         return CustomType(typ)
+    elif len(lexbuf) == 2 and lexbuf[0][1] == lexer_c.GENERIC_MARKER:
+        return parse_generic_type(lexbuf)
     elif lexbuf[0][1] == lexer_c.OPEN_BRACKET:
         l, _ = get_between_brackets(
             lexbuf, 1, start=lexer_c.OPEN_BRACKET, end=lexer_c.CLOSE_BRACKET)  # start 1 aheaf
@@ -2060,6 +2093,19 @@ def parse_phrase(lexbuf):
             new_lex_buff = lexbuf[semi_loc + 1:]
             new_tokens = tokens[semi_loc + 1:]
             acc.append(parsed_dict)
+            return parse_phrase_helper(new_lex_buff, new_tokens, acc)
+
+        # generic type declaration (no container type around generic)
+        if lexbuf[0][1] == lexer_c.GENERIC_MARKER:
+            end_type_decl = tokens.index(lexer_c.SEMI)
+            decl_buff = lexbuf[0:end_type_decl]  # ignore semi
+            new_lex_buff = lexbuf[end_type_decl + 1:]
+            new_tokens = tokens[end_type_decl + 1:]
+            generic_typ = decl_buff[:2]
+            assign_buff = decl_buff[2:]
+            parsed_decl = Declaration(
+                parse_type(generic_typ), parse_assign(assign_buff))
+            acc.append(parsed_decl)
             return parse_phrase_helper(new_lex_buff, new_tokens, acc)
 
         # non custom type declaration
@@ -2864,6 +2910,10 @@ def parse_program(lexbuf):
 
 
 if __name__ == "__main__":
+    print(parse_phrase(lexer_c.lex(
+        "`a x := 3;")))
+    print(parse_phrase(lexer_c.lex(
+        "(`a * (`b * `a)) x := 3;")))
     print(parse_phrase(lexer_c.lex(
         "~3;")))
     print(parse_phrase(lexer_c.lex(

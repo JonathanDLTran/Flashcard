@@ -74,6 +74,7 @@ TAG = "@"
 OF = "of"
 OPEN_ARRAY = "[|"
 CLOSE_ARRAY = "|]"
+GENERIC_MARKER = "`"
 
 # Order matters in keywords
 keywords = sorted(
@@ -143,6 +144,7 @@ keywords = sorted(
         OF,
         OPEN_ARRAY,
         CLOSE_ARRAY,
+        GENERIC_MARKER,
 
     ],
     reverse=True)
@@ -258,6 +260,7 @@ NON_CHAR = [
     NEQ,
     PIPE,
     TAG,
+    GENERIC_MARKER,
 ]
 
 ALPHABETICAL = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
