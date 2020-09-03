@@ -804,3 +804,30 @@ if __name__ == "__main__":
             f"Return Exception caught: Return statements must be inside of function calls: Your return value of {re.get_ret_type()} was not nested in a function call.")
     except Exception as e:
         print(e)
+
+
+# TODO:
+# The next step is to add in support for generics
+# Generics can be defined in notation in this way:
+# 'a lst2 = lst1
+# 'a -> 'b -> 'a fun ...
+# Syntactically, we want to be able to type check generics lioke
+# any other type
+# 1. if generic and generic
+# e.g.
+# 't x := j;
+# 't y := x;
+# THIS TYPE CHECKS as x is a 't and thus y is a 't satisifies the type annotation
+# 2. Generic and non generic
+# 't x := 3
+# THIS FAILS TO TYPE CHECK. Specific instances of types cannot be assigned
+# to a generic
+# INSTEAD, ONE MUST DO int x := 3;
+# IT IS ILLEGAL TO UPCAST TO A GENERIC: int to 't is illegal
+# BUT ONE CAN DO AN ASSIGNMENT OF GENERICS FROM A FUNCTION
+# 't -> 't id x -> return x;
+# id(3) which turns t into an int
+# so we can downcast a generic: 't becomes an int
+# GENERIC SCOPE
+# 't type exists only in the function scope, and everywhere in the function
+# scrope
